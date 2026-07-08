@@ -65,8 +65,7 @@ export default function RingBalancingClient({ tournamentId, tournamentName, init
   const [beltFilter, setBeltFilter] = useState("");
   const [ageFilter, setAgeFilter] = useState("");
   const [sexFilter, setSexFilter] = useState("");
-  const [dayFilter, setDayFilter] = useState("");
-  const [sortBy, setSortBy] = useState<"name" | "athletes">("athletes");
+  const [sortBy, setSortBy] = useState<"name" | "athletes" | "weight">("athletes");
   const [sortOrder, setSortOrder] = useState<"asc" | "desc">("desc");
 
   // Initialize state from props (once on mount)
@@ -243,13 +242,25 @@ export default function RingBalancingClient({ tournamentId, tournamentName, init
       if (beltFilter && cat.belt !== beltFilter) return false;
       if (ageFilter && cat.age_bracket !== ageFilter) return false;
       if (sexFilter && cat.sex !== sexFilter) return false;
-      if (dayFilter && cat.day !== dayFilter) return false;
       return true;
     })
     .sort((a, b) => {
       let result = 0;
       if (sortBy === "athletes") {
         result = a.athletes_count - b.athletes_count;
+      } else if (sortBy === "weight") {
+        const getMinWeight = (w: string | null) => {
+          if (!w) return 0;
+          const match = w.match(/(\d+)/);
+          return match ? parseInt(match[1]) : 0;
+        };
+        const weightA = getMinWeight(a.weight_class);
+        const weightB = getMinWeight(b.weight_class);
+        if (weightA !== weightB) {
+          result = weightA - weightB;
+        } else {
+          result = (a.weight_class || "").localeCompare(b.weight_class || "");
+        }
       } else {
         result = a.name.localeCompare(b.name);
       }
@@ -259,7 +270,6 @@ export default function RingBalancingClient({ tournamentId, tournamentName, init
   const uniqueBelts = Array.from(new Set(initialCategories.map(c => c.belt).filter(Boolean)));
   const uniqueAges = Array.from(new Set(initialCategories.map(c => c.age_bracket).filter(Boolean)));
   const uniqueSexes = Array.from(new Set(initialCategories.map(c => c.sex).filter(Boolean)));
-  const uniqueDays = Array.from(new Set(initialCategories.map(c => c.day).filter(Boolean)));
 
   return (
     <div className="flex flex-col h-full overflow-hidden w-full">
@@ -308,7 +318,7 @@ export default function RingBalancingClient({ tournamentId, tournamentName, init
                 <h3 className="font-label-caps text-label-caps text-primary">Unassigned ({visibleUnassigned.length})</h3>
                 <button 
                   onClick={() => {
-                    setSearch(""); setBeltFilter(""); setAgeFilter(""); setSexFilter(""); setDayFilter("");
+                    setSearch(""); setBeltFilter(""); setAgeFilter(""); setSexFilter("");
                   }}
                   className="text-[10px] text-secondary hover:underline"
                 >Clear Filters</button>
@@ -356,15 +366,6 @@ export default function RingBalancingClient({ tournamentId, tournamentName, init
                   {uniqueSexes.map(s => <option key={s as string} value={s as string}>{s}</option>)}
                 </select>
 
-                <select 
-                  value={dayFilter} 
-                  onChange={e => setDayFilter(e.target.value)}
-                  className="min-w-[60px] bg-white border border-outline-variant rounded p-1 text-[10px] outline-none"
-                >
-                  <option value="">Day</option>
-                  {uniqueDays.map(d => <option key={d as string} value={d as string}>{d}</option>)}
-                </select>
-
                 <div className="w-full flex gap-2">
                   <select 
                     value={sortBy} 
@@ -373,6 +374,7 @@ export default function RingBalancingClient({ tournamentId, tournamentName, init
                   >
                     <option value="name">Sort: Name</option>
                     <option value="athletes">Sort: Athletes</option>
+                    <option value="weight">Sort: Weight</option>
                   </select>
                   <button
                     onClick={() => setSortOrder(sortOrder === "asc" ? "desc" : "asc")}
