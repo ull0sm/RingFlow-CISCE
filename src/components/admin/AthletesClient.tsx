@@ -10,6 +10,10 @@ type Athlete = {
   chest_number: string | null;
   category_id: string;
   categories?: { name: string };
+  school?: string | null;
+  school_code?: string | null;
+  sports_id?: string | null;
+  dojo?: string | null;
 };
 
 type Category = {
@@ -41,7 +45,10 @@ export default function AthletesClient({ tournamentId, initialAthletes, categori
   const [addForm, setAddForm] = useState({
     name: "",
     chest_number: "",
-    category_id: categories.length > 0 ? categories[0].id : ""
+    category_id: categories.length > 0 ? categories[0].id : "",
+    school: "",
+    school_code: "",
+    sports_id: ""
   });
 
   // Sync props
@@ -54,7 +61,14 @@ export default function AthletesClient({ tournamentId, initialAthletes, categori
     try {
       await addAthlete(tournamentId, addForm);
       setIsAdding(false);
-      setAddForm({ name: "", chest_number: "", category_id: categories.length > 0 ? categories[0].id : "" });
+      setAddForm({
+        name: "",
+        chest_number: "",
+        category_id: categories.length > 0 ? categories[0].id : "",
+        school: "",
+        school_code: "",
+        sports_id: ""
+      });
     } catch (err) {
       alert("Failed to add athlete");
     }
@@ -94,16 +108,33 @@ export default function AthletesClient({ tournamentId, initialAthletes, categori
       const worksheet = workbook.Sheets[sheetName];
       const json = XLSX.utils.sheet_to_json(worksheet) as any[];
 
-      // Expected columns: no, name, sex, belt, age, dojo, day
-      const parsedAthletes = json.map(row => ({
-        no: String(row.no || row.No || row.chest_number || ""),
-        name: String(row.name || row.Name || row.athlete || "Unknown"),
-        sex: String(row.sex || row.Sex || row.gender || ""),
-        belt: String(row.belt || row.Belt || ""),
-        age: String(row.age || row.Age || ""),
-        dojo: String(row.dojo || row.Dojo || row.club || ""),
-        day: String(row.day || row.Day || "")
-      })).filter(a => a.name !== "Unknown");
+      // Expected columns: Number, School, School Code, SPORTS ID, Name, category, age, sex
+      const parsedAthletes = json.map(row => {
+        const no = String(row.Number || row.number || row.no || row.No || row.chest_number || "");
+        const school = String(row.School || row.school || row.dojo || row.Dojo || row.club || "");
+        const schoolCode = String(row["School Code"] || row.school_code || row.SchoolCode || "");
+        const sportsId = String(row["SPORTS ID"] || row.sports_id || row.SportsId || "");
+        const name = String(row.Name || row.name || row.athlete || "Unknown");
+        const category = String(row.category || row.Category || "");
+        const age = String(row.age || row.Age || "");
+        const sex = String(row.sex || row.Sex || row.gender || "");
+        const belt = String(row.belt || row.Belt || "");
+        const day = String(row.day || row.Day || "");
+
+        return {
+          no,
+          name,
+          sex,
+          belt,
+          age,
+          dojo: school, // Map school to dojo for compatibility
+          school,
+          school_code: schoolCode,
+          sports_id: sportsId,
+          category,
+          day
+        };
+      }).filter(a => a.name !== "Unknown");
 
       if (parsedAthletes.length > 0) {
         setPreviewAthletes(parsedAthletes);
@@ -201,8 +232,11 @@ export default function AthletesClient({ tournamentId, initialAthletes, categori
         <table className="w-full text-left border-collapse">
           <thead className="bg-surface-container-low border-b border-outline-variant">
             <tr>
-              <th className="px-6 py-4 font-label-caps text-label-caps text-on-surface-variant w-32">Chest No.</th>
+              <th className="px-6 py-4 font-label-caps text-label-caps text-on-surface-variant w-24">Chest No.</th>
               <th className="px-6 py-4 font-label-caps text-label-caps text-on-surface-variant">Name</th>
+              <th className="px-6 py-4 font-label-caps text-label-caps text-on-surface-variant">School</th>
+              <th className="px-6 py-4 font-label-caps text-label-caps text-on-surface-variant w-28">School Code</th>
+              <th className="px-6 py-4 font-label-caps text-label-caps text-on-surface-variant w-32">Sports ID</th>
               <th className="px-6 py-4 font-label-caps text-label-caps text-on-surface-variant">Category</th>
               <th className="px-6 py-4 font-label-caps text-label-caps text-on-surface-variant text-right">Actions</th>
             </tr>
@@ -212,6 +246,9 @@ export default function AthletesClient({ tournamentId, initialAthletes, categori
               <tr className="bg-surface-container-low">
                 <td className="px-6 py-2"><input value={addForm.chest_number} onChange={e => setAddForm({...addForm, chest_number: e.target.value})} placeholder="No." className="w-full p-2 border rounded" /></td>
                 <td className="px-6 py-2"><input value={addForm.name} onChange={e => setAddForm({...addForm, name: e.target.value})} placeholder="Athlete Name" className="w-full p-2 border rounded" /></td>
+                <td className="px-6 py-2"><input value={addForm.school} onChange={e => setAddForm({...addForm, school: e.target.value})} placeholder="School" className="w-full p-2 border rounded" /></td>
+                <td className="px-6 py-2"><input value={addForm.school_code} onChange={e => setAddForm({...addForm, school_code: e.target.value})} placeholder="Code" className="w-full p-2 border rounded" /></td>
+                <td className="px-6 py-2"><input value={addForm.sports_id} onChange={e => setAddForm({...addForm, sports_id: e.target.value})} placeholder="Sports ID" className="w-full p-2 border rounded" /></td>
                 <td className="px-6 py-2">
                   <select value={addForm.category_id} onChange={e => setAddForm({...addForm, category_id: e.target.value})} className="w-full p-2 border rounded bg-white">
                     {categories.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
@@ -245,6 +282,9 @@ export default function AthletesClient({ tournamentId, initialAthletes, categori
               <tr key={athlete.id} className="hover:bg-surface-container-low transition-colors">
                 <td className="px-6 py-4 font-data-mono">{athlete.chest_number || "-"}</td>
                 <td className="px-6 py-4 font-bold text-primary">{athlete.name}</td>
+                <td className="px-6 py-4">{athlete.school || athlete.dojo || "-"}</td>
+                <td className="px-6 py-4 font-data-mono">{athlete.school_code || "-"}</td>
+                <td className="px-6 py-4 font-data-mono">{athlete.sports_id || "-"}</td>
                 <td className="px-6 py-4">
                   {editingAthleteId === athlete.id ? (
                     <select 
@@ -276,7 +316,7 @@ export default function AthletesClient({ tournamentId, initialAthletes, categori
             
             {!athletes || (athletes.length === 0 && !isAdding) && (
               <tr>
-                <td colSpan={4} className="px-6 py-8 text-center text-on-surface-variant italic">
+                <td colSpan={7} className="px-6 py-8 text-center text-on-surface-variant italic">
                   No athletes found in this tournament roster.
                 </td>
               </tr>
@@ -303,11 +343,12 @@ export default function AthletesClient({ tournamentId, initialAthletes, categori
                   <tr className="border-b border-outline-variant text-[10px] font-label-caps text-on-surface-variant uppercase tracking-wider">
                     <th className="py-2">No</th>
                     <th className="py-2">Name</th>
-                    <th className="py-2">Belt</th>
+                    <th className="py-2">School</th>
+                    <th className="py-2">School Code</th>
+                    <th className="py-2">Sports ID</th>
                     <th className="py-2">Age</th>
                     <th className="py-2">Sex</th>
-                    <th className="py-2">Day</th>
-                    <th className="py-2">Dojo</th>
+                    <th className="py-2">Category</th>
                   </tr>
                 </thead>
                 <tbody className="text-sm font-body-md text-on-surface">
@@ -315,11 +356,12 @@ export default function AthletesClient({ tournamentId, initialAthletes, categori
                     <tr key={i} className="border-b border-outline-variant/30 hover:bg-surface-container-highest/30 transition-colors">
                       <td className="py-2 font-data-mono text-outline">{a.no || "-"}</td>
                       <td className="py-2 font-bold text-primary">{a.name}</td>
-                      <td className="py-2">{a.belt || "-"}</td>
-                      <td className="py-2">{a.age || "-"}</td>
+                      <td className="py-2">{a.school || "-"}</td>
+                      <td className="py-2 font-data-mono">{a.school_code || "-"}</td>
+                      <td className="py-2 font-data-mono">{a.sports_id || "-"}</td>
+                      <td className="py-2 font-data-mono">{a.age || "-"}</td>
                       <td className="py-2">{a.sex || "-"}</td>
-                      <td className="py-2">{a.day || "-"}</td>
-                      <td className="py-2">{a.dojo || "-"}</td>
+                      <td className="py-2">{a.category || "-"}</td>
                     </tr>
                   ))}
                 </tbody>

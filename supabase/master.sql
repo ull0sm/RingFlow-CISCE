@@ -83,6 +83,9 @@ CREATE TABLE public.athletes (
     sex TEXT,
     day TEXT,
     dojo TEXT,
+    school TEXT,
+    school_code TEXT,
+    sports_id TEXT,
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 -- Category Assignments Table (Mapping Categories to Rings)

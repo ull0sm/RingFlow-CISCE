@@ -108,23 +108,27 @@ export default function CategoriesClient({ tournamentId, initialCategories }: Pr
         const text = await file.text();
         const data = JSON.parse(text);
         
-        // Expected format: { merged: [ { category_name, belt, age: {min, max}, sex, day, total_rows } ] }
-        if (data.merged && Array.isArray(data.merged)) {
-          parsedCategories = data.merged.map((c: any) => ({
-            name: c.category_name,
-            belt: c.belt,
-            age_min: c.age?.min,
-            age_max: c.age?.max,
-            sex: c.sex,
-            day: c.day || data.day,
-            athletes_count: c.total_rows || 0,
-            age_bracket: c.age ? `${c.age.min}-${c.age.max}` : "",
-            weight_class: "",
-          }));
+        let categoriesArray = [];
+        if (Array.isArray(data)) {
+          categoriesArray = data;
+        } else if (data.merged && Array.isArray(data.merged)) {
+          categoriesArray = data.merged;
         } else {
-          alert("Invalid JSON format. Expected { merged: [...] }");
+          alert("Invalid JSON format. Expected an array of categories or { merged: [...] }");
           return;
         }
+
+        parsedCategories = categoriesArray.map((c: any) => ({
+          name: c.category_name || c.name || "Unknown",
+          belt: c.belt || "",
+          age_min: c.age && typeof c.age === 'object' ? c.age.min : null,
+          age_max: c.age && typeof c.age === 'object' ? c.age.max : null,
+          sex: c.sex || "",
+          day: c.day || data.day || "",
+          athletes_count: c.total_rows || c.participants || c.athletes_count || 0,
+          age_bracket: c.age && typeof c.age === 'object' ? `${c.age.min}-${c.age.max}` : (typeof c.age === 'string' ? c.age : ""),
+          weight_class: c.category || c.weight_class || "",
+        })).filter((c: any) => c.name !== "Unknown");
       } else {
         const data = await file.arrayBuffer();
         const workbook = XLSX.read(data);
@@ -294,9 +298,10 @@ export default function CategoriesClient({ tournamentId, initialCategories }: Pr
                 <thead>
                   <tr className="border-b border-outline-variant text-[10px] font-label-caps text-on-surface-variant uppercase tracking-wider">
                     <th className="py-2">Category Name</th>
-                    <th className="py-2">Belt</th>
-                    <th className="py-2">Age Range</th>
+                    <th className="py-2">Age</th>
+                    <th className="py-2">Weight Class</th>
                     <th className="py-2">Sex</th>
+                    <th className="py-2">Belt</th>
                     <th className="py-2">Day</th>
                     <th className="py-2">Count</th>
                   </tr>
@@ -305,9 +310,10 @@ export default function CategoriesClient({ tournamentId, initialCategories }: Pr
                   {previewCategories.map((cat, i) => (
                     <tr key={i} className="border-b border-outline-variant/30 hover:bg-surface-container-highest/30 transition-colors">
                       <td className="py-2 font-bold text-primary">{cat.name}</td>
-                      <td className="py-2">{cat.belt || "-"}</td>
-                      <td className="py-2">{cat.age_min}-{cat.age_max}</td>
+                      <td className="py-2">{cat.age_bracket || (cat.age_min !== null && cat.age_max !== null ? `${cat.age_min}-${cat.age_max}` : "-")}</td>
+                      <td className="py-2">{cat.weight_class || "-"}</td>
                       <td className="py-2">{cat.sex || "-"}</td>
+                      <td className="py-2">{cat.belt || "-"}</td>
                       <td className="py-2">{cat.day || "-"}</td>
                       <td className="py-2 font-data-mono">{cat.athletes_count}</td>
                     </tr>

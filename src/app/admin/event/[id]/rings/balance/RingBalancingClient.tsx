@@ -63,6 +63,7 @@ export default function RingBalancingClient({ tournamentId, tournamentName, init
   // Filter & Sort State
   const [search, setSearch] = useState("");
   const [beltFilter, setBeltFilter] = useState("");
+  const [ageFilter, setAgeFilter] = useState("");
   const [sexFilter, setSexFilter] = useState("");
   const [dayFilter, setDayFilter] = useState("");
   const [sortBy, setSortBy] = useState<"name" | "athletes">("athletes");
@@ -240,6 +241,7 @@ export default function RingBalancingClient({ tournamentId, tournamentName, init
     .filter(cat => {
       if (search && !cat.name.toLowerCase().includes(search.toLowerCase())) return false;
       if (beltFilter && cat.belt !== beltFilter) return false;
+      if (ageFilter && cat.age_bracket !== ageFilter) return false;
       if (sexFilter && cat.sex !== sexFilter) return false;
       if (dayFilter && cat.day !== dayFilter) return false;
       return true;
@@ -255,6 +257,7 @@ export default function RingBalancingClient({ tournamentId, tournamentName, init
     });
 
   const uniqueBelts = Array.from(new Set(initialCategories.map(c => c.belt).filter(Boolean)));
+  const uniqueAges = Array.from(new Set(initialCategories.map(c => c.age_bracket).filter(Boolean)));
   const uniqueSexes = Array.from(new Set(initialCategories.map(c => c.sex).filter(Boolean)));
   const uniqueDays = Array.from(new Set(initialCategories.map(c => c.day).filter(Boolean)));
 
@@ -305,7 +308,7 @@ export default function RingBalancingClient({ tournamentId, tournamentName, init
                 <h3 className="font-label-caps text-label-caps text-primary">Unassigned ({visibleUnassigned.length})</h3>
                 <button 
                   onClick={() => {
-                    setSearch(""); setBeltFilter(""); setSexFilter(""); setDayFilter("");
+                    setSearch(""); setBeltFilter(""); setAgeFilter(""); setSexFilter(""); setDayFilter("");
                   }}
                   className="text-[10px] text-secondary hover:underline"
                 >Clear Filters</button>
@@ -322,14 +325,27 @@ export default function RingBalancingClient({ tournamentId, tournamentName, init
 
               {/* Filters */}
               <div className="flex gap-2 flex-wrap">
-                <select 
-                  value={beltFilter} 
-                  onChange={e => setBeltFilter(e.target.value)}
-                  className="flex-1 min-w-[70px] bg-white border border-outline-variant rounded p-1 text-[10px] outline-none"
-                >
-                  <option value="">All Belts</option>
-                  {uniqueBelts.map(b => <option key={b as string} value={b as string}>{b}</option>)}
-                </select>
+                {uniqueBelts.length > 0 && (
+                  <select 
+                    value={beltFilter} 
+                    onChange={e => setBeltFilter(e.target.value)}
+                    className="flex-1 min-w-[70px] bg-white border border-outline-variant rounded p-1 text-[10px] outline-none"
+                  >
+                    <option value="">All Belts</option>
+                    {uniqueBelts.map(b => <option key={b as string} value={b as string}>{b}</option>)}
+                  </select>
+                )}
+
+                {uniqueAges.length > 0 && (
+                  <select 
+                    value={ageFilter} 
+                    onChange={e => setAgeFilter(e.target.value)}
+                    className="flex-1 min-w-[70px] bg-white border border-outline-variant rounded p-1 text-[10px] outline-none"
+                  >
+                    <option value="">Age</option>
+                    {uniqueAges.map(a => <option key={a as string} value={a as string}>{a}</option>)}
+                  </select>
+                )}
 
                 <select 
                   value={sexFilter} 
@@ -388,11 +404,14 @@ export default function RingBalancingClient({ tournamentId, tournamentName, init
                             <div className="flex gap-1 flex-wrap">
                               {cat.belt && <span className="px-1.5 py-0.5 bg-surface-container-high text-on-surface rounded text-[9px] font-bold uppercase">{cat.belt}</span>}
                               {cat.sex && <span className="px-1.5 py-0.5 bg-surface-container-high text-on-surface rounded text-[9px] font-bold uppercase">{cat.sex}</span>}
-                              {(cat.age_min !== null || cat.age_max !== null) && (
+                              {cat.age_bracket ? (
+                                <span className="px-1.5 py-0.5 bg-surface-container-high text-on-surface rounded text-[9px] font-bold uppercase">{cat.age_bracket}</span>
+                              ) : (cat.age_min !== null || cat.age_max !== null) && (
                                 <span className="px-1.5 py-0.5 bg-surface-container-high text-on-surface rounded text-[9px] font-bold uppercase">
                                   {cat.age_min}-{cat.age_max}
                                 </span>
                               )}
+                              {cat.weight_class && <span className="px-1.5 py-0.5 bg-surface-container-high text-on-surface rounded text-[9px] font-bold uppercase">{cat.weight_class}</span>}
                               {cat.day && <span className="px-1.5 py-0.5 bg-surface-container-high text-on-surface rounded text-[9px] font-bold uppercase">{cat.day}</span>}
                             </div>
                             <span className="material-symbols-outlined text-outline-variant text-sm">drag_indicator</span>
@@ -459,7 +478,9 @@ export default function RingBalancingClient({ tournamentId, tournamentName, init
                             <div key={cat.id} className="p-3 bg-white border border-outline-variant rounded-lg flex flex-col gap-1 shadow-sm relative overflow-hidden">
                               <div className="absolute top-0 left-0 w-1 h-full bg-green-500"></div>
                               <div className="flex justify-between items-center ml-2">
-                                <span className="text-[10px] font-bold text-secondary uppercase tracking-wider">{cat.age_bracket} | {cat.weight_class}</span>
+                                <span className="text-[10px] font-bold text-secondary uppercase tracking-wider">
+                                  {(cat.age_bracket || (cat.age_min !== null && cat.age_max !== null ? `${cat.age_min}-${cat.age_max}` : ""))} | {cat.weight_class || cat.belt || "-"}
+                                </span>
                                 <span className="text-[10px] font-bold text-green-600 bg-green-500/10 px-1.5 py-0.5 rounded flex items-center gap-1">
                                   <span className="material-symbols-outlined text-[12px]">done_all</span>
                                   {timeStr}
@@ -526,7 +547,9 @@ export default function RingBalancingClient({ tournamentId, tournamentName, init
                                 className={`p-3 bg-surface-container-lowest border ${snapshot.isDragging ? 'border-secondary shadow-lg' : 'border-outline-variant'} rounded-lg`}
                               >
                                 <div className="flex justify-between items-center mb-1">
-                                  <span className="text-[9px] font-bold text-secondary uppercase tracking-wider">{cat.age_bracket} | {cat.weight_class}</span>
+                                  <span className="text-[9px] font-bold text-secondary uppercase tracking-wider">
+                                    {(cat.age_bracket || (cat.age_min !== null && cat.age_max !== null ? `${cat.age_min}-${cat.age_max}` : ""))} | {cat.weight_class || cat.belt || "-"}
+                                  </span>
                                   <span className="font-data-mono text-[10px] font-bold">{Math.ceil((cat.expected_matches * 109) / 60)}m</span>
                                 </div>
                                 <h5 className="text-xs font-bold text-primary mb-2">{cat.name}</h5>

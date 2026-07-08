@@ -8,6 +8,9 @@ export type AthleteInput = {
   name: string;
   chest_number: string;
   category_id: string;
+  school?: string | null;
+  school_code?: string | null;
+  sports_id?: string | null;
 };
 
 export async function addAthlete(tournamentId: string, input: AthleteInput) {
@@ -17,7 +20,11 @@ export async function addAthlete(tournamentId: string, input: AthleteInput) {
   const { error } = await supabase.from("athletes").insert({
     category_id: input.category_id,
     name: input.name,
-    chest_number: input.chest_number
+    chest_number: input.chest_number,
+    school: input.school || null,
+    school_code: input.school_code || null,
+    sports_id: input.sports_id || null,
+    dojo: input.school || null // Keep dojo column updated for compatibility
   });
 
   if (error) throw new Error(error.message);
@@ -122,15 +129,29 @@ export async function bulkAddMasterAthletes(tournamentId: string, athletes: any[
   if (categories) {
     for (const c of categories) {
       // Map by name (fallback if someone uploads that)
-      catMap.set(c.name.toLowerCase(), c.id);
+      catMap.set(c.name.toLowerCase().trim(), c.id);
     }
   }
 
   const toInsert = athletes.map(a => {
     let matchedId = null;
     
-    // Attempt match by composite logic
-    if (a.belt && a.sex) {
+    // 1. Match by constructed category name: age_sex_category (e.g. U14_F_18 - 22 Kgs)
+    if (a.age && a.sex && a.category) {
+      const constructedName = `${a.age.trim()}_${a.sex.trim()}_${a.category.trim()}`.toLowerCase();
+      matchedId = catMap.get(constructedName) || null;
+    }
+
+    // 2. If we passed a specific category name instead
+    if (!matchedId && a.category_name) {
+      matchedId = catMap.get(a.category_name.toLowerCase().trim()) || null;
+    }
+    if (!matchedId && a.category) {
+      matchedId = catMap.get(a.category.toLowerCase().trim()) || null;
+    }
+
+    // 3. Fallback to older composite matching logic
+    if (!matchedId && a.belt && a.sex) {
       const athleteAge = parseInt(a.age) || 0;
       const aBelt = a.belt.trim().toLowerCase();
       const aSex = a.sex.trim().toLowerCase();
@@ -151,11 +172,6 @@ export async function bulkAddMasterAthletes(tournamentId: string, athletes: any[
         matchedId = matchedCat.id;
       }
     }
-    
-    // If we passed a specific category name instead
-    if (!matchedId && a.category_name) {
-      matchedId = catMap.get(a.category_name.toLowerCase()) || null;
-    }
 
     return {
       category_id: matchedId, // will be null if Uncategorized
@@ -165,7 +181,10 @@ export async function bulkAddMasterAthletes(tournamentId: string, athletes: any[
       belt: a.belt || null,
       age: a.age || null,
       sex: a.sex || null,
-      dojo: a.dojo || null,
+      dojo: a.school || a.dojo || null, // Map school to dojo for compatibility
+      school: a.school || null,
+      school_code: a.school_code || null,
+      sports_id: a.sports_id || null,
       day: a.day || null,
     };
   });
