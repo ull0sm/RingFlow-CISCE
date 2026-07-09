@@ -19,7 +19,7 @@ export async function addCategory(tournamentId: string, input: CategoryInput) {
 
   if (!tournament) throw new Error("Unauthorized or tournament not found");
 
-  const expectedMatches = (2 * (input.athletes_count > 0 ? input.athletes_count : 1)) - 1;
+  const expectedMatches = Math.max(0, input.athletes_count - 1);
 
   const { data, error } = await supabase
     .from("categories")
@@ -61,7 +61,7 @@ export async function bulkAddCategories(tournamentId: string, categories: any[])
     age_bracket: cat.age_bracket,
     weight_class: cat.weight_class,
     athletes_count: cat.athletes_count,
-    expected_matches: (2 * (cat.athletes_count > 0 ? cat.athletes_count : 1)) - 1,
+    expected_matches: Math.max(0, (cat.athletes_count || 0) - 1),
     has_full_roster: false,
     belt: cat.belt || null,
     age_min: cat.age_min || null,

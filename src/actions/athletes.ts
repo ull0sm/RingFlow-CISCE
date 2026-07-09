@@ -71,7 +71,7 @@ export async function bulkAddAthletes(tournamentId: string, categoryName: string
 
   if (!cat) {
     // Auto-create category
-    const expectedMatches = (2 * (athletes.length > 0 ? athletes.length : 1)) - 1;
+    const expectedMatches = Math.max(0, athletes.length - 1);
     const { data: newCat, error: catError } = await supabase
       .from("categories")
       .insert({
@@ -93,7 +93,11 @@ export async function bulkAddAthletes(tournamentId: string, categoryName: string
     // This is MVP, so a simple approach: fetch current, add, update.
     const { data: currentCat } = await supabase.from("categories").select("athletes_count").eq("id", cat.id).single();
     if (currentCat) {
-      await supabase.from("categories").update({ athletes_count: currentCat.athletes_count + athletes.length }).eq("id", cat.id);
+      const newCount = currentCat.athletes_count + athletes.length;
+      await supabase.from("categories").update({
+        athletes_count: newCount,
+        expected_matches: Math.max(0, newCount - 1)
+      }).eq("id", cat.id);
     }
   }
 

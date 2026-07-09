@@ -47,9 +47,8 @@ export async function createTournament(input: TournamentInput) {
   // 2. Create Categories
   if (input.categories.length > 0) {
     const categoriesToInsert = input.categories.map((c) => {
-      // expected_matches = 2n - 1
-      const count = c.athletes_count > 0 ? c.athletes_count : 1;
-      const expectedMatches = (2 * count) - 1;
+      // expected_matches = n - 1
+      const expectedMatches = Math.max(0, c.athletes_count - 1);
 
       return {
         tournament_id: tournamentId,
