@@ -112,7 +112,7 @@ export default function RingBalancingClient({ tournamentId, tournamentName, init
   }, [initialCategories, initialRings, initialAssignments, isInitialized]);
 
   const executeDrag = (result: DropResult) => {
-    const { source, destination } = result;
+    const { source, destination, draggableId } = result;
     if (!destination) return;
     if (source.droppableId === destination.droppableId && source.index === destination.index) return;
 
@@ -123,14 +123,21 @@ export default function RingBalancingClient({ tournamentId, tournamentName, init
       nextRingQueues[key] = [...ringQueues[key]];
     });
 
-    // 2. Find and extract the category from the source position
+    // 2. Find and extract the category from the source list.
+    //    IMPORTANT: When the source is "unassigned", the rendered list is visibleUnassigned
+    //    (filtered + sorted), so source.index is relative to that filtered view — NOT to the
+    //    raw unassigned array. We use draggableId (category id) to locate the item in the
+    //    actual state array to avoid removing the wrong category.
     let movedItem: Category | undefined;
     if (source.droppableId === "unassigned") {
-      movedItem = nextUnassigned[source.index];
-      nextUnassigned.splice(source.index, 1);
+      const realIndex = nextUnassigned.findIndex(c => c.id === draggableId);
+      if (realIndex === -1) return;
+      movedItem = nextUnassigned[realIndex];
+      nextUnassigned.splice(realIndex, 1);
     } else {
       const sourceQueue = nextRingQueues[source.droppableId];
       if (sourceQueue) {
+        // Ring queues are not filtered, so source.index is reliable here
         movedItem = sourceQueue[source.index];
         sourceQueue.splice(source.index, 1);
       }
@@ -140,7 +147,23 @@ export default function RingBalancingClient({ tournamentId, tournamentName, init
 
     // 3. Insert the category into the destination position
     if (destination.droppableId === "unassigned") {
-      nextUnassigned.splice(destination.index, 0, movedItem);
+      // Destination index is in the visible list order; insert at that position in the full array.
+      // Find the item currently at that visible position and insert before it, or append.
+      const visibleAtDest = unassigned
+        .filter(cat => {
+          if (search && !cat.name.toLowerCase().includes(search.toLowerCase())) return false;
+          if (beltFilter && cat.belt !== beltFilter) return false;
+          if (ageFilter && cat.age_bracket !== ageFilter) return false;
+          if (sexFilter && cat.sex !== sexFilter) return false;
+          return true;
+        });
+      const anchorItem = visibleAtDest[destination.index];
+      if (anchorItem) {
+        const anchorIndex = nextUnassigned.findIndex(c => c.id === anchorItem.id);
+        nextUnassigned.splice(anchorIndex >= 0 ? anchorIndex : nextUnassigned.length, 0, movedItem);
+      } else {
+        nextUnassigned.push(movedItem);
+      }
     } else {
       const destQueue = nextRingQueues[destination.droppableId] || [];
       destQueue.splice(destination.index, 0, movedItem);
