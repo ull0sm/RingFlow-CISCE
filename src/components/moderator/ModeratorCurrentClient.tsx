@@ -15,6 +15,7 @@ export default function ModeratorCurrentClient({ ringId, initialAssignments, all
   const [returnConfirmText, setReturnConfirmText] = useState("");
   const [showCompleteModal, setShowCompleteModal] = useState(false);
   const [syncErrorModal, setSyncErrorModal] = useState<{ title: string; message: string; isUnauthorized: boolean } | null>(null);
+  const [showAdvancedModalOptions, setShowAdvancedModalOptions] = useState(false);
   const router = useRouter();
   const supabase = createClient();
 
@@ -460,28 +461,46 @@ export default function ModeratorCurrentClient({ ringId, initialAssignments, all
             <p className="text-body-sm text-on-surface-variant leading-relaxed">
               {syncErrorModal.message}
             </p>
-            <div className="flex flex-col gap-2 pt-2">
+            <div className="flex flex-col gap-3 pt-2">
               <button
                 onClick={() => window.location.reload()}
-                className="w-full py-3 bg-primary text-on-primary font-bold rounded-xl flex items-center justify-center gap-2 hover:opacity-90 transition-opacity"
+                className="w-full py-3 bg-primary text-on-primary font-bold rounded-xl flex items-center justify-center gap-2 hover:opacity-90 transition-opacity shadow-sm"
               >
                 <span className="material-symbols-outlined text-lg">refresh</span>
                 Reload Page
               </button>
-              <button
-                onClick={async () => {
-                  try {
-                    await logoutModerator();
-                  } catch (err) {
-                    console.error(err);
-                  }
-                  router.push("/moderator/login");
-                }}
-                className="w-full py-3 bg-surface-container hover:bg-surface-container-high text-on-surface font-semibold rounded-xl flex items-center justify-center gap-2 border border-outline-variant"
-              >
-                <span className="material-symbols-outlined text-lg">logout</span>
-                Logout & Re-login
-              </button>
+
+              <div className="pt-1 text-center">
+                <button
+                  type="button"
+                  onClick={() => setShowAdvancedModalOptions(!showAdvancedModalOptions)}
+                  className="text-xs text-on-surface-variant hover:text-on-surface flex items-center justify-center gap-1 mx-auto transition-colors font-medium py-1"
+                >
+                  <span>More Options</span>
+                  <span className="material-symbols-outlined text-base">
+                    {showAdvancedModalOptions ? 'expand_less' : 'expand_more'}
+                  </span>
+                </button>
+
+                {showAdvancedModalOptions && (
+                  <div className="mt-3 pt-3 border-t border-outline-variant animate-fadeIn">
+                    <button
+                      onClick={async () => {
+                        try {
+                          await logoutModerator();
+                        } catch (err) {
+                          console.error(err);
+                        }
+                        router.push("/moderator/login");
+                      }}
+                      className="w-full py-2.5 bg-error/10 hover:bg-error/20 text-error font-semibold rounded-xl flex items-center justify-center gap-2 text-xs transition-colors border border-error/20"
+                    >
+                      <span className="material-symbols-outlined text-base">logout</span>
+                      Logout & Re-login
+                    </button>
+                  </div>
+                )}
+              </div>
             </div>
           </div>
         </div>
