@@ -3,7 +3,7 @@
 import React, { useState, useEffect } from "react";
 import { createClient } from "@/utils/supabase/client";
 import { useRouter } from "next/navigation";
-import { adjustMatchCount, finishCategory, setRingStatus, returnCategoryToQueue, logRingEvent } from "@/actions/moderator";
+import { adjustMatchCount, finishCategory, setRingStatus, returnCategoryToQueue, logRingEvent, logoutModerator } from "@/actions/moderator";
 import MatchTimer from "@/components/moderator/MatchTimer";
 
 export default function ModeratorCurrentClient({ ringId, initialAssignments, allAthletes }: { ringId: string, initialAssignments: any[], allAthletes: any[] }) {
@@ -14,6 +14,7 @@ export default function ModeratorCurrentClient({ ringId, initialAssignments, all
   const [showReturnModal, setShowReturnModal] = useState(false);
   const [returnConfirmText, setReturnConfirmText] = useState("");
   const [showCompleteModal, setShowCompleteModal] = useState(false);
+  const [syncErrorModal, setSyncErrorModal] = useState<{ title: string; message: string; isUnauthorized: boolean } | null>(null);
   const router = useRouter();
   const supabase = createClient();
 
@@ -65,12 +66,64 @@ export default function ModeratorCurrentClient({ ringId, initialAssignments, all
     );
   }
 
+  const [isUpdatingMatch, setIsUpdatingMatch] = useState(false);
+  const [activeDelta, setActiveDelta] = useState<number | null>(null);
+  const [clickTimestamps, setClickTimestamps] = useState<number[]>([]);
+  const [spamNotice, setSpamNotice] = useState<string | null>(null);
+
   const handleAdjustMatch = async (delta: number) => {
+    if (isUpdatingMatch || loading) return;
+
+    const now = Date.now();
+    const windowMs = 2500;
+    const recent = clickTimestamps.filter(t => now - t < windowMs);
+
+    // If 3 rapid clicks occur in short duration (2 existing + current 1), reject all!
+    if (recent.length >= 2) {
+      setClickTimestamps([]);
+      setSpamNotice("Too many rapid clicks. Action rejected to protect the system.");
+      setTimeout(() => setSpamNotice(null), 3500);
+      return;
+    }
+
+    setClickTimestamps([...recent, now]);
+    setIsUpdatingMatch(true);
+    setActiveDelta(delta);
+
     try {
-      await adjustMatchCount(activeAssignment.id, ringId, delta);
-    } catch (e) {
+      const res = await adjustMatchCount(activeAssignment.id, ringId, delta);
+      if (res && typeof res.matches_completed === 'number') {
+        setAssignments(prev => {
+          const idx = prev.findIndex(a => a.id === activeAssignment.id);
+          if (idx > -1) {
+            const copy = [...prev];
+            copy[idx] = { ...copy[idx], matches_completed: res.matches_completed };
+            return copy;
+          }
+          return prev;
+        });
+      }
+    } catch (e: any) {
       console.error(e);
-      alert("Failed to update score");
+      if (e?.message?.includes("Too many rapid attempts")) {
+        setSpamNotice("Too many rapid clicks. Action rejected.");
+        setTimeout(() => setSpamNotice(null), 3500);
+      } else if (e?.message?.includes("Unauthorized") || e?.message?.includes("Session")) {
+        setSyncErrorModal({
+          title: "Session Expired",
+          message: "Your moderator session is no longer active. Please re-login with your access code or reload the page.",
+          isUnauthorized: true
+        });
+      } else {
+        setSyncErrorModal({
+          title: "Failed to Update Score",
+          message: e?.message || "Could not save match update to database. Please reload the page or try re-logging in.",
+          isUnauthorized: false
+        });
+      }
+    } finally {
+      setIsUpdatingMatch(false);
+      setActiveDelta(null);
     }
   };
 
@@ -214,10 +267,15 @@ export default function ModeratorCurrentClient({ ringId, initialAssignments, all
 
         <div className="space-y-3 mt-6">
           <div className="flex justify-between items-center font-body-sm text-body-sm">
-            <span className="font-semibold text-primary">{currentCompleted} / {totalMatches} <span className="font-normal text-on-surface-variant">Completed</span></span>
+            <span className="font-semibold text-primary inline-flex items-center gap-1.5">
+              {currentCompleted} / {totalMatches} <span className="font-normal text-on-surface-variant">Completed</span>
+              {isUpdatingMatch && (
+                <span className="inline-block w-3.5 h-3.5 border-2 border-secondary border-t-transparent rounded-full animate-spin ml-1"></span>
+              )}
+            </span>
             <span className="text-secondary font-bold">{percentage.toFixed(0)}% Complete</span>
           </div>
-          <div className="w-full bg-surface-container-high h-2.5 rounded-full overflow-hidden">
+          <div className={`w-full bg-surface-container-high h-2.5 rounded-full overflow-hidden ${isUpdatingMatch ? 'animate-pulse' : ''}`}>
             <div className={`${isPaused ? 'bg-error/40' : 'bg-secondary'} h-full transition-all duration-500 ease-out`} style={{ width: `${Math.min(100, percentage)}%` }}></div>
           </div>
           <div className="flex justify-between text-on-surface-variant font-label-caps text-label-caps pt-1">
@@ -230,20 +288,46 @@ export default function ModeratorCurrentClient({ ringId, initialAssignments, all
       <MatchTimer ringId={ringId} isPaused={isPaused} />
 
       <section className="space-y-4 mb-10">
-        <h3 className="font-label-caps text-label-caps text-on-surface-variant px-1">MATCH ADJUSTMENT</h3>
+        <div className="flex items-center justify-between px-1">
+          <h3 className="font-label-caps text-label-caps text-on-surface-variant">MATCH ADJUSTMENT</h3>
+          {isUpdatingMatch && (
+            <span className="text-xs text-secondary font-medium animate-pulse flex items-center gap-1">
+              <span className="w-2 h-2 rounded-full bg-secondary animate-ping"></span> Updating...
+            </span>
+          )}
+        </div>
+
+        {spamNotice && (
+          <div className="bg-error-container/90 text-on-error-container border border-error/20 p-3 rounded-xl text-sm font-semibold flex items-center gap-2 animate-fadeIn">
+            <span className="material-symbols-outlined text-base">block</span>
+            <span>{spamNotice}</span>
+          </div>
+        )}
+
         <div className="grid grid-cols-2 gap-4">
-          <button onClick={() => handleAdjustMatch(-1)} disabled={isPaused || loading} className="bg-surface-container-lowest border border-outline-variant h-16 rounded-xl flex items-center justify-center active:scale-95 transition-transform hover:bg-surface-container shadow-sm disabled:opacity-50">
-            <span className="font-headline-sm text-headline-sm text-primary">-1</span>
-          </button>
-          <button onClick={() => handleAdjustMatch(1)} disabled={isPaused || loading} className="bg-surface-container-lowest border border-outline-variant h-16 rounded-xl flex items-center justify-center active:scale-95 transition-transform hover:bg-surface-container shadow-sm disabled:opacity-50">
-            <span className="font-headline-sm text-headline-sm text-primary">+1</span>
-          </button>
-          <button onClick={() => handleAdjustMatch(-5)} disabled={isPaused || loading} className="bg-surface-container-lowest border border-outline-variant h-16 rounded-xl flex items-center justify-center active:scale-95 transition-transform hover:bg-surface-container shadow-sm disabled:opacity-50">
-            <span className="font-headline-sm text-headline-sm text-on-surface-variant">-5</span>
-          </button>
-          <button onClick={() => handleAdjustMatch(5)} disabled={isPaused || loading} className="bg-surface-container-lowest border border-outline-variant h-16 rounded-xl flex items-center justify-center active:scale-95 transition-transform hover:bg-surface-container shadow-sm disabled:opacity-50">
-            <span className="font-headline-sm text-headline-sm text-on-surface-variant">+5</span>
-          </button>
+          {[
+            { delta: -1, label: "-1", colorClass: "text-primary" },
+            { delta: 1, label: "+1", colorClass: "text-primary" },
+            { delta: -5, label: "-5", colorClass: "text-on-surface-variant" },
+            { delta: 5, label: "+5", colorClass: "text-on-surface-variant" },
+          ].map(({ delta, label, colorClass }) => {
+            const isThisUpdating = activeDelta === delta && isUpdatingMatch;
+            const isDisabled = isPaused || loading || isUpdatingMatch;
+            return (
+              <button
+                key={delta}
+                onClick={() => handleAdjustMatch(delta)}
+                disabled={isDisabled}
+                className="bg-surface-container-lowest border border-outline-variant h-16 rounded-xl flex items-center justify-center active:scale-95 transition-transform hover:bg-surface-container shadow-sm disabled:opacity-50 disabled:cursor-not-allowed disabled:active:scale-100 relative"
+              >
+                {isThisUpdating ? (
+                  <span className="w-6 h-6 border-2 border-primary border-t-transparent rounded-full animate-spin"></span>
+                ) : (
+                  <span className={`font-headline-sm text-headline-sm ${colorClass}`}>{label}</span>
+                )}
+              </button>
+            );
+          })}
         </div>
       </section>
 
@@ -362,6 +446,43 @@ export default function ModeratorCurrentClient({ ringId, initialAssignments, all
               </button>
             </div>
             <button onClick={() => setShowCompleteModal(false)} className="w-full mt-2 py-2 text-on-surface-variant font-bold text-sm">Cancel</button>
+          </div>
+        </div>
+      )}
+
+      {syncErrorModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4">
+          <div className="bg-surface-container-lowest p-6 rounded-xl max-w-sm w-full space-y-4 shadow-xl border border-outline-variant">
+            <div className="flex items-center gap-3 text-error">
+              <span className="material-symbols-outlined text-3xl">warning</span>
+              <h3 className="font-headline-sm text-headline-sm font-bold text-on-surface">{syncErrorModal.title}</h3>
+            </div>
+            <p className="text-body-sm text-on-surface-variant leading-relaxed">
+              {syncErrorModal.message}
+            </p>
+            <div className="flex flex-col gap-2 pt-2">
+              <button
+                onClick={() => window.location.reload()}
+                className="w-full py-3 bg-primary text-on-primary font-bold rounded-xl flex items-center justify-center gap-2 hover:opacity-90 transition-opacity"
+              >
+                <span className="material-symbols-outlined text-lg">refresh</span>
+                Reload Page
+              </button>
+              <button
+                onClick={async () => {
+                  try {
+                    await logoutModerator();
+                  } catch (err) {
+                    console.error(err);
+                  }
+                  router.push("/moderator/login");
+                }}
+                className="w-full py-3 bg-surface-container hover:bg-surface-container-high text-on-surface font-semibold rounded-xl flex items-center justify-center gap-2 border border-outline-variant"
+              >
+                <span className="material-symbols-outlined text-lg">logout</span>
+                Logout & Re-login
+              </button>
+            </div>
           </div>
         </div>
       )}

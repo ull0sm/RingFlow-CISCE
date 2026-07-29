@@ -179,12 +179,29 @@ export async function startCategory(assignmentId: string, ringId: string) {
     });
 }
 
+// In-memory sliding window rate limiter for adjustMatchCount
+const recentAdjustmentsMap = new Map<string, number[]>();
+
 export async function adjustMatchCount(assignmentId: string, ringId: string, delta: number) {
   const cookieStore = await cookies();
   const modToken = cookieStore.get("mod_token")?.value;
   if (!modToken || !(await validateModeratorSession(ringId, modToken))) {
     throw new Error("Unauthorized: Session is not the active moderator.");
   }
+
+  // Server-side spam protection: reject if 3 or more rapid adjustments within 2.5s for this ring
+  const now = Date.now();
+  const windowMs = 2500;
+  const history = (recentAdjustmentsMap.get(ringId) || []).filter(t => now - t < windowMs);
+
+  if (history.length >= 2) { // 2 previous + 1 current = 3 requests in short window
+    // Clear window and reject to protect DB
+    recentAdjustmentsMap.set(ringId, []);
+    throw new Error("Too many rapid attempts detected. Action rejected.");
+  }
+
+  history.push(now);
+  recentAdjustmentsMap.set(ringId, history);
 
   const supabase = await createClient();
   
@@ -198,12 +215,22 @@ export async function adjustMatchCount(assignmentId: string, ringId: string, del
 
   const newCount = Math.max(0, assignment.matches_completed + delta);
 
-  const { error: updateError } = await supabase
+  // Perform update with 1 automatic retry on transient error
+  let updateResult = await supabase
     .from("category_assignments")
     .update({ matches_completed: newCount })
     .eq("id", assignmentId);
 
-  if (updateError) throw new Error("Update failed: " + updateError.message);
+  if (updateResult.error) {
+    // Retry after 200ms
+    await new Promise(res => setTimeout(res, 200));
+    updateResult = await supabase
+      .from("category_assignments")
+      .update({ matches_completed: newCount })
+      .eq("id", assignmentId);
+  }
+
+  if (updateResult.error) throw new Error("Database error: " + updateResult.error.message);
 
   await supabase
     .from("event_log")
@@ -215,6 +242,8 @@ export async function adjustMatchCount(assignmentId: string, ringId: string, del
       metadata: { delta },
       moderator_session_id: modToken?.includes("-") ? modToken : null
     });
+
+  return { success: true, matches_completed: newCount };
 }
 
 export async function finishCategory(assignmentId: string, ringId: string) {
