@@ -27,8 +27,15 @@ export default function ModeratorQueueClient({ ringId, initialAssignments }: { r
               copy[idx] = { ...copy[idx], ...payload.new };
               return copy;
             }
-            return prev;
+            return [...prev, payload.new];
           });
+        } else if (payload.eventType === 'INSERT') {
+          setAssignments(prev => {
+            if (prev.some(a => a.id === payload.new.id)) return prev;
+            return [...prev, payload.new];
+          });
+        } else if (payload.eventType === 'DELETE') {
+          setAssignments(prev => prev.filter(a => a.id !== payload.old.id));
         }
       })
       .subscribe();

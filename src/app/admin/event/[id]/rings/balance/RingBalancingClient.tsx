@@ -152,9 +152,8 @@ export default function RingBalancingClient({ tournamentId, tournamentName, init
                 if (!currentQueue) return prev;
                 // Re-sort queue by the live queue_order stored in assignmentsMap
                 const sorted = [...currentQueue].sort((a, b) => {
-                  // Use the new value for the updated category, existing map for others
-                  const orderA = a.id === updated.category_id ? updated.queue_order : (prev[updated.ring_id]?.findIndex(c => c.id === a.id) ?? 0);
-                  const orderB = b.id === updated.category_id ? updated.queue_order : (prev[updated.ring_id]?.findIndex(c => c.id === b.id) ?? 0);
+                  const orderA = a.id === updated.category_id ? updated.queue_order : (assignmentsMap[a.id]?.queue_order ?? 0);
+                  const orderB = b.id === updated.category_id ? updated.queue_order : (assignmentsMap[b.id]?.queue_order ?? 0);
                   return orderA - orderB;
                 });
                 return { ...prev, [updated.ring_id]: sorted };
