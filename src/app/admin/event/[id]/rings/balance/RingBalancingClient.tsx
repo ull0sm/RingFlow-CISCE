@@ -94,6 +94,43 @@ export default function RingBalancingClient({ tournamentId, tournamentName, init
     const ringIds = initialRings.map(r => r.id);
     if (ringIds.length === 0) return;
 
+    // Debounce timers per ring to batch rapid 3-step swap events
+    const reorderTimers: Record<string, ReturnType<typeof setTimeout>> = {};
+
+    const refetchRingQueue = async (ringId: string) => {
+      const { data } = await supabase
+        .from('category_assignments')
+        .select('category_id, queue_order, status, ring_id, matches_completed, completed_at')
+        .eq('ring_id', ringId)
+        .not('status', 'eq', 'completed')
+        .order('queue_order', { ascending: true });
+
+      if (!data) return;
+
+      setRingQueues(prev => {
+        const currentQueue = prev[ringId];
+        if (!currentQueue) return prev;
+        // Re-sort local category objects by the fresh DB queue_order
+        const sorted = [...currentQueue].sort((a, b) => {
+          const orderA = data.find(d => d.category_id === a.id)?.queue_order ?? 999;
+          const orderB = data.find(d => d.category_id === b.id)?.queue_order ?? 999;
+          return orderA - orderB;
+        });
+        return { ...prev, [ringId]: sorted };
+      });
+
+      // Also update assignmentsMap with fresh queue_order values
+      setAssignmentsMap(prev => {
+        const updated = { ...prev };
+        data.forEach(d => {
+          if (updated[d.category_id]) {
+            updated[d.category_id] = { ...updated[d.category_id], queue_order: d.queue_order };
+          }
+        });
+        return updated;
+      });
+    };
+
     const channel = supabase.channel(`admin_balancing_${tournamentId}`)
       .on('postgres_changes', {
         event: '*',
@@ -141,23 +178,20 @@ export default function RingBalancingClient({ tournamentId, tournamentName, init
               });
             }
 
-            // Handle real-time queue reorder from moderator
+            // Handle real-time queue reorder: debounce and refetch from DB
+            // This avoids stale sort during the 3-step (-1 temp) swap sequence
             if (
               updated.ring_id &&
               updated.status !== 'completed' &&
-              updated.queue_order !== undefined
+              updated.queue_order !== undefined &&
+              ringIds.includes(updated.ring_id)
             ) {
-              setRingQueues(prev => {
-                const currentQueue = prev[updated.ring_id];
-                if (!currentQueue) return prev;
-                // Re-sort queue by the live queue_order stored in assignmentsMap
-                const sorted = [...currentQueue].sort((a, b) => {
-                  const orderA = a.id === updated.category_id ? updated.queue_order : (assignmentsMap[a.id]?.queue_order ?? 0);
-                  const orderB = b.id === updated.category_id ? updated.queue_order : (assignmentsMap[b.id]?.queue_order ?? 0);
-                  return orderA - orderB;
-                });
-                return { ...prev, [updated.ring_id]: sorted };
-              });
+              if (reorderTimers[updated.ring_id]) {
+                clearTimeout(reorderTimers[updated.ring_id]);
+              }
+              reorderTimers[updated.ring_id] = setTimeout(() => {
+                refetchRingQueue(updated.ring_id);
+              }, 150); // wait 150ms to let all 3 swap events arrive before fetching
             }
           }
         }
@@ -166,6 +200,7 @@ export default function RingBalancingClient({ tournamentId, tournamentName, init
 
     return () => {
       supabase.removeChannel(channel);
+      Object.values(reorderTimers).forEach(clearTimeout);
     };
   }, [tournamentId, initialRings]);
 
@@ -470,7 +505,7 @@ export default function RingBalancingClient({ tournamentId, tournamentName, init
       });
     });
 
-    saveAssignments(tournamentId, payload)
+    saveAssignments(tournamentId, payload, true /* preserveExistingQueueOrder */)
       .then(() => {
         setLastSaved(new Date());
         setSaveStatusText("Auto-saved");

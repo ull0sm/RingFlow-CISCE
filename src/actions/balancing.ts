@@ -10,7 +10,11 @@ export type AssignmentInput = {
   completed_at?: string | null;
 };
 
-export async function saveAssignments(tournamentId: string, assignments: AssignmentInput[]) {
+export async function saveAssignments(
+  tournamentId: string,
+  assignments: AssignmentInput[],
+  preserveExistingQueueOrder: boolean = false
+) {
   const supabase = await createClient();
 
   // 1. Validate payload for duplicate category IDs
@@ -37,18 +41,19 @@ export async function saveAssignments(tournamentId: string, assignments: Assignm
 
   const ringIds = rings.map((r) => r.id);
 
-  // 3. Fetch current live assignments to preserve matches_completed and guard running categories
+  // 3. Fetch current live assignments to preserve matches_completed, queue_order, and guard running categories
   const { data: currentAssignments } = await supabase
     .from("category_assignments")
-    .select("category_id, ring_id, status, matches_completed, completed_at")
+    .select("category_id, ring_id, status, matches_completed, completed_at, queue_order")
     .in("ring_id", ringIds);
 
-  const currentMap = new Map<string, { status: string; matches_completed: number; completed_at: string | null }>();
+  const currentMap = new Map<string, { status: string; matches_completed: number; completed_at: string | null; queue_order: number }>();
   (currentAssignments || []).forEach((a: any) => {
     currentMap.set(a.category_id, {
       status: a.status,
       matches_completed: a.matches_completed || 0,
       completed_at: a.completed_at || null,
+      queue_order: a.queue_order ?? 0,
     });
   });
 
@@ -67,10 +72,13 @@ export async function saveAssignments(tournamentId: string, assignments: Assignm
   if (validAssignments.length > 0) {
     const rows = validAssignments.map((a) => {
       const live = currentMap.get(a.category_id);
+      const isNewAssignment = !live; // category didn't exist in DB before
       return {
         ring_id: a.ring_id,
         category_id: a.category_id,
-        queue_order: a.queue_order,
+        // preserveExistingQueueOrder=true (auto-save): use DB queue_order to avoid overwriting moderator's reorder
+        // preserveExistingQueueOrder=false (manual save / admin drag): trust incoming order from admin frontend
+        queue_order: (preserveExistingQueueOrder && !isNewAssignment) ? live!.queue_order : a.queue_order,
         // Preserve live status for running/paused; use incoming status otherwise
         status:
           live?.status === "running" || live?.status === "paused"
