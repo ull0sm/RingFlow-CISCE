@@ -118,7 +118,7 @@ export default function ModeratorCurrentClient({ ringId, initialAssignments, all
       } else {
         setSyncErrorModal({
           title: "Failed to Update Score",
-          message: e?.message || "Could not save match update to database. Please reload the page or try re-logging in.",
+          message: "💀 Score update failed. The app and server might be out of sync (or your access changed). Refresh the page, check your match count, and try again.",
           isUnauthorized: false
         });
       }
