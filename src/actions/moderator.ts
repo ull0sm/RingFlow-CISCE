@@ -42,6 +42,23 @@ export async function rejectModeratorRequest(requestId: string, tournamentId: st
   revalidatePath(`/admin/event/${tournamentId}/dashboard`);
 }
 
+export async function revokeActiveModeratorSession(ringId: string, tournamentId: string) {
+  const adminId = await ensureAdmin();
+  const supabase = await createClient();
+
+  // Invalidate all approved sessions for this ring by changing status to revoked and wiping session_token
+  const { error } = await supabase
+    .from("moderator_requests")
+    .update({ status: "revoked", session_token: null })
+    .eq("ring_id", ringId)
+    .eq("status", "approved");
+
+  if (error) throw new Error(error.message);
+
+  revalidatePath(`/admin/event/${tournamentId}/rings`);
+  revalidatePath(`/admin/event/${tournamentId}/dashboard`);
+}
+
 export async function requestModeratorAccess(accessCode: string, moderatorName?: string, deviceInfo?: any, turnstileToken?: string) {
   if (!turnstileToken) {
     return { success: false, error: "Security check is required." };

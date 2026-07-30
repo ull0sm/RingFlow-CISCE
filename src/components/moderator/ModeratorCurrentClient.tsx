@@ -21,9 +21,9 @@ export default function ModeratorCurrentClient({ ringId, initialAssignments, all
 
   useEffect(() => {
     const channel = supabase.channel(`current_${ringId}`)
-      .on('postgres_changes', { 
-        event: '*', 
-        schema: 'public', 
+      .on('postgres_changes', {
+        event: '*',
+        schema: 'public',
         table: 'category_assignments',
         filter: `ring_id=eq.${ringId}`
       }, (payload) => {
@@ -52,15 +52,15 @@ export default function ModeratorCurrentClient({ ringId, initialAssignments, all
     return (
       <section className="flex flex-col items-center justify-center py-20 text-center">
         <div className="w-24 h-24 bg-surface-container rounded-full flex items-center justify-center mb-6">
-          <span className="material-symbols-outlined text-4xl text-outline" style={{fontVariationSettings: '"FILL" 1'}}>event_busy</span>
+          <span className="material-symbols-outlined text-4xl text-outline" style={{ fontVariationSettings: '"FILL" 1' }}>event_busy</span>
         </div>
         <h2 className="font-headline-sm text-headline-sm mb-2">No category running</h2>
         <p className="text-on-surface-variant mb-8 max-w-sm">Please initialize the next category from the Queue to begin.</p>
-        <button 
+        <button
           onClick={() => router.push(`/moderator/ring/${ringId}/queue`)}
           className="bg-primary text-on-primary px-8 py-3 rounded-lg font-bold flex items-center gap-2 hover:opacity-80 transition-opacity"
         >
-          <span className="material-symbols-outlined" style={{fontVariationSettings: '"FILL" 1'}}>queue</span>
+          <span className="material-symbols-outlined" style={{ fontVariationSettings: '"FILL" 1' }}>queue</span>
           Go to Queue
         </button>
       </section>
@@ -82,7 +82,7 @@ export default function ModeratorCurrentClient({ ringId, initialAssignments, all
     // If 3 rapid clicks occur in short duration (2 existing + current 1), reject all!
     if (recent.length >= 2) {
       setClickTimestamps([]);
-      setSpamNotice("Too many rapid clicks. Action rejected to protect the system.");
+      setSpamNotice("One click = 😎 | 20 clicks = 🤡");
       setTimeout(() => setSpamNotice(null), 3500);
       return;
     }
@@ -254,7 +254,7 @@ export default function ModeratorCurrentClient({ ringId, initialAssignments, all
             {showSettings && (
               <div className="absolute top-12 right-0 bg-surface-container-lowest border border-outline-variant shadow-lg rounded-xl w-48 z-10 overflow-hidden">
                 <button disabled={loading} onClick={() => setShowCompleteModal(true)} className="w-full text-left px-4 py-3 text-body-sm font-semibold hover:bg-surface-container flex items-center gap-2 disabled:opacity-50 text-secondary">
-                  <span className="material-symbols-outlined text-xl" style={{fontVariationSettings: '"FILL" 1'}}>check_circle</span>
+                  <span className="material-symbols-outlined text-xl" style={{ fontVariationSettings: '"FILL" 1' }}>check_circle</span>
                   Complete Category
                 </button>
                 <button disabled={loading} onClick={() => setShowReturnModal(true)} className="w-full text-left px-4 py-3 text-body-sm font-semibold hover:bg-surface-container flex items-center gap-2 disabled:opacity-50 border-t border-outline-variant text-error">
@@ -333,14 +333,13 @@ export default function ModeratorCurrentClient({ ringId, initialAssignments, all
       </section>
 
       <div className="grid grid-cols-1 gap-4 pt-4 mb-10">
-        <button 
+        <button
           disabled={loading}
           onClick={handleTogglePause}
-          className={`w-full bg-surface-container-lowest border h-14 rounded-xl font-bold font-body-md flex items-center justify-center gap-2 transition-colors ${
-            isPaused ? 'border-emerald-500 text-emerald-700 active:bg-emerald-50' : 'border-amber-500 text-amber-700 active:bg-amber-50'
-          }`}
+          className={`w-full bg-surface-container-lowest border h-14 rounded-xl font-bold font-body-md flex items-center justify-center gap-2 transition-colors ${isPaused ? 'border-emerald-500 text-emerald-700 active:bg-emerald-50' : 'border-amber-500 text-amber-700 active:bg-amber-50'
+            }`}
         >
-          <span className="material-symbols-outlined" style={{fontVariationSettings: '"FILL" 1'}}>{isPaused ? 'play_circle' : 'pause_circle'}</span>
+          <span className="material-symbols-outlined" style={{ fontVariationSettings: '"FILL" 1' }}>{isPaused ? 'play_circle' : 'pause_circle'}</span>
           {isPaused ? 'Resume Tatami' : 'Pause Tatami'}
         </button>
       </div>
@@ -356,14 +355,14 @@ export default function ModeratorCurrentClient({ ringId, initialAssignments, all
           </div>
         </div>
         <div className="flex justify-between items-center pt-2 border-t border-outline-variant">
-          <button 
+          <button
             onClick={() => setShowAssistanceModal(true)}
             className="flex items-center gap-2 text-primary font-bold font-label-caps text-xs hover:bg-primary/10 px-3 py-2 rounded transition-colors"
           >
             <span className="material-symbols-outlined text-[16px]">support_agent</span> Request Assistance
           </button>
-          
-          <button 
+
+          <button
             onClick={handleEmergency}
             className="flex items-center gap-1 text-error font-bold font-label-caps text-[10px] opacity-60 hover:opacity-100 hover:bg-error/10 px-2 py-1 rounded transition-colors"
           >
@@ -380,8 +379,8 @@ export default function ModeratorCurrentClient({ ringId, initialAssignments, all
             <p className="text-body-sm text-on-surface-variant">Select the type of assistance needed for this tatami. Admin will be notified softly.</p>
             <div className="grid grid-cols-1 gap-2">
               {['Doctor / Medical', 'Technical Support', 'Security', 'General Assistance'].map(type => (
-                <button 
-                  key={type} 
+                <button
+                  key={type}
                   onClick={() => handleRequestAssistance(type)}
                   className="bg-surface-container hover:bg-surface-container-high py-3 rounded font-bold text-sm border border-outline-variant"
                 >
@@ -401,8 +400,8 @@ export default function ModeratorCurrentClient({ ringId, initialAssignments, all
             <p className="text-body-sm text-on-surface-variant">Are you sure? This will remove the category from the live tatami.</p>
             <div>
               <label className="text-[10px] font-bold text-on-surface-variant mb-1 block uppercase tracking-wider">Type CONFIRM to proceed</label>
-              <input 
-                type="text" 
+              <input
+                type="text"
                 value={returnConfirmText}
                 onChange={(e) => setReturnConfirmText(e.target.value)}
                 className="w-full bg-surface-container border border-outline-variant p-3 rounded text-on-surface font-bold"
@@ -411,8 +410,8 @@ export default function ModeratorCurrentClient({ ringId, initialAssignments, all
             </div>
             <div className="flex gap-2">
               <button onClick={() => setShowReturnModal(false)} className="flex-1 py-3 bg-surface-container hover:bg-surface-container-high rounded font-bold text-sm text-on-surface">Cancel</button>
-              <button 
-                onClick={executeReturnToQueue} 
+              <button
+                onClick={executeReturnToQueue}
                 disabled={returnConfirmText !== "CONFIRM" || loading}
                 className="flex-1 py-3 bg-error text-white rounded font-bold text-sm disabled:opacity-50"
               >
@@ -429,7 +428,7 @@ export default function ModeratorCurrentClient({ ringId, initialAssignments, all
             <h3 className="font-headline-sm text-secondary font-bold">Complete Category</h3>
             <p className="text-body-sm text-on-surface-variant">How would you like to record this category's completion?</p>
             <div className="space-y-3">
-              <button 
+              <button
                 onClick={() => executeCompleteCategory(false)}
                 disabled={loading}
                 className="w-full text-left p-4 bg-surface-container hover:bg-surface-container-high border border-outline-variant rounded-xl flex flex-col gap-1"
@@ -437,7 +436,7 @@ export default function ModeratorCurrentClient({ ringId, initialAssignments, all
                 <span className="font-bold text-primary">Complete at Current State</span>
                 <span className="text-xs text-on-surface-variant">Mark as finished with {currentCompleted} matches recorded.</span>
               </button>
-              <button 
+              <button
                 onClick={() => executeCompleteCategory(true)}
                 disabled={loading}
                 className="w-full text-left p-4 bg-surface-container hover:bg-surface-container-high border border-outline-variant rounded-xl flex flex-col gap-1"

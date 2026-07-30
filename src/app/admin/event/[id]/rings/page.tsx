@@ -18,10 +18,22 @@ export default async function AdminRings({ params }: { params: Promise<{ id: str
 
   if (!tournament) redirect("/admin");
 
+  const ringIds = rings?.map(r => r.id) || [];
+  let modRequests: any[] = [];
+  if (ringIds.length > 0) {
+    const { data: reqs } = await supabase
+      .from("moderator_requests")
+      .select("*")
+      .in("ring_id", ringIds)
+      .in("status", ["pending", "approved"])
+      .order("created_at", { ascending: false });
+    if (reqs) modRequests = reqs;
+  }
+
   return (
     <>
       <AdminHeader title="Rings" eventName={tournament.name} />
-      <RingsClient tournamentId={tournamentId} initialRings={rings || []} />
+      <RingsClient tournamentId={tournamentId} initialRings={rings || []} initialModRequests={modRequests} />
     </>
   );
 }
