@@ -63,26 +63,7 @@ export async function saveAssignments(tournamentId: string, assignments: Assignm
     }
   }
 
-  // 5. Remove categories that were moved out of all rings (now unassigned)
-  const incomingCategoryIds = new Set(validAssignments.map((a) => a.category_id));
-  const toDelete = (currentAssignments || [])
-    .filter((a: any) => !incomingCategoryIds.has(a.category_id))
-    .map((a: any) => a.category_id);
-
-  if (toDelete.length > 0) {
-    const { error: deleteError } = await supabase
-      .from("category_assignments")
-      .delete()
-      .in("category_id", toDelete)
-      .in("ring_id", ringIds);
-
-    if (deleteError) {
-      console.error("Error deleting removed assignments:", deleteError);
-      throw new Error("Failed to save assignments");
-    }
-  }
-
-  // 6. UPSERT: update ring_id/queue_order/status WITHOUT touching matches_completed
+  // 5. Build assignments list for assigned categories
   if (validAssignments.length > 0) {
     const rows = validAssignments.map((a) => {
       const live = currentMap.get(a.category_id);
@@ -104,13 +85,35 @@ export async function saveAssignments(tournamentId: string, assignments: Assignm
       };
     });
 
-    // Try upsert on category_id conflict key first (most likely schema)
-    const { error: upsertError } = await supabase
+    // To prevent composite primary key / unique constraint failures across rings during swaps,
+    // delete all existing assignments for these rings first, then insert rows with preserved progress!
+    const { error: clearError } = await supabase
       .from("category_assignments")
-      .upsert(rows, { onConflict: "category_id" });
+      .delete()
+      .in("ring_id", ringIds);
 
-    if (upsertError) {
-      console.error("Error upserting assignments:", upsertError);
+    if (clearError) {
+      console.error("Error clearing assignments before save:", clearError);
+      throw new Error("Failed to save assignments");
+    }
+
+    const { error: insertError } = await supabase
+      .from("category_assignments")
+      .insert(rows);
+
+    if (insertError) {
+      console.error("Error inserting updated assignments:", insertError);
+      throw new Error("Failed to save assignments");
+    }
+  } else {
+    // All categories unassigned -> clear ring assignments
+    const { error: clearError } = await supabase
+      .from("category_assignments")
+      .delete()
+      .in("ring_id", ringIds);
+
+    if (clearError) {
+      console.error("Error clearing assignments:", clearError);
       throw new Error("Failed to save assignments");
     }
   }

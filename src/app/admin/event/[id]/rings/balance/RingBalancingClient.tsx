@@ -49,7 +49,10 @@ export default function RingBalancingClient({ tournamentId, tournamentName, init
   const [unassigned, setUnassigned] = useState<Category[]>([]);
   const [ringQueues, setRingQueues] = useState<Record<string, Category[]>>({});
   const [ringCompletedQueues, setRingCompletedQueues] = useState<Record<string, Category[]>>({});
+  // Save & Auto-save state
   const [isSaving, setIsSaving] = useState(false);
+  const [autoSave, setAutoSave] = useState(true);
+  const [saveStatusText, setSaveStatusText] = useState<string | null>(null);
   const [lastSaved, setLastSaved] = useState<Date | null>(null);
   const [isMounted, setIsMounted] = useState(false);
   const [isInitialized, setIsInitialized] = useState(false);
@@ -251,6 +254,38 @@ export default function RingBalancingClient({ tournamentId, tournamentName, init
 
     if (!movedItem) return;
 
+    // Frontend Safety Guard: Check if destination or source displacement interrupts an active running/paused category
+    const prevUnassigned = [...unassigned];
+    const prevRingQueues = { ...ringQueues };
+
+    if (destDroppableId !== "unassigned") {
+      const targetQueue = ringQueues[destDroppableId] || [];
+      const topCat = targetQueue[0];
+      const topStatus = topCat ? assignmentsMap[topCat.id]?.status : null;
+      
+      if (topCat && (topStatus === "running" || topStatus === "paused")) {
+        // If moving item to position 0 (above running category)
+        const isHeaderDrop = destination.droppableId.startsWith("header_");
+        if (!isHeaderDrop && destination.index === 0 && movedItem.id !== topCat.id) {
+          alert(`Cannot place above "${topCat.name}": it is currently live/running on this Tatami!`);
+          return;
+        }
+      }
+    }
+
+    // Also check if trying to drag away or displace a running category itself from index 0
+    if (sourceDroppableId !== "unassigned") {
+      const sourceQueue = ringQueues[sourceDroppableId] || [];
+      const sourceTop = sourceQueue[0];
+      const sourceTopStatus = sourceTop ? assignmentsMap[sourceTop.id]?.status : null;
+      if (sourceTop && (sourceTopStatus === "running" || sourceTopStatus === "paused")) {
+        if (movedItem.id === sourceTop.id && destDroppableId !== sourceDroppableId) {
+          alert(`Cannot move "${sourceTop.name}": it is currently live/running on Tatami!`);
+          return;
+        }
+      }
+    }
+
     // 3. Insert category into destination position
     if (destDroppableId === "unassigned") {
       const visibleAtDest = unassigned
@@ -282,6 +317,9 @@ export default function RingBalancingClient({ tournamentId, tournamentName, init
     // 4. Update state atomically
     setUnassigned(nextUnassigned);
     setRingQueues(nextRingQueues);
+
+    // 5. Trigger auto-save if enabled, passing previous state for rollback
+    triggerAutoSaveIfNeeded(nextUnassigned, nextRingQueues, prevUnassigned, prevRingQueues);
   };
 
   const onDragEnd = (result: DropResult) => {
@@ -368,6 +406,8 @@ export default function RingBalancingClient({ tournamentId, tournamentName, init
     try {
       await saveAssignments(tournamentId, payload);
       setLastSaved(new Date());
+      setSaveStatusText("Saved!");
+      setTimeout(() => setSaveStatusText(null), 2500);
     } catch (err: any) {
       const msg: string = err?.message || "";
       if (msg.startsWith("RUNNING_CATEGORY_DISPLACED:")) {
@@ -381,6 +421,83 @@ export default function RingBalancingClient({ tournamentId, tournamentName, init
     } finally {
       setIsSaving(false);
     }
+  };
+
+  const triggerAutoSaveIfNeeded = (
+    updatedUnassigned?: Category[], 
+    updatedRingQueues?: Record<string, Category[]>,
+    prevUnassigned?: Category[],
+    prevRingQueues?: Record<string, Category[]>
+  ) => {
+    if (!autoSave) return;
+    
+    // Perform save with latest state snapshot
+    const targetUnassigned = updatedUnassigned || unassigned;
+    const targetRingQueues = updatedRingQueues || ringQueues;
+
+    setIsSaving(true);
+    setSaveStatusText("Auto-saving...");
+    const payload: { category_id: string; ring_id: string | null; queue_order: number; status?: string; completed_at?: string | null }[] = [];
+
+    // Process unassigned
+    targetUnassigned.forEach((cat, idx) => {
+      payload.push({ category_id: cat.id, ring_id: null, queue_order: idx });
+    });
+
+    // Process rings
+    Object.keys(targetRingQueues).forEach(ringId => {
+      targetRingQueues[ringId].forEach((cat, idx) => {
+        const liveStatus = assignmentsMap[cat.id]?.status;
+        payload.push({ 
+          category_id: cat.id, 
+          ring_id: ringId, 
+          queue_order: idx, 
+          status: liveStatus || "pending"
+        });
+      });
+    });
+
+    // Process completed categories
+    Object.keys(ringCompletedQueues).forEach(ringId => {
+      ringCompletedQueues[ringId].forEach((cat, idx) => {
+        const originalAssignment = initialAssignments.find(a => a.category_id === cat.id);
+        payload.push({ 
+          category_id: cat.id, 
+          ring_id: ringId, 
+          queue_order: (targetRingQueues[ringId]?.length || 0) + idx, 
+          status: "completed",
+          completed_at: originalAssignment?.completed_at || new Date().toISOString()
+        });
+      });
+    });
+
+    saveAssignments(tournamentId, payload)
+      .then(() => {
+        setLastSaved(new Date());
+        setSaveStatusText("Auto-saved");
+        setTimeout(() => setSaveStatusText(null), 2500);
+      })
+      .catch((err: any) => {
+        // Rollback UI state if save failed
+        if (prevUnassigned && prevRingQueues) {
+          setUnassigned(prevUnassigned);
+          setRingQueues(prevRingQueues);
+        }
+        setSaveStatusText(null);
+
+        const msg: string = err?.message || "";
+        if (msg.startsWith("RUNNING_CATEGORY_DISPLACED:")) {
+          const catId = msg.replace("RUNNING_CATEGORY_DISPLACED:", "");
+          const catName = initialCategories.find(c => c.id === catId)?.name || "A category";
+          alert(`Auto-save blocked & reverted: "${catName}" is currently running on a Tatami.\n\nA running category must stay at the top of its queue.`);
+        } else {
+          alert("Auto-save failed. UI reverted to previous state.");
+          console.error("Auto-save error:", err);
+        }
+      })
+      .finally(() => {
+        setIsSaving(false);
+      });
   };
 
   const calculateRingWorkload = (ringId: string) => {
@@ -483,15 +600,52 @@ export default function RingBalancingClient({ tournamentId, tournamentName, init
             <span className="font-data-mono text-lg font-bold">{initialRings.length} ACTIVE</span>
           </div>
           <div className="h-6 w-[1px] bg-white/20"></div>
-          <div className="flex flex-col">
-            <span className="text-[10px] font-label-caps opacity-60">ACTIONS</span>
-            <button 
-              onClick={handleSave} 
-              disabled={isSaving}
-              className="bg-secondary text-white px-4 py-1 rounded text-xs font-bold hover:opacity-90 disabled:opacity-50"
-            >
-              {isSaving ? "SAVING..." : "SAVE BALANCING"}
-            </button>
+          
+          {/* Auto-save & Save Controls aligned with DESIGN.md */}
+          <div className="flex items-center gap-6">
+            <div className="flex flex-col">
+              <span className="text-[10px] font-label-caps opacity-60">SYNC MODE</span>
+              <button 
+                onClick={() => setAutoSave(!autoSave)}
+                className={`flex items-center gap-2 px-3 py-1 rounded-md text-xs font-bold transition-all border ${
+                  autoSave 
+                    ? 'bg-secondary/20 border-secondary text-white' 
+                    : 'bg-white/5 border-outline-variant/40 text-on-primary/70 hover:bg-white/10'
+                }`}
+                title="Toggle Auto Sync after drag and drop"
+              >
+                <span className={`w-2 h-2 rounded-full ${autoSave ? 'bg-secondary animate-pulse' : 'bg-outline-variant'}`}></span>
+                <span className="font-label-caps">{autoSave ? "AUTO SYNC ON" : "MANUAL SYNC"}</span>
+              </button>
+            </div>
+
+            {/* Show Save button only when Auto-Save is OFF */}
+            {!autoSave && (
+              <div className="flex flex-col">
+                <span className="text-[10px] font-label-caps opacity-60">ACTIONS</span>
+                <button 
+                  onClick={handleSave} 
+                  disabled={isSaving}
+                  className="bg-secondary text-white px-4 py-1 rounded-md text-xs font-bold hover:opacity-90 disabled:opacity-50 flex items-center gap-1.5 shadow-sm"
+                >
+                  {isSaving && <span className="w-3 h-3 border-2 border-white border-t-transparent rounded-full animate-spin"></span>}
+                  {isSaving ? "SAVING..." : "SAVE BALANCING"}
+                </button>
+              </div>
+            )}
+
+            {/* Design-System Aligned Status Cue */}
+            {saveStatusText && (
+              <div className="flex items-center gap-1.5 px-3 py-1 bg-secondary text-white text-xs font-bold rounded-md shadow-md">
+                <span className="material-symbols-outlined text-sm">sync</span>
+                <span className="font-label-caps tracking-wider">{saveStatusText}</span>
+              </div>
+            )}
+            {!saveStatusText && lastSaved && (
+              <span className="text-[11px] opacity-70 font-data-mono">
+                Synced {lastSaved.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })}
+              </span>
+            )}
           </div>
         </div>
       </div>
