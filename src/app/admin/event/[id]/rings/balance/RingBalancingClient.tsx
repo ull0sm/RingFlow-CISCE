@@ -141,22 +141,39 @@ export default function RingBalancingClient({ tournamentId, tournamentName, init
               });
             }
 
-            // Handle real-time queue reorder from moderator
+            // Handle real-time queue status & reorder from moderator/DB
             if (
               updated.ring_id &&
-              updated.status !== 'completed' &&
-              updated.queue_order !== undefined
+              updated.status !== 'completed'
             ) {
               setRingQueues(prev => {
                 const currentQueue = prev[updated.ring_id];
                 if (!currentQueue) return prev;
-                // Re-sort queue by the live queue_order stored in assignmentsMap
-                const sorted = [...currentQueue].sort((a, b) => {
-                  const orderA = a.id === updated.category_id ? updated.queue_order : (assignmentsMap[a.id]?.queue_order ?? 0);
-                  const orderB = b.id === updated.category_id ? updated.queue_order : (assignmentsMap[b.id]?.queue_order ?? 0);
-                  return orderA - orderB;
-                });
-                return { ...prev, [updated.ring_id]: sorted };
+
+                let catItem = currentQueue.find(c => c.id === updated.category_id);
+                if (!catItem) {
+                  for (const rId of Object.keys(prev)) {
+                    const found = prev[rId].find(c => c.id === updated.category_id);
+                    if (found) { catItem = found; break; }
+                  }
+                  if (!catItem) {
+                    catItem = unassigned.find(c => c.id === updated.category_id);
+                  }
+                }
+                if (!catItem) return prev;
+
+                const cleanQueue = currentQueue.filter(c => c.id !== updated.category_id);
+
+                if (updated.status === 'running' || updated.status === 'paused') {
+                  // Running or paused category MUST always stay at top of queue (index 0)
+                  return { ...prev, [updated.ring_id]: [catItem, ...cleanQueue] };
+                } else if (updated.queue_order !== undefined) {
+                  const reQueue = [...cleanQueue];
+                  const insertIdx = Math.min(Math.max(0, updated.queue_order), reQueue.length);
+                  reQueue.splice(insertIdx, 0, catItem);
+                  return { ...prev, [updated.ring_id]: reQueue };
+                }
+                return prev;
               });
             }
           }
@@ -316,6 +333,22 @@ export default function RingBalancingClient({ tournamentId, tournamentName, init
     // 4. Update state atomically
     setUnassigned(nextUnassigned);
     setRingQueues(nextRingQueues);
+
+    setAssignmentsMap(prev => {
+      const nextMap = { ...prev };
+      Object.keys(nextRingQueues).forEach(rId => {
+        nextRingQueues[rId].forEach((cat, idx) => {
+          nextMap[cat.id] = {
+            ...nextMap[cat.id],
+            ring_id: rId,
+            queue_order: idx,
+            status: nextMap[cat.id]?.status || "pending",
+            matches_completed: nextMap[cat.id]?.matches_completed || 0,
+          };
+        });
+      });
+      return nextMap;
+    });
 
     // 5. Trigger auto-save if enabled, passing previous state for rollback
     triggerAutoSaveIfNeeded(nextUnassigned, nextRingQueues, prevUnassigned, prevRingQueues);

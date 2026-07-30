@@ -63,7 +63,23 @@ export async function saveAssignments(tournamentId: string, assignments: Assignm
     }
   }
 
-  // 5. Build assignments list for assigned categories
+  // 5. Remove categories that were moved out of all rings (now unassigned)
+  const incomingCategoryIds = new Set(validAssignments.map((a) => a.category_id));
+  const toDelete = Array.from(currentMap.keys()).filter((catId) => !incomingCategoryIds.has(catId));
+
+  if (toDelete.length > 0) {
+    const { error: deleteError } = await supabase
+      .from("category_assignments")
+      .delete()
+      .in("category_id", toDelete);
+
+    if (deleteError) {
+      console.error("Error deleting removed assignments:", deleteError);
+      throw new Error("Failed to save assignments");
+    }
+  }
+
+  // 6. Non-destructive update/insert: update existing rows by category_id to PRESERVE assignment ID UUIDs!
   if (validAssignments.length > 0) {
     const rows = validAssignments.map((a) => {
       const live = currentMap.get(a.category_id);
@@ -71,12 +87,10 @@ export async function saveAssignments(tournamentId: string, assignments: Assignm
         ring_id: a.ring_id,
         category_id: a.category_id,
         queue_order: a.queue_order,
-        // Preserve live status for running/paused; use incoming status otherwise
         status:
           live?.status === "running" || live?.status === "paused"
             ? live.status
             : (a.status === "completed" ? "completed" : (live?.status || a.status || "pending")),
-        // CRITICAL: never reset match progress — carry forward from DB
         matches_completed: live?.matches_completed ?? 0,
         completed_at:
           a.status === "completed"
@@ -85,36 +99,47 @@ export async function saveAssignments(tournamentId: string, assignments: Assignm
       };
     });
 
-    // To prevent composite primary key / unique constraint failures across rings during swaps,
-    // delete all existing assignments for these rings first, then insert rows with preserved progress!
-    const { error: clearError } = await supabase
-      .from("category_assignments")
-      .delete()
-      .in("ring_id", ringIds);
+    const existingRows = rows.filter((r) => currentMap.has(r.category_id));
+    const newRows = rows.filter((r) => !currentMap.has(r.category_id));
 
-    if (clearError) {
-      console.error("Error clearing assignments before save:", clearError);
-      throw new Error("Failed to save assignments");
+    // Stage A: Set negative temporary queue_order for existing rows to avoid transient (ring_id, queue_order) unique constraint conflicts
+    if (existingRows.length > 0) {
+      await Promise.all(
+        existingRows.map((r, idx) =>
+          supabase
+            .from("category_assignments")
+            .update({ queue_order: -(idx + 5000) })
+            .eq("category_id", r.category_id)
+        )
+      );
+
+      // Stage B: Update existing rows with final values by category_id in-place
+      await Promise.all(
+        existingRows.map((r) =>
+          supabase
+            .from("category_assignments")
+            .update({
+              ring_id: r.ring_id,
+              queue_order: r.queue_order,
+              status: r.status,
+              matches_completed: r.matches_completed,
+              completed_at: r.completed_at,
+            })
+            .eq("category_id", r.category_id)
+        )
+      );
     }
 
-    const { error: insertError } = await supabase
-      .from("category_assignments")
-      .insert(rows);
+    // Stage C: Insert new rows for newly assigned categories
+    if (newRows.length > 0) {
+      const { error: insertError } = await supabase
+        .from("category_assignments")
+        .insert(newRows);
 
-    if (insertError) {
-      console.error("Error inserting updated assignments:", insertError);
-      throw new Error("Failed to save assignments");
-    }
-  } else {
-    // All categories unassigned -> clear ring assignments
-    const { error: clearError } = await supabase
-      .from("category_assignments")
-      .delete()
-      .in("ring_id", ringIds);
-
-    if (clearError) {
-      console.error("Error clearing assignments:", clearError);
-      throw new Error("Failed to save assignments");
+      if (insertError) {
+        console.error("Error inserting new assignments:", insertError);
+        throw new Error("Failed to save assignments");
+      }
     }
   }
 

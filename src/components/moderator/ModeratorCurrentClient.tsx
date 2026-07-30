@@ -16,6 +16,10 @@ export default function ModeratorCurrentClient({ ringId, initialAssignments, all
   const [showCompleteModal, setShowCompleteModal] = useState(false);
   const [syncErrorModal, setSyncErrorModal] = useState<{ title: string; message: string; isUnauthorized: boolean } | null>(null);
   const [showAdvancedModalOptions, setShowAdvancedModalOptions] = useState(false);
+  const [isUpdatingMatch, setIsUpdatingMatch] = useState(false);
+  const [activeDelta, setActiveDelta] = useState<number | null>(null);
+  const [clickTimestamps, setClickTimestamps] = useState<number[]>([]);
+  const [spamNotice, setSpamNotice] = useState<string | null>(null);
   const router = useRouter();
   const supabase = createClient();
 
@@ -66,11 +70,6 @@ export default function ModeratorCurrentClient({ ringId, initialAssignments, all
       </section>
     );
   }
-
-  const [isUpdatingMatch, setIsUpdatingMatch] = useState(false);
-  const [activeDelta, setActiveDelta] = useState<number | null>(null);
-  const [clickTimestamps, setClickTimestamps] = useState<number[]>([]);
-  const [spamNotice, setSpamNotice] = useState<string | null>(null);
 
   const handleAdjustMatch = async (delta: number) => {
     if (isUpdatingMatch || loading) return;
