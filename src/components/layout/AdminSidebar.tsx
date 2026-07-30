@@ -26,7 +26,7 @@ export default function AdminSidebar() {
         </Link>
         <p className="text-[10px] font-label-caps text-on-surface-variant uppercase tracking-widest mt-1">Admin Terminal</p>
       </div>
-      
+
       <nav className="flex-1 space-y-1">
         {navItems.map((item) => {
           const isActive = pathname === item.href;
@@ -34,11 +34,10 @@ export default function AdminSidebar() {
             <Link
               key={item.name}
               href={item.href}
-              className={`flex items-center gap-3 px-4 py-3 rounded-lg font-bold transition-all ${
-                isActive
+              className={`flex items-center gap-3 px-4 py-3 rounded-lg font-bold transition-all ${isActive
                   ? "bg-secondary-container text-on-secondary-container scale-95 duration-200"
                   : "text-on-surface-variant hover:text-on-surface hover:bg-surface-container-highest"
-              }`}
+                }`}
             >
               <span className="material-symbols-outlined">{item.icon}</span>
               <span className="font-label-caps text-label-caps">{item.name}</span>
@@ -56,7 +55,7 @@ export default function AdminSidebar() {
             </div>
           </div>
           <div className="overflow-hidden">
-            <p className="font-body-md font-bold text-sm text-on-surface truncate">Alex Rivera</p>
+            <p className="font-body-md font-bold text-sm text-on-surface truncate">Team Crux</p>
             <p className="text-[10px] text-on-surface-variant uppercase tracking-wider">Head Coordinator</p>
           </div>
         </div>

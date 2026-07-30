@@ -18,24 +18,33 @@ export default function ModeratorQueueClient({ ringId, initialAssignments }: { r
         schema: 'public', 
         table: 'category_assignments',
         filter: `ring_id=eq.${ringId}`
-      }, (payload) => {
-        if (payload.eventType === 'UPDATE') {
+      }, async (payload) => {
+        if (payload.eventType === 'UPDATE' || payload.eventType === 'INSERT') {
+          const newRow = payload.new as any;
+          // Fetch joined category info if missing from raw payload
+          let categoryData = newRow.categories;
+          if (!categoryData && newRow.category_id) {
+            const { data } = await supabase
+              .from('categories')
+              .select('name, expected_matches')
+              .eq('id', newRow.category_id)
+              .single();
+            if (data) categoryData = data;
+          }
+
+          const fullAssignment = { ...newRow, categories: categoryData };
+
           setAssignments(prev => {
-            const idx = prev.findIndex(a => a.id === payload.new.id);
+            const idx = prev.findIndex(a => a.id === fullAssignment.id || a.category_id === fullAssignment.category_id);
             if (idx > -1) {
               const copy = [...prev];
-              copy[idx] = { ...copy[idx], ...payload.new };
+              copy[idx] = { ...copy[idx], ...fullAssignment };
               return copy;
             }
-            return [...prev, payload.new];
-          });
-        } else if (payload.eventType === 'INSERT') {
-          setAssignments(prev => {
-            if (prev.some(a => a.id === payload.new.id)) return prev;
-            return [...prev, payload.new];
+            return [...prev, fullAssignment];
           });
         } else if (payload.eventType === 'DELETE') {
-          setAssignments(prev => prev.filter(a => a.id !== payload.old.id));
+          setAssignments(prev => prev.filter(a => a.id !== (payload.old as any).id));
         }
       })
       .subscribe();
