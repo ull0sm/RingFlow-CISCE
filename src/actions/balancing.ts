@@ -13,7 +13,7 @@ export type AssignmentInput = {
 export async function saveAssignments(tournamentId: string, assignments: AssignmentInput[]) {
   const supabase = await createClient();
 
-  // 1. Validate payload for duplicate category IDs to prevent constraints violations
+  // 1. Validate payload for duplicate category IDs
   const seen = new Set<string>();
   const validAssignments = assignments.filter((a) => a.ring_id !== null);
   for (const a of validAssignments) {
@@ -37,35 +37,80 @@ export async function saveAssignments(tournamentId: string, assignments: Assignm
 
   const ringIds = rings.map((r) => r.id);
 
-  // 3. Delete existing assignments for these rings first to prevent (ring_id, queue_order) unique constraint violations on update/swap
-  if (ringIds.length > 0) {
+  // 3. Fetch current live assignments to preserve matches_completed and guard running categories
+  const { data: currentAssignments } = await supabase
+    .from("category_assignments")
+    .select("category_id, ring_id, status, matches_completed, completed_at")
+    .in("ring_id", ringIds);
+
+  const currentMap = new Map<string, { status: string; matches_completed: number; completed_at: string | null }>();
+  (currentAssignments || []).forEach((a: any) => {
+    currentMap.set(a.category_id, {
+      status: a.status,
+      matches_completed: a.matches_completed || 0,
+      completed_at: a.completed_at || null,
+    });
+  });
+
+  // 4. Guard: reject if a running/paused category is not at queue_order 0
+  //    (means something was inserted above it, which would interrupt the moderator)
+  for (const a of validAssignments) {
+    const live = currentMap.get(a.category_id);
+    if (live && (live.status === "running" || live.status === "paused")) {
+      if (a.queue_order !== 0) {
+        throw new Error(`RUNNING_CATEGORY_DISPLACED:${a.category_id}`);
+      }
+    }
+  }
+
+  // 5. Remove categories that were moved out of all rings (now unassigned)
+  const incomingCategoryIds = new Set(validAssignments.map((a) => a.category_id));
+  const toDelete = (currentAssignments || [])
+    .filter((a: any) => !incomingCategoryIds.has(a.category_id))
+    .map((a: any) => a.category_id);
+
+  if (toDelete.length > 0) {
     const { error: deleteError } = await supabase
       .from("category_assignments")
       .delete()
+      .in("category_id", toDelete)
       .in("ring_id", ringIds);
 
     if (deleteError) {
-      console.error("Error clearing old assignments:", deleteError);
+      console.error("Error deleting removed assignments:", deleteError);
       throw new Error("Failed to save assignments");
     }
   }
 
-  // 4. Insert new assignments
+  // 6. UPSERT: update ring_id/queue_order/status WITHOUT touching matches_completed
   if (validAssignments.length > 0) {
-    const { error: insertError } = await supabase
-      .from("category_assignments")
-      .insert(
-        validAssignments.map((a) => ({
-          ring_id: a.ring_id,
-          category_id: a.category_id,
-          queue_order: a.queue_order,
-          status: a.status || "pending",
-          completed_at: a.completed_at || null,
-        }))
-      );
+    const rows = validAssignments.map((a) => {
+      const live = currentMap.get(a.category_id);
+      return {
+        ring_id: a.ring_id,
+        category_id: a.category_id,
+        queue_order: a.queue_order,
+        // Preserve live status for running/paused; use incoming status otherwise
+        status:
+          live?.status === "running" || live?.status === "paused"
+            ? live.status
+            : (a.status === "completed" ? "completed" : (live?.status || a.status || "pending")),
+        // CRITICAL: never reset match progress — carry forward from DB
+        matches_completed: live?.matches_completed ?? 0,
+        completed_at:
+          a.status === "completed"
+            ? (live?.completed_at || a.completed_at || new Date().toISOString())
+            : (live?.completed_at || null),
+      };
+    });
 
-    if (insertError) {
-      console.error("Error inserting assignments:", insertError);
+    // Try upsert on category_id conflict key first (most likely schema)
+    const { error: upsertError } = await supabase
+      .from("category_assignments")
+      .upsert(rows, { onConflict: "category_id" });
+
+    if (upsertError) {
+      console.error("Error upserting assignments:", upsertError);
       throw new Error("Failed to save assignments");
     }
   }
