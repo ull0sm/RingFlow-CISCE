@@ -25,9 +25,11 @@ interface RingCardProps {
   estimatedFinish?: string;
   statusReason?: string;
   timing: RingTimingData;
-  onTogglePause: () => void;
+  onTogglePause?: () => void;
+  onResetTimer?: () => void;
   formatTimeTook: (seconds: number) => string;
   formatTimeExpected: (seconds: number) => string;
+  readOnly?: boolean;
 }
 
 export default function RingCard({
@@ -43,16 +45,18 @@ export default function RingCard({
   statusReason,
   timing,
   onTogglePause,
+  onResetTimer,
   formatTimeTook,
   formatTimeExpected,
+  readOnly = false,
 }: RingCardProps) {
-  // Status resolution matching client-side spectator page: LIVE / PAUSED / IDLE / COMPLETED
-  const isPaused = timing.isManuallyPaused || status === "Paused";
-  const isCompleted = !isPaused && (timing.isAllCompleted || status === "Completed");
-  const isRunning = !isPaused && !isCompleted && (status === "Running" || timing.isRunning);
-  const isIdle = !isPaused && !isCompleted && !isRunning;
+  // Status resolution strictly driven by tatami floor status (matching public spectator page):
+  const isRunning = status === "Running";
+  const isPaused = status === "Paused";
+  const isCompleted = status === "Completed";
+  const isIdle = !isRunning && !isPaused && !isCompleted;
 
-  // Border accent color based on resolved status
+  // Border accent color based on resolved moderator status
   let borderLeftColor = "border-outline-variant";
   if (isPaused) {
     borderLeftColor = "border-amber-500";
@@ -69,7 +73,7 @@ export default function RingCard({
       }`}
     >
       <div>
-        {/* Header: Tatami Name + Status Badge (LIVE / PAUSED / IDLE) + Compact Pause Icon Button */}
+        {/* Header: Tatami Name + Status Badge (LIVE / PAUSED / IDLE) + Controls */}
         <div className="flex justify-between items-center gap-2 mb-3">
           <div className="flex items-center gap-1.5 min-w-0">
             <span className="material-symbols-outlined text-outline text-[18px] shrink-0">sports_martial_arts</span>
@@ -99,20 +103,39 @@ export default function RingCard({
               </span>
             )}
 
-            <button
-              type="button"
-              onClick={onTogglePause}
-              title={timing.isManuallyPaused ? `Resume ${name} clock` : `Pause ${name} clock`}
-              className={`w-7 h-7 rounded-md border flex items-center justify-center transition-all cursor-pointer shrink-0 ${
-                timing.isManuallyPaused
-                  ? "bg-emerald-50 border-emerald-300 text-emerald-700 hover:bg-emerald-100 shadow-2xs"
-                  : "bg-surface-container hover:bg-surface-container-high border-outline-variant text-on-surface-variant hover:text-primary"
-              }`}
-            >
-              <span className="material-symbols-outlined text-[16px]">
-                {timing.isManuallyPaused ? "play_arrow" : "pause"}
-              </span>
-            </button>
+            {!readOnly && onResetTimer && timing.isStarted && (
+              <button
+                type="button"
+                onClick={onResetTimer}
+                title={`Reset ${name} timer`}
+                className="w-7 h-7 rounded-md border border-outline-variant bg-surface-container hover:bg-surface-container-high text-on-surface-variant hover:text-error flex items-center justify-center transition-all cursor-pointer shrink-0"
+              >
+                <span className="material-symbols-outlined text-[15px]">restart_alt</span>
+              </button>
+            )}
+
+            {!readOnly && onTogglePause && (
+              <button
+                type="button"
+                onClick={onTogglePause}
+                title={
+                  timing.isRunning
+                    ? `Pause ${name} timer`
+                    : timing.isManuallyPaused
+                    ? `Resume ${name} timer`
+                    : `Start ${name} timer`
+                }
+                className={`w-7 h-7 rounded-md border flex items-center justify-center transition-all cursor-pointer shrink-0 ${
+                  timing.isRunning
+                    ? "bg-amber-50 border-amber-300 text-amber-800 hover:bg-amber-100 shadow-2xs"
+                    : "bg-emerald-50 border-emerald-300 text-emerald-700 hover:bg-emerald-100 shadow-2xs"
+                }`}
+              >
+                <span className="material-symbols-outlined text-[16px]">
+                  {timing.isRunning ? "pause" : "play_arrow"}
+                </span>
+              </button>
+            )}
           </div>
         </div>
 
@@ -137,28 +160,44 @@ export default function RingCard({
         </div>
 
         {/* Time Elapsed / Expected & Pace Block */}
-        <div className="bg-surface-container-low/60 rounded-lg p-3 mb-3 border border-outline-variant/40">
+        <div 
+          onClick={!readOnly && onTogglePause ? onTogglePause : undefined}
+          title={!readOnly && onTogglePause ? (timing.isRunning ? "Click to pause timer" : "Click to start/resume timer") : undefined}
+          className={`bg-surface-container-low/60 rounded-lg p-3 mb-3 border border-outline-variant/40 transition-all ${
+            !readOnly && onTogglePause ? "cursor-pointer hover:border-outline-variant/80 hover:bg-surface-container-low active:scale-[0.99]" : ""
+          }`}
+        >
           <div className="flex justify-between items-center mb-1.5">
             <span className="text-[10px] font-label-caps text-on-surface-variant uppercase tracking-wider font-semibold">
               Time Elapsed / Expected
             </span>
-            {timing.isStarted && (
-              <span
-                className={`font-label-caps text-[10px] font-bold px-1.5 py-0.5 rounded ${
-                  timing.diffSeconds > 60
-                    ? "bg-amber-100 text-amber-800"
-                    : timing.diffSeconds < -60
-                    ? "bg-emerald-100 text-emerald-800"
-                    : "bg-surface-container text-secondary"
-                }`}
-              >
-                {timing.diffSeconds > 60
-                  ? `+${Math.ceil(timing.diffSeconds / 60)}m Behind`
-                  : timing.diffSeconds < -60
-                  ? `${Math.floor(Math.abs(timing.diffSeconds) / 60)}m Ahead`
-                  : "On Pace"}
-              </span>
-            )}
+            {timing.isStarted && (() => {
+              const diffMinutes = Math.round(timing.diffSeconds / 60);
+              return (
+                <span
+                  title={
+                    diffMinutes >= 1
+                      ? `Running late by ${diffMinutes}m based on category pace`
+                      : diffMinutes <= -1
+                      ? `Running ${Math.abs(diffMinutes)}m ahead based on category pace`
+                      : "On schedule based on category pace"
+                  }
+                  className={`font-label-caps text-[10px] font-bold px-1.5 py-0.5 rounded ${
+                    diffMinutes >= 1
+                      ? "bg-amber-100 text-amber-800"
+                      : diffMinutes <= -1
+                      ? "bg-emerald-100 text-emerald-800"
+                      : "bg-surface-container text-secondary"
+                  }`}
+                >
+                  {diffMinutes >= 1
+                    ? `+${diffMinutes}m Behind`
+                    : diffMinutes <= -1
+                    ? `${Math.abs(diffMinutes)}m Ahead`
+                    : "On Pace"}
+                </span>
+              );
+            })()}
           </div>
 
           <div className="flex items-baseline gap-2">
@@ -178,7 +217,7 @@ export default function RingCard({
         <div className="w-full bg-surface-container h-1.5 rounded-full overflow-hidden mb-3">
           <div
             className={`h-full transition-all duration-500 rounded-full ${
-              timing.diffSeconds > 60
+              Math.round(timing.diffSeconds / 60) >= 1
                 ? "bg-amber-500"
                 : isCompleted
                 ? "bg-blue-600"

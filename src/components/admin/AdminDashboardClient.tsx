@@ -2,10 +2,12 @@
 
 import React, { useState, useEffect } from "react";
 import AdminHeader from "@/components/layout/AdminHeader";
+import OrganiserHeader from "@/components/layout/OrganiserHeader";
 import RingCard from "@/components/admin/RingCard";
 import LiveActivityFeed from "@/components/admin/LiveActivityFeed";
 import ModeratorRequestsWidget from "@/components/admin/ModeratorRequestsWidget";
 import { createClient } from "@/utils/supabase/client";
+import { toggleRingTimer, setAllRingTimers, resetRingTimer } from "@/actions/rings";
 
 export default function AdminDashboardClient({ 
   tournament, 
@@ -13,7 +15,8 @@ export default function AdminDashboardClient({
   initialRings, 
   initialAssignments, 
   initialModRequests, 
-  initialLogs 
+  initialLogs,
+  readOnly = false,
 }: any) {
   const [rings, setRings] = useState<any[]>(initialRings || []);
   const [assignments, setAssignments] = useState<any[]>(initialAssignments || []);
@@ -89,7 +92,7 @@ export default function AdminDashboardClient({
       })
       .subscribe();
 
-    // Secondary reconciliation interval (every 6 seconds) to ensure zero desync
+    // Secondary reconciliation interval (every 5 seconds) to ensure zero desync across all devices
     const syncInterval = setInterval(async () => {
       const ringIds = rings.map(r => r.id);
       if (ringIds.length === 0) return;
@@ -103,7 +106,28 @@ export default function AdminDashboardClient({
       if (latestAssignments && latestAssignments.length > 0) {
         setAssignments(latestAssignments);
       }
-    }, 6000);
+
+      const { data: latestLogs } = await supabase
+        .from("event_log")
+        .select("*")
+        .eq("tournament_id", tournament.id)
+        .order("created_at", { ascending: false })
+        .limit(200);
+
+      if (latestLogs && latestLogs.length > 0) {
+        setLogs(latestLogs);
+      }
+
+      const { data: latestRings } = await supabase
+        .from("rings")
+        .select("*")
+        .eq("tournament_id", tournament.id)
+        .order("ring_order", { ascending: true });
+
+      if (latestRings && latestRings.length > 0) {
+        setRings(latestRings);
+      }
+    }, 5000);
 
     return () => {
       supabase.removeChannel(channel);
@@ -126,102 +150,7 @@ export default function AdminDashboardClient({
   const totalCategories = categoryCount || assignments.length || 0;
   const progressPercent = totalMatches > 0 ? (completedMatches / totalMatches) * 100 : 0;
 
-  interface RingPaceOverride {
-    isPaused: boolean;
-    pausedAt: number | null;
-    totalPausedMs: number;
-    frozenSeconds?: number;
-  }
-
   const [currentTime, setCurrentTime] = useState<number>(() => Date.now());
-  const [paceOverrides, setPaceOverrides] = useState<Record<string, RingPaceOverride>>({});
-
-  // Load saved pace overrides from localStorage on mount
-  useEffect(() => {
-    try {
-      const saved = localStorage.getItem(`ringflow_pace_${tournament.id}`);
-      if (saved) {
-        setPaceOverrides(JSON.parse(saved));
-      }
-    } catch (e) {
-      console.error("Failed to load pace overrides", e);
-    }
-  }, [tournament.id]);
-
-  const saveOverrides = (newOverrides: Record<string, RingPaceOverride>) => {
-    setPaceOverrides(newOverrides);
-    try {
-      localStorage.setItem(`ringflow_pace_${tournament.id}`, JSON.stringify(newOverrides));
-    } catch (e) {
-      console.error("Failed to save pace overrides", e);
-    }
-  };
-
-  // Toggle individual tatami pause/resume
-  const toggleRingPause = (ringId: string, currentActualSeconds: number) => {
-    const current = paceOverrides[ringId] || { isPaused: false, pausedAt: null, totalPausedMs: 0 };
-    const now = Date.now();
-    let updated: RingPaceOverride;
-
-    if (current.isPaused) {
-      const additionalPaused = current.pausedAt ? now - current.pausedAt : 0;
-      updated = {
-        isPaused: false,
-        pausedAt: null,
-        totalPausedMs: (current.totalPausedMs || 0) + additionalPaused,
-        frozenSeconds: undefined,
-      };
-    } else {
-      updated = {
-        isPaused: true,
-        pausedAt: now,
-        totalPausedMs: current.totalPausedMs || 0,
-        frozenSeconds: currentActualSeconds,
-      };
-    }
-
-    const newMap = { ...paceOverrides, [ringId]: updated };
-    saveOverrides(newMap);
-  };
-
-  // Check if all tatamis are paused
-  const areAllPaused = rings.length > 0 && rings.every((r) => paceOverrides[r.id]?.isPaused);
-
-  // Toggle pause/resume for all tatamis at once
-  const toggleAllPace = () => {
-    const shouldPause = !areAllPaused;
-    const now = Date.now();
-    const next: Record<string, RingPaceOverride> = { ...paceOverrides };
-
-    rings.forEach((ring) => {
-      const ringAssignments = assignments.filter((a) => a.ring_id === ring.id) || [];
-      const timing = getRingTiming(ring.id, ringAssignments);
-      const curr = next[ring.id] || { isPaused: false, pausedAt: null, totalPausedMs: 0 };
-
-      if (shouldPause) {
-        if (!curr.isPaused) {
-          next[ring.id] = {
-            isPaused: true,
-            pausedAt: now,
-            totalPausedMs: curr.totalPausedMs || 0,
-            frozenSeconds: timing.actualSeconds,
-          };
-        }
-      } else {
-        if (curr.isPaused) {
-          const addPaused = curr.pausedAt ? now - curr.pausedAt : 0;
-          next[ring.id] = {
-            isPaused: false,
-            pausedAt: null,
-            totalPausedMs: (curr.totalPausedMs || 0) + addPaused,
-            frozenSeconds: undefined,
-          };
-        }
-      }
-    });
-
-    saveOverrides(next);
-  };
 
   // Live timer interval to update elapsed times every second
   useEffect(() => {
@@ -231,73 +160,209 @@ export default function AdminDashboardClient({
     return () => clearInterval(timer);
   }, []);
 
-  // Helper to calculate time took vs expected for each tatami
-  const getRingTiming = (ringId: string, ringAssignments: any[]) => {
-    const override = paceOverrides[ringId];
-    const isManuallyPaused = override?.isPaused || false;
+  // Check if all rings are paused or if any ring is running
+  const anyRunning = rings.some((r) => r.timer_status === "running");
+  const areAllPaused = rings.length > 0 && rings.every((r) => r.timer_status === "paused");
 
-    const ringLogs = logs.filter((l: any) => l.ring_id === ringId);
-    const startLogs = ringLogs.filter((l: any) => l.action === "START_CATEGORY");
-    const finishLogs = ringLogs.filter((l: any) => l.action === "FINISH_CATEGORY");
+  // Toggle individual tatami timer (Start -> Pause -> Resume)
+  const toggleRingPause = async (ringId: string) => {
+    const targetRing = rings.find((r) => r.id === ringId);
+    if (!targetRing) return;
 
-    let startTime: number | null = null;
-    if (startLogs.length > 0) {
-      startTime = Math.min(...startLogs.map((l: any) => new Date(l.created_at).getTime()));
-    } else {
-      const activeOrDone = ringAssignments.find(
-        (a: any) => a.status === "running" || a.status === "paused" || a.status === "completed"
+    const currentStatus = targetRing.timer_status || "idle";
+    const now = Date.now();
+    const nowIso = new Date(now).toISOString();
+
+    // Instant optimistic update
+    if (currentStatus === "running") {
+      const additional = targetRing.timer_started_at
+        ? Math.max(0, Math.floor((now - new Date(targetRing.timer_started_at).getTime()) / 1000))
+        : 0;
+      const newAccum = (targetRing.timer_accumulated_seconds || 0) + additional;
+      setRings((prev) =>
+        prev.map((r) =>
+          r.id === ringId
+            ? {
+                ...r,
+                timer_status: "paused",
+                timer_started_at: null,
+                timer_paused_at: nowIso,
+                timer_accumulated_seconds: newAccum,
+              }
+            : r
+        )
       );
-      if (activeOrDone && activeOrDone.created_at) {
-        startTime = new Date(activeOrDone.created_at).getTime();
-      }
+    } else {
+      setRings((prev) =>
+        prev.map((r) =>
+          r.id === ringId
+            ? {
+                ...r,
+                timer_status: "running",
+                timer_started_at: nowIso,
+                timer_paused_at: null,
+              }
+            : r
+        )
+      );
     }
 
-    const hasAssignments = ringAssignments.length > 0;
-    const isAllCompleted = hasAssignments && ringAssignments.every((a: any) => a.status === "completed");
+    try {
+      await toggleRingTimer(ringId, tournament.id, currentStatus);
+    } catch (err) {
+      console.error("Failed to toggle ring timer:", err);
+    }
+  };
 
-    let endTime: number | null = null;
-    if (isAllCompleted && finishLogs.length > 0) {
-      endTime = Math.max(...finishLogs.map((l: any) => new Date(l.created_at).getTime()));
-    } else if (isAllCompleted && ringAssignments[ringAssignments.length - 1]?.completed_at) {
-      endTime = new Date(ringAssignments[ringAssignments.length - 1].completed_at).getTime();
+  // Reset individual tatami timer
+  const handleResetTimer = async (ringId: string) => {
+    setRings((prev) =>
+      prev.map((r) =>
+        r.id === ringId
+          ? {
+              ...r,
+              timer_status: "idle",
+              timer_started_at: null,
+              timer_paused_at: null,
+              timer_accumulated_seconds: 0,
+            }
+          : r
+      )
+    );
+    try {
+      await resetRingTimer(ringId, tournament.id);
+    } catch (err) {
+      console.error("Failed to reset ring timer:", err);
+    }
+  };
+
+  // Toggle pause/resume for all tatamis at once
+  const toggleAllPace = async () => {
+    const shouldPause = anyRunning;
+    const now = Date.now();
+    const nowIso = new Date(now).toISOString();
+
+    // Instant optimistic update
+    setRings((prev) =>
+      prev.map((r) => {
+        if (shouldPause) {
+          if (r.timer_status === "running") {
+            const additional = r.timer_started_at
+              ? Math.max(0, Math.floor((now - new Date(r.timer_started_at).getTime()) / 1000))
+              : 0;
+            return {
+              ...r,
+              timer_status: "paused",
+              timer_started_at: null,
+              timer_paused_at: nowIso,
+              timer_accumulated_seconds: (r.timer_accumulated_seconds || 0) + additional,
+            };
+          }
+          return r;
+        } else {
+          if (r.timer_status !== "running") {
+            return {
+              ...r,
+              timer_status: "running",
+              timer_started_at: nowIso,
+              timer_paused_at: null,
+            };
+          }
+          return r;
+        }
+      })
+    );
+
+    try {
+      await setAllRingTimers(tournament.id, shouldPause);
+    } catch (err) {
+      console.error("Failed to toggle all tatami timers:", err);
+    }
+  };
+
+  // Calculate elapsed time vs expected time for each tatami
+  const getRingTiming = (ring: any, ringAssignments: any[]) => {
+    const timerStatus = ring.timer_status || "idle";
+    const accumulated = ring.timer_accumulated_seconds || 0;
+    const isStarted = timerStatus === "running" || timerStatus === "paused" || accumulated > 0;
+    const isRunning = timerStatus === "running";
+    const isManuallyPaused = timerStatus === "paused";
+
+    let actualSeconds = accumulated;
+    if (isRunning && ring.timer_started_at) {
+      const runningSecs = Math.max(0, Math.floor((currentTime - new Date(ring.timer_started_at).getTime()) / 1000));
+      actualSeconds += runningSecs;
     }
 
-    let actualSeconds = 0;
-    let isRunning = false;
-    if (startTime) {
-      if (isManuallyPaused) {
-        actualSeconds = override?.frozenSeconds ?? 0;
-        isRunning = false;
-      } else if (isAllCompleted && endTime) {
-        actualSeconds = Math.max(0, Math.floor((endTime - startTime - (override?.totalPausedMs || 0)) / 1000));
-      } else {
-        const netElapsedMs = (currentTime - startTime) - (override?.totalPausedMs || 0);
-        actualSeconds = Math.max(0, Math.floor(netElapsedMs / 1000));
-        isRunning = true;
-      }
-    } else if (isManuallyPaused && override?.frozenSeconds !== undefined) {
-      actualSeconds = override.frozenSeconds;
-    }
+    // Helper to get expected duration for a category (standard 109s per match)
+    const getCatExpectedSeconds = (cat: any) => {
+      const matches = cat?.expected_matches || cat?.athletes_count || 4;
+      return Math.max(1, matches) * 109;
+    };
 
-    // Sum all expected category durations for this tatami (standard 109s per match)
+    const sortedAssignments = [...(ringAssignments || [])].sort(
+      (a: any, b: any) => (a.queue_order || 0) - (b.queue_order || 0)
+    );
+
+    // Sum total expected duration for all categories in queue for this tatami (e.g. 9m)
     let expectedSeconds = 0;
-    ringAssignments.forEach((a: any) => {
-      const matches = a.categories?.expected_matches || a.categories?.athletes_count || 4;
-      expectedSeconds += matches * 109;
+    sortedAssignments.forEach((a: any) => {
+      expectedSeconds += getCatExpectedSeconds(a.categories);
     });
-
-    if (expectedSeconds === 0 && hasAssignments) {
+    if (expectedSeconds === 0 && sortedAssignments.length > 0) {
       expectedSeconds = 15 * 60;
     }
 
-    const diffSeconds = actualSeconds - expectedSeconds;
+    // Benchmark pace calculation:
+    // Compare actual time against expected duration of completed categories + active category progress
+    let diffSeconds = 0;
+
+    if (isStarted && sortedAssignments.length > 0) {
+      let completedExpectedSeconds = 0;
+      let activeCatExpectedSeconds = 0;
+      let activeMatchesExpectedSeconds = 0;
+      let hasActive = false;
+
+      sortedAssignments.forEach((a: any) => {
+        const catDuration = getCatExpectedSeconds(a.categories);
+        if (a.status === "completed") {
+          completedExpectedSeconds += catDuration;
+        } else if (!hasActive && (a.status === "running" || a.status === "paused")) {
+          hasActive = true;
+          activeCatExpectedSeconds = catDuration;
+          const matchesDone = a.matches_completed || 0;
+          activeMatchesExpectedSeconds = matchesDone * 109;
+        }
+      });
+
+      const targetWhenActiveFinishes = completedExpectedSeconds + activeCatExpectedSeconds;
+      const completedWorkExpected = completedExpectedSeconds + activeMatchesExpectedSeconds;
+
+      if (hasActive) {
+        if (actualSeconds > targetWhenActiveFinishes) {
+          // Exceeded total scheduled time for this category -> late!
+          diffSeconds = actualSeconds - targetWhenActiveFinishes;
+        } else if (completedWorkExpected > 0) {
+          // Compare elapsed time against completed categories/matches benchmark
+          diffSeconds = actualSeconds - completedWorkExpected;
+        } else {
+          // On first category, within scheduled time window -> on pace
+          diffSeconds = 0;
+        }
+      } else if (completedExpectedSeconds > 0) {
+        // No currently active category, but some completed (or in-between / all completed)
+        diffSeconds = actualSeconds - completedExpectedSeconds;
+      } else {
+        diffSeconds = 0;
+      }
+    }
 
     return {
-      startTime,
-      isStarted: startTime !== null || (override?.frozenSeconds !== undefined && override.frozenSeconds > 0),
+      startTime: ring.timer_started_at ? new Date(ring.timer_started_at).getTime() : null,
+      isStarted,
       isRunning,
       isManuallyPaused,
-      isAllCompleted,
+      isAllCompleted: ringAssignments.length > 0 && ringAssignments.every((a: any) => a.status === "completed"),
       actualSeconds,
       expectedSeconds,
       diffSeconds,
@@ -328,7 +393,11 @@ export default function AdminDashboardClient({
 
   return (
     <>
-      <AdminHeader title="Overview" eventName={tournament.name} />
+      {readOnly ? (
+        <OrganiserHeader title="Overview" eventName={tournament.name} />
+      ) : (
+        <AdminHeader title="Overview" eventName={tournament.name} />
+      )}
       
       {activeAlert && (
         <div className="fixed top-6 right-6 z-50 flex items-center justify-center p-4">
@@ -405,39 +474,39 @@ export default function AdminDashboardClient({
           </div>
         </section>
 
-        <div className="grid grid-cols-1 xl:grid-cols-4 gap-8">
+        <div className={readOnly ? "space-y-4" : "grid grid-cols-1 xl:grid-cols-4 gap-8"}>
           {/* Unified Tatamis Grid Overview */}
-          <div className="xl:col-span-3 space-y-4">
+          <div className={`${readOnly ? "w-full" : "xl:col-span-3"} space-y-4`}>
             <div className="flex flex-wrap items-center justify-between gap-2">
               <div className="flex items-center gap-3">
                 <h3 className="font-headline-sm text-headline-sm text-primary font-bold">
                   Live Tatami Status & Pace
                 </h3>
-                {rings.length > 0 && (
+                {!readOnly && rings.length > 0 && (
                   <button
                     type="button"
                     onClick={toggleAllPace}
-                    title={areAllPaused ? "Resume all tatami timers" : "Pause all tatami timers"}
+                    title={anyRunning ? "Pause all tatami timers" : "Resume all tatami timers"}
                     className={`px-3 py-1.5 text-xs font-label-caps font-semibold rounded-md border flex items-center gap-1.5 transition-all cursor-pointer shadow-2xs ${
-                      areAllPaused
+                      !anyRunning && areAllPaused
                         ? "bg-emerald-50 border-emerald-300 text-emerald-800 hover:bg-emerald-100 font-bold"
                         : "border-outline-variant bg-surface-container-lowest hover:bg-surface-container text-on-surface"
                     }`}
                   >
                     <span className="material-symbols-outlined text-[16px]">
-                      {areAllPaused ? "play_arrow" : "pause"}
+                      {anyRunning ? "pause" : "play_arrow"}
                     </span>
-                    <span>{areAllPaused ? "Resume All Tatamis" : "Pause All Tatamis"}</span>
+                    <span>{anyRunning ? "Pause All Tatamis" : "Resume All Tatamis"}</span>
                   </button>
                 )}
               </div>
               <div className="flex items-center gap-1.5 text-xs font-label-caps text-on-surface-variant">
-                <span className={`w-2 h-2 rounded-full ${areAllPaused ? "bg-amber-500" : "bg-secondary animate-pulse"}`} />
-                <span>{areAllPaused ? "Pace Tracking Paused" : "Realtime Pace Tracking"}</span>
+                <span className={`w-2 h-2 rounded-full ${anyRunning ? "bg-secondary animate-pulse" : areAllPaused ? "bg-amber-500" : "bg-outline"}`} />
+                <span>{anyRunning ? "Realtime Pace Tracking" : areAllPaused ? "Pace Tracking Paused" : "Pace Tracking Ready"}</span>
               </div>
             </div>
             
-            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-2 2xl:grid-cols-3 gap-5">
+            <div className={`grid grid-cols-1 md:grid-cols-2 ${readOnly ? "xl:grid-cols-3 2xl:grid-cols-4" : "xl:grid-cols-2 2xl:grid-cols-3"} gap-5`}>
               {rings.map((ring) => {
                 const ringAssignments = assignments.filter((a) => a.ring_id === ring.id) || [];
                 const activeAssignment =
@@ -446,12 +515,15 @@ export default function AdminDashboardClient({
                 const nextAssignment = ringAssignments.find((a) => a.status === "pending");
                 
                 const assignment = activeAssignment || nextAssignment;
-                const timing = getRingTiming(ring.id, ringAssignments);
+                const timing = getRingTiming(ring, ringAssignments);
                 
+                // Tatami status is driven strictly by activeAssignment (matching public spectator page):
                 const status = activeAssignment
                   ? activeAssignment.status === "running"
                     ? "Running"
-                    : "Paused"
+                    : activeAssignment.status === "paused"
+                    ? "Paused"
+                    : "Empty"
                   : timing.isAllCompleted
                   ? "Completed"
                   : "Empty";
@@ -494,20 +566,23 @@ export default function AdminDashboardClient({
                     progressPercent={ringProgressPercent}
                     estimatedFinish={estFinish}
                     timing={timing}
-                    onTogglePause={() => toggleRingPause(ring.id, timing.actualSeconds)}
+                    onTogglePause={readOnly ? undefined : () => toggleRingPause(ring.id)}
+                    onResetTimer={readOnly ? undefined : () => handleResetTimer(ring.id)}
                     formatTimeTook={formatTimeTook}
                     formatTimeExpected={formatTimeExpected}
+                    readOnly={readOnly}
                   />
                 );
               })}
             </div>
           </div>
 
-          {/* Sidebar Widgets */}
-          <div className="space-y-8">
-            <LiveActivityFeed tournamentId={tournament.id} initialLogs={logs} rings={rings} />
-            <ModeratorRequestsWidget tournamentId={tournament.id} initialRequests={initialModRequests} />
-          </div>
+          {!readOnly && (
+            <div className="space-y-8">
+              <LiveActivityFeed tournamentId={tournament.id} initialLogs={logs} rings={rings} />
+              <ModeratorRequestsWidget tournamentId={tournament.id} initialRequests={initialModRequests} readOnly={readOnly} />
+            </div>
+          )}
         </div>
       </div>
     </>
