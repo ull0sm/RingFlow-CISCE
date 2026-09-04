@@ -20,9 +20,14 @@ export async function GET(request: Request) {
       } else {
         return NextResponse.redirect(`${origin}${next}`)
       }
+    } else {
+      console.error("Auth callback session exchange error:", error.message);
+      const errorLoginPath = next.startsWith('/organiser') ? '/login/organiser' : '/login/admin';
+      return NextResponse.redirect(`${origin}${errorLoginPath}?error=${encodeURIComponent(error.message)}`);
     }
   }
 
   // return the user to an error page with instructions
-  return NextResponse.redirect(`${origin}/login/admin?error=AuthFailed`)
+  const errorLoginPath = next.startsWith('/organiser') ? '/login/organiser' : '/login/admin';
+  return NextResponse.redirect(`${origin}${errorLoginPath}?error=AuthFailed`);
 }
