@@ -14,7 +14,15 @@ interface ModRequest {
   rings?: { name: string };
 }
 
-export default function ModeratorRequestsWidget({ tournamentId, initialRequests }: { tournamentId: string, initialRequests: ModRequest[] }) {
+export default function ModeratorRequestsWidget({ 
+  tournamentId, 
+  initialRequests,
+  readOnly = false,
+}: { 
+  tournamentId: string; 
+  initialRequests: ModRequest[];
+  readOnly?: boolean;
+}) {
   const [requests, setRequests] = useState<ModRequest[]>(initialRequests);
   const supabase = createClient();
   const [loadingId, setLoadingId] = useState<string | null>(null);
@@ -47,8 +55,9 @@ export default function ModeratorRequestsWidget({ tournamentId, initialRequests 
     setLoadingId(id);
     try {
       await approveModeratorRequest(id, ringId, tournamentId);
-    } catch (e) {
-      alert("Failed to approve request.");
+      setRequests(current => current.map(r => r.id === id ? { ...r, status: 'approved' } : r));
+    } catch (e: any) {
+      alert(e?.message || "Failed to approve request.");
     } finally {
       setLoadingId(null);
     }
@@ -58,8 +67,9 @@ export default function ModeratorRequestsWidget({ tournamentId, initialRequests 
     setLoadingId(id);
     try {
       await rejectModeratorRequest(id, tournamentId);
-    } catch (e) {
-      alert("Failed to reject request.");
+      setRequests(current => current.map(r => r.id === id ? { ...r, status: 'rejected' } : r));
+    } catch (e: any) {
+      alert(e?.message || "Failed to reject request.");
     } finally {
       setLoadingId(null);
     }
@@ -84,7 +94,7 @@ export default function ModeratorRequestsWidget({ tournamentId, initialRequests 
                   <span className="font-label-caps text-[10px] text-secondary font-bold block mb-1">
                     {req.rings?.name || "Unknown Tatami"}
                   </span>
-                  <span className="text-[10px] text-on-surface-variant">{new Date(req.created_at).toLocaleTimeString()}</span>
+                  <span className="text-[10px] text-on-surface-variant" suppressHydrationWarning>{new Date(req.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
                 </div>
                 {req.moderator_name && req.moderator_name !== "Unknown" && (
                   <p className="font-body-sm font-semibold mb-1 text-primary">{req.moderator_name}</p>
@@ -100,22 +110,28 @@ export default function ModeratorRequestsWidget({ tournamentId, initialRequests 
                 )}
               </div>
             </div>
-            <div className="flex gap-2">
-              <button 
-                onClick={() => handleApprove(req.id, req.ring_id)}
-                disabled={loadingId === req.id}
-                className="flex-1 bg-primary text-white text-[10px] font-bold py-1.5 rounded hover:opacity-90 disabled:opacity-50"
-              >
-                APPROVE
-              </button>
-              <button 
-                onClick={() => handleReject(req.id)}
-                disabled={loadingId === req.id}
-                className="flex-1 border border-error text-error text-[10px] font-bold py-1.5 rounded hover:bg-error/10 disabled:opacity-50"
-              >
-                REJECT
-              </button>
-            </div>
+            {!readOnly ? (
+              <div className="flex gap-2">
+                <button 
+                  onClick={() => handleApprove(req.id, req.ring_id)}
+                  disabled={loadingId === req.id}
+                  className="flex-1 bg-primary text-white text-[10px] font-bold py-1.5 rounded hover:opacity-90 disabled:opacity-50 cursor-pointer"
+                >
+                  APPROVE
+                </button>
+                <button 
+                  onClick={() => handleReject(req.id)}
+                  disabled={loadingId === req.id}
+                  className="flex-1 border border-error text-error text-[10px] font-bold py-1.5 rounded hover:bg-error/10 disabled:opacity-50 cursor-pointer"
+                >
+                  REJECT
+                </button>
+              </div>
+            ) : (
+              <div className="text-[11px] font-label-caps text-on-surface-variant font-medium py-1 px-2 bg-surface-container rounded text-center">
+                Pending Admin Review
+              </div>
+            )}
           </div>
         ))}
         {pendingRequests.length === 0 && (

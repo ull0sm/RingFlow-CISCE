@@ -25,9 +25,15 @@ interface Props {
   tournamentId: string;
   initialAthletes: Athlete[];
   categories: Category[];
+  readOnly?: boolean;
 }
 
-export default function AthletesClient({ tournamentId, initialAthletes, categories }: Props) {
+export default function AthletesClient({ 
+  tournamentId, 
+  initialAthletes, 
+  categories,
+  readOnly = false,
+}: Props) {
   const [athletes, setAthletes] = useState<Athlete[]>(initialAthletes);
   const [isAdding, setIsAdding] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
@@ -174,30 +180,32 @@ export default function AthletesClient({ tournamentId, initialAthletes, categori
           <h2 className="font-headline-sm text-headline-sm text-primary">Athlete Roster</h2>
           <p className="text-body-sm text-on-surface-variant">Manage athletes or drag-and-drop Excel files to bulk upload by category.</p>
         </div>
-        <div className="flex gap-4">
-          <input 
-            type="file" 
-            accept=".xlsx, .xls, .csv" 
-            className="hidden" 
-            ref={fileInputRef} 
-            onChange={handleFileUpload} 
-          />
-          <button 
-            onClick={() => fileInputRef.current?.click()}
-            disabled={isUploading || isAdding}
-            className="px-4 py-2 border border-outline text-primary font-label-caps text-label-caps rounded flex items-center gap-2 hover:bg-surface-container-low disabled:opacity-50"
-          >
-            <span className="material-symbols-outlined text-[18px]">upload</span> {isUploading ? "UPLOADING..." : "MASTER EXCEL UPLOAD"}
-          </button>
-          <button  
-            onClick={() => setIsAdding(true)}
-            disabled={isAdding || isUploading || categories.length === 0}
-            title={categories.length === 0 ? "Add a category first" : ""}
-            className="px-4 py-2 bg-primary text-white font-label-caps text-label-caps rounded flex items-center gap-2 hover:opacity-90 disabled:opacity-50"
-          >
-            <span className="material-symbols-outlined text-[18px]">person_add</span> ADD ATHLETE
-          </button>
-        </div>
+        {!readOnly && (
+          <div className="flex gap-4">
+            <input 
+              type="file" 
+              accept=".xlsx, .xls, .csv" 
+              className="hidden" 
+              ref={fileInputRef} 
+              onChange={handleFileUpload} 
+            />
+            <button 
+              onClick={() => fileInputRef.current?.click()}
+              disabled={isUploading || isAdding}
+              className="px-4 py-2 border border-outline text-primary font-label-caps text-label-caps rounded flex items-center gap-2 hover:bg-surface-container-low disabled:opacity-50"
+            >
+              <span className="material-symbols-outlined text-[18px]">upload</span> {isUploading ? "UPLOADING..." : "MASTER EXCEL UPLOAD"}
+            </button>
+            <button  
+              onClick={() => setIsAdding(true)}
+              disabled={isAdding || isUploading || categories.length === 0}
+              title={categories.length === 0 ? "Add a category first" : ""}
+              className="px-4 py-2 bg-primary text-white font-label-caps text-label-caps rounded flex items-center gap-2 hover:opacity-90 disabled:opacity-50"
+            >
+              <span className="material-symbols-outlined text-[18px]">person_add</span> ADD ATHLETE
+            </button>
+          </div>
+        )}
       </div>
 
       {uploadProgress && (
@@ -238,7 +246,9 @@ export default function AthletesClient({ tournamentId, initialAthletes, categori
               <th className="px-6 py-4 font-label-caps text-label-caps text-on-surface-variant w-28">School Code</th>
               <th className="px-6 py-4 font-label-caps text-label-caps text-on-surface-variant w-32">Sports ID</th>
               <th className="px-6 py-4 font-label-caps text-label-caps text-on-surface-variant">Category</th>
-              <th className="px-6 py-4 font-label-caps text-label-caps text-on-surface-variant text-right">Actions</th>
+              {!readOnly && (
+                <th className="px-6 py-4 font-label-caps text-label-caps text-on-surface-variant text-right">Actions</th>
+              )}
             </tr>
           </thead>
           <tbody className="font-body-sm text-body-sm divide-y divide-outline-variant">
@@ -286,7 +296,13 @@ export default function AthletesClient({ tournamentId, initialAthletes, categori
                 <td className="px-6 py-4 font-data-mono">{athlete.school_code || "-"}</td>
                 <td className="px-6 py-4 font-data-mono">{athlete.sports_id || "-"}</td>
                 <td className="px-6 py-4">
-                  {editingAthleteId === athlete.id ? (
+                  {readOnly ? (
+                    athlete.categories?.name ? (
+                      <span className="px-2 py-1 bg-surface-container rounded text-xs font-label-caps">{athlete.categories.name}</span>
+                    ) : (
+                      <span className="px-2 py-1 bg-error/10 text-error rounded text-xs font-label-caps">UNCATEGORIZED</span>
+                    )
+                  ) : editingAthleteId === athlete.id ? (
                     <select 
                       defaultValue={athlete.category_id || "uncategorized"}
                       onChange={(e) => handleUpdateCategory(athlete.id, e.target.value)}
@@ -308,15 +324,17 @@ export default function AthletesClient({ tournamentId, initialAthletes, categori
                     </div>
                   )}
                 </td>
-                <td className="px-6 py-4 text-right">
-                  <button onClick={() => handleDelete(athlete.id)} className="material-symbols-outlined text-outline hover:text-error transition-colors text-sm">delete</button>
-                </td>
+                {!readOnly && (
+                  <td className="px-6 py-4 text-right">
+                    <button onClick={() => handleDelete(athlete.id)} className="material-symbols-outlined text-outline hover:text-error transition-colors text-sm cursor-pointer">delete</button>
+                  </td>
+                )}
               </tr>
             ))}
             
             {!athletes || (athletes.length === 0 && !isAdding) && (
               <tr>
-                <td colSpan={7} className="px-6 py-8 text-center text-on-surface-variant italic">
+                <td colSpan={readOnly ? 6 : 7} className="px-6 py-8 text-center text-on-surface-variant italic">
                   No athletes found in this tournament roster.
                 </td>
               </tr>

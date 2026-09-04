@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
+import { useRouter } from "next/navigation";
 import { addRing, regenerateRingCode } from "@/actions/rings";
 import { approveModeratorRequest, rejectModeratorRequest, revokeActiveModeratorSession } from "@/actions/moderator";
 import { createClient } from "@/utils/supabase/client";
@@ -28,6 +29,7 @@ interface Props {
 }
 
 export default function RingsClient({ tournamentId, initialRings, initialModRequests = [] }: Props) {
+  const router = useRouter();
   const [rings, setRings] = useState<Ring[]>(initialRings);
   const [modRequests, setModRequests] = useState<ModRequest[]>(initialModRequests);
   const [isAdding, setIsAdding] = useState(false);
@@ -61,9 +63,13 @@ export default function RingsClient({ tournamentId, initialRings, initialModRequ
   const handleAddRing = async () => {
     setIsAdding(true);
     try {
-      await addRing(tournamentId);
-    } catch (err) {
-      alert("Failed to add tatami.");
+      const newRing = await addRing(tournamentId);
+      if (newRing) {
+        setRings(prev => [...prev, newRing]);
+      }
+      router.refresh();
+    } catch (err: any) {
+      alert(err?.message || "Failed to add tatami.");
     } finally {
       setIsAdding(false);
     }
@@ -72,9 +78,13 @@ export default function RingsClient({ tournamentId, initialRings, initialModRequ
   const handleRegenerate = async (ringId: string) => {
     setLoadingAction(`${ringId}-regen`);
     try {
-      await regenerateRingCode(ringId, tournamentId);
-    } catch (err) {
-      alert("Failed to regenerate code.");
+      const res = await regenerateRingCode(ringId, tournamentId);
+      if (res?.access_code) {
+        setRings(prev => prev.map(r => r.id === ringId ? { ...r, access_code: res.access_code } : r));
+      }
+      router.refresh();
+    } catch (err: any) {
+      alert(err?.message || "Failed to regenerate code.");
     } finally {
       setLoadingAction(null);
     }
@@ -84,8 +94,18 @@ export default function RingsClient({ tournamentId, initialRings, initialModRequ
     setLoadingAction(`approve-${requestId}`);
     try {
       await approveModeratorRequest(requestId, ringId, tournamentId);
-    } catch (err) {
-      alert("Failed to approve moderator.");
+      setModRequests(prev => prev.map(r => {
+        if (r.id === requestId) {
+          return { ...r, status: "approved" };
+        }
+        if (r.ring_id === ringId && r.status === "approved") {
+          return { ...r, status: "revoked" };
+        }
+        return r;
+      }));
+      router.refresh();
+    } catch (err: any) {
+      alert(err?.message || "Failed to approve moderator.");
     } finally {
       setLoadingAction(null);
     }
@@ -95,8 +115,10 @@ export default function RingsClient({ tournamentId, initialRings, initialModRequ
     setLoadingAction(`reject-${requestId}`);
     try {
       await rejectModeratorRequest(requestId, tournamentId);
-    } catch (err) {
-      alert("Failed to reject request.");
+      setModRequests(prev => prev.map(r => r.id === requestId ? { ...r, status: "rejected" } : r));
+      router.refresh();
+    } catch (err: any) {
+      alert(err?.message || "Failed to reject request.");
     } finally {
       setLoadingAction(null);
     }
@@ -109,8 +131,10 @@ export default function RingsClient({ tournamentId, initialRings, initialModRequ
     setLoadingAction(`revoke-${ringId}`);
     try {
       await revokeActiveModeratorSession(ringId, tournamentId);
-    } catch (err) {
-      alert("Failed to revoke moderator session.");
+      setModRequests(prev => prev.map(r => (r.ring_id === ringId && r.status === "approved") ? { ...r, status: "revoked" } : r));
+      router.refresh();
+    } catch (err: any) {
+      alert(err?.message || "Failed to revoke moderator session.");
     } finally {
       setLoadingAction(null);
     }
@@ -213,7 +237,7 @@ export default function RingsClient({ tournamentId, initialRings, initialModRequ
                       <div key={req.id} className="bg-white p-2.5 rounded border border-amber-300/50 flex items-center justify-between shadow-xs">
                         <div className="flex flex-col">
                           <span className="text-xs font-bold text-primary">{req.moderator_name}</span>
-                          <span className="text-[9px] font-data-mono text-on-surface-variant opacity-70">
+                          <span className="text-[9px] font-data-mono text-on-surface-variant opacity-70" suppressHydrationWarning>
                             {req.device_info?.browser || "Device"} • {new Date(req.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                           </span>
                         </div>

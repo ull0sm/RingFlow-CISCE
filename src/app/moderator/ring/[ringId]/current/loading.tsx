@@ -54,11 +54,13 @@ export default function ModeratorCurrentLoading() {
       {/* Match Adjustment Grid Skeleton */}
       <section className="space-y-4 mb-10">
         <Skeleton className="w-36 h-3 px-1" />
-        <div className="grid grid-cols-2 gap-4">
-          <Skeleton className="h-16 rounded-xl" />
-          <Skeleton className="h-16 rounded-xl" />
-          <Skeleton className="h-16 rounded-xl" />
-          <Skeleton className="h-16 rounded-xl" />
+        <div className="space-y-3">
+          <Skeleton className="w-full h-20 rounded-xl" />
+          <div className="grid grid-cols-3 gap-3">
+            <Skeleton className="h-14 rounded-xl" />
+            <Skeleton className="h-14 rounded-xl" />
+            <Skeleton className="h-14 rounded-xl" />
+          </div>
         </div>
       </section>
 

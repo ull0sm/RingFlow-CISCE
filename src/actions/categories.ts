@@ -9,12 +9,11 @@ export async function addCategory(tournamentId: string, input: CategoryInput) {
   const adminId = await ensureAdmin();
   const supabase = await createClient();
 
-  // Verify tournament ownership
+  // Verify tournament exists
   const { data: tournament } = await supabase
     .from("tournaments")
     .select("id")
     .eq("id", tournamentId)
-    .eq("admin_id", adminId)
     .single();
 
   if (!tournament) throw new Error("Unauthorized or tournament not found");
@@ -45,12 +44,11 @@ export async function bulkAddCategories(tournamentId: string, categories: any[])
   const adminId = await ensureAdmin();
   const supabase = await createClient();
 
-  // Verify tournament ownership
+  // Verify tournament exists
   const { data: tournament } = await supabase
     .from("tournaments")
     .select("id")
     .eq("id", tournamentId)
-    .eq("admin_id", adminId)
     .single();
 
   if (!tournament) throw new Error("Unauthorized or tournament not found");
