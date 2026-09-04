@@ -175,7 +175,7 @@ export default function CategoriesClient({ tournamentId, initialCategories }: Pr
   };
 
   return (
-    <div className="flex-1 overflow-y-auto p-margin-desktop space-y-8 bg-surface">
+    <div className="p-margin-desktop space-y-8 bg-surface pb-24 w-full">
       <div className="flex justify-between items-center">
         <div>
           <h2 className="font-headline-sm text-headline-sm text-primary">Division Management</h2>

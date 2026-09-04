@@ -30,7 +30,7 @@ export default async function EventSelectionPage() {
   return (
     <>
       <AdminHeader title="Select Tournament" />
-      <div className="flex-1 overflow-y-auto p-margin-desktop bg-surface">
+      <div className="p-margin-desktop bg-surface pb-24 w-full">
         <div className="max-w-7xl mx-auto w-full">
           {/* Welcome Section */}
           <div className="mb-12">
