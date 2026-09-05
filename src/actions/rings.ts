@@ -3,6 +3,7 @@
 import { createClient } from "@/utils/supabase/server";
 import { revalidatePath } from "next/cache";
 import { ensureAdmin } from "./admin";
+import { ensureOrganiser } from "./organiser";
 
 function generateAccessCode() {
   return Math.floor(100000 + Math.random() * 900000).toString();
@@ -92,13 +93,19 @@ export async function startRingTimer(ringId: string, tournamentId: string) {
   const supabase = await createClient();
   const now = new Date().toISOString();
 
-  const { data: ring } = await supabase
+  let query = supabase
     .from("rings")
     .select("timer_status, timer_accumulated_seconds")
-    .eq("id", ringId)
-    .single();
+    .eq("id", ringId);
 
-  const accumulated = ring?.timer_accumulated_seconds || 0;
+  if (tournamentId) {
+    query = query.eq("tournament_id", tournamentId);
+  }
+
+  const { data: ring } = await query.single();
+  if (!ring) return { success: false, error: "Ring not found" };
+
+  const accumulated = ring.timer_accumulated_seconds || 0;
 
   const { error } = await supabase
     .from("rings")
@@ -125,11 +132,16 @@ export async function pauseRingTimer(ringId: string, tournamentId: string) {
   const now = Date.now();
   const nowIso = new Date(now).toISOString();
 
-  const { data: ring } = await supabase
+  let query = supabase
     .from("rings")
     .select("timer_status, timer_started_at, timer_accumulated_seconds")
-    .eq("id", ringId)
-    .single();
+    .eq("id", ringId);
+
+  if (tournamentId) {
+    query = query.eq("tournament_id", tournamentId);
+  }
+
+  const { data: ring } = await query.single();
 
   if (!ring) return { success: false };
 
@@ -166,7 +178,7 @@ export async function resumeRingTimer(ringId: string, tournamentId: string) {
 
 export async function resetRingTimer(ringId: string, tournamentId: string) {
   const supabase = await createClient();
-  const { error } = await supabase
+  let updateQuery = supabase
     .from("rings")
     .update({
       timer_status: "idle",
@@ -175,6 +187,12 @@ export async function resetRingTimer(ringId: string, tournamentId: string) {
       timer_accumulated_seconds: 0,
     })
     .eq("id", ringId);
+
+  if (tournamentId) {
+    updateQuery = updateQuery.eq("tournament_id", tournamentId);
+  }
+
+  const { error } = await updateQuery;
 
   if (error) {
     console.error("Error resetting ring timer:", error);
@@ -195,6 +213,21 @@ export async function toggleRingTimer(ringId: string, tournamentId: string, curr
 }
 
 export async function setAllRingTimers(tournamentId: string, pause: boolean) {
+  // Authorize admin or organiser
+  let isAuthorized = false;
+  try {
+    await ensureAdmin();
+    isAuthorized = true;
+  } catch {
+    try {
+      await ensureOrganiser();
+      isAuthorized = true;
+    } catch {}
+  }
+  if (!isAuthorized) {
+    throw new Error("Unauthorized to set ring timers");
+  }
+
   const supabase = await createClient();
   const now = Date.now();
   const nowIso = new Date(now).toISOString();

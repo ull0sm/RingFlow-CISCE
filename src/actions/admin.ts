@@ -43,11 +43,19 @@ export async function adminSetRingStatus(ringId: string, isPaused: boolean) {
   await ensureAdmin();
   const supabase = await createClient();
 
+  const { data: ring } = await supabase
+    .from("rings")
+    .select("id, tournament_id")
+    .eq("id", ringId)
+    .single();
+
+  if (!ring) return;
+
   // Update ring timer state directly
   if (isPaused) {
-    await pauseRingTimer(ringId, "");
+    await pauseRingTimer(ringId, ring.tournament_id);
   } else {
-    await startRingTimer(ringId, "");
+    await startRingTimer(ringId, ring.tournament_id);
   }
 
   const { data: assignment } = await supabase
