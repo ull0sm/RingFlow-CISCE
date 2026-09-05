@@ -17,6 +17,16 @@ export async function addAthlete(tournamentId: string, input: AthleteInput) {
   const adminId = await ensureAdmin();
   const supabase = await createClient();
 
+  // Verify category belongs to tournament
+  const { data: cat } = await supabase
+    .from("categories")
+    .select("id")
+    .eq("id", input.category_id)
+    .eq("tournament_id", tournamentId)
+    .single();
+
+  if (!cat) throw new Error("Invalid category for this tournament");
+
   const { error } = await supabase.from("athletes").insert({
     category_id: input.category_id,
     name: input.name,
@@ -36,6 +46,16 @@ export async function deleteAthlete(athleteId: string, tournamentId: string) {
   const adminId = await ensureAdmin();
   const supabase = await createClient();
 
+  const { data: athlete } = await supabase
+    .from("athletes")
+    .select("id, categories!inner(tournament_id)")
+    .eq("id", athleteId)
+    .single();
+
+  if (!athlete || (athlete.categories as any)?.tournament_id !== tournamentId) {
+    throw new Error("Athlete not found in this tournament");
+  }
+
   const { error } = await supabase.from("athletes").delete().eq("id", athleteId);
   if (error) throw new Error(error.message);
 
@@ -45,6 +65,27 @@ export async function deleteAthlete(athleteId: string, tournamentId: string) {
 export async function updateAthleteCategory(athleteId: string, categoryId: string | null, tournamentId: string) {
   const adminId = await ensureAdmin();
   const supabase = await createClient();
+
+  const { data: athlete } = await supabase
+    .from("athletes")
+    .select("id, categories!inner(tournament_id)")
+    .eq("id", athleteId)
+    .single();
+
+  if (!athlete || (athlete.categories as any)?.tournament_id !== tournamentId) {
+    throw new Error("Athlete not found in this tournament");
+  }
+
+  if (categoryId) {
+    const { data: cat } = await supabase
+      .from("categories")
+      .select("id")
+      .eq("id", categoryId)
+      .eq("tournament_id", tournamentId)
+      .single();
+
+    if (!cat) throw new Error("Target category not found in this tournament");
+  }
 
   const { error } = await supabase
     .from("athletes")
