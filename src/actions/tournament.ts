@@ -2,6 +2,7 @@
 
 import { createClient } from "@/utils/supabase/server";
 import { ensureAdmin } from "./admin";
+import { generateAccessCode } from "@/lib/utils";
 
 export type CategoryInput = {
   name: string;
@@ -23,15 +24,30 @@ export async function createTournament(input: TournamentInput) {
   const adminId = await ensureAdmin();
   const supabase = await createClient();
 
+  // Validate inputs
+  const name = (input.name || "").trim();
+  if (!name || name.length > 200) {
+    throw new Error("Tournament name is required and must be under 200 characters.");
+  }
+
+  const venue = (input.venue || "").trim().slice(0, 200) || null;
+  const city = (input.city || "").trim().slice(0, 200) || null;
+  const event_date = input.event_date ? new Date(input.event_date).toISOString() : null;
+
+  const ringCount = Math.floor(Number(input.ringCount));
+  if (isNaN(ringCount) || ringCount < 1 || ringCount > 50) {
+    throw new Error("Ring count must be an integer between 1 and 50.");
+  }
+
   // 1. Create Tournament
   const { data: tournament, error: tournamentError } = await supabase
     .from("tournaments")
     .insert({
       admin_id: adminId,
-      name: input.name,
-      event_date: input.event_date || null,
-      venue: input.venue || null,
-      city: input.city || null,
+      name,
+      event_date,
+      venue,
+      city,
       status: "draft",
     })
     .select("id")
@@ -45,17 +61,19 @@ export async function createTournament(input: TournamentInput) {
   const tournamentId = tournament.id;
 
   // 2. Create Categories
-  if (input.categories.length > 0) {
+  if (Array.isArray(input.categories) && input.categories.length > 0) {
     const categoriesToInsert = input.categories.map((c) => {
+      const catName = (c.name || "").trim().slice(0, 200);
+      const athletesCount = Math.max(0, Math.min(10000, Math.floor(Number(c.athletes_count) || 0)));
       // expected_matches = n - 1
-      const expectedMatches = Math.max(0, c.athletes_count - 1);
+      const expectedMatches = Math.max(0, athletesCount - 1);
 
       return {
         tournament_id: tournamentId,
-        name: c.name,
-        age_bracket: c.age_bracket,
-        weight_class: c.weight_class,
-        athletes_count: c.athletes_count,
+        name: catName,
+        age_bracket: (c.age_bracket || "").trim().slice(0, 100),
+        weight_class: (c.weight_class || "").trim().slice(0, 100),
+        athletes_count: athletesCount,
         expected_matches: expectedMatches,
         has_full_roster: false,
       };
@@ -72,15 +90,12 @@ export async function createTournament(input: TournamentInput) {
   }
 
   // 3. Create Rings
-  const ringsToInsert = Array.from({ length: input.ringCount }).map((_, i) => {
-    // Generate a random 6-digit string
-    const accessCode = Math.floor(100000 + Math.random() * 900000).toString();
-    
+  const ringsToInsert = Array.from({ length: ringCount }).map((_, i) => {
     return {
       tournament_id: tournamentId,
       name: `Tatami ${String(i + 1).padStart(2, "0")}`,
       ring_order: i + 1,
-      access_code: accessCode,
+      access_code: generateAccessCode(),
     };
   });
 

@@ -10,6 +10,7 @@ interface Tournament {
   status: string;
   venue: string | null;
   city: string | null;
+  organiser_email?: string | null;
 }
 
 interface Props {
@@ -23,6 +24,7 @@ export default function SettingsClient({ tournament }: Props) {
     status: tournament.status,
     venue: tournament.venue || "",
     city: tournament.city || "",
+    organiser_email: tournament.organiser_email || "",
   });
   
   const [isSaving, setIsSaving] = useState(false);
@@ -140,14 +142,58 @@ export default function SettingsClient({ tournament }: Props) {
                 </div>
               </div>
             </div>
+          </section>
+
+          {/* Organiser Access Control */}
+          <section className="bg-surface-container-lowest border border-outline-variant rounded-xl p-8 shadow-sm">
+            <div className="flex items-start justify-between mb-4">
+              <div>
+                <h3 className="font-label-caps text-label-caps text-secondary mb-1">Organiser Access Control</h3>
+                <p className="text-body-sm text-on-surface-variant">
+                  Set the Gmail/email address of the tournament organiser. Only this Google account will be granted organiser access to this specific tournament.
+                </p>
+              </div>
+              <span className="material-symbols-outlined text-secondary text-2xl">manage_accounts</span>
+            </div>
+
+            <div className="space-y-4">
+              <div className="flex flex-col gap-2">
+                <label className="font-label-caps text-[10px] text-on-surface-variant">ORGANISER GMAIL / EMAIL ADDRESS</label>
+                <div className="relative">
+                  <span className="absolute left-3.5 top-1/2 -translate-y-1/2 material-symbols-outlined text-outline text-[18px]">
+                    mail
+                  </span>
+                  <input 
+                    type="email" 
+                    value={form.organiser_email}
+                    onChange={e => setForm({...form, organiser_email: e.target.value})}
+                    placeholder="e.g. organiser.event@gmail.com"
+                    className="w-full pl-10 pr-3 py-3 border border-outline-variant rounded focus:border-secondary focus:ring-1 focus:ring-secondary outline-none font-body-md" 
+                  />
+                </div>
+                <p className="text-xs text-on-surface-variant/80">
+                  Multiple emails can be comma-separated. The assigned organiser can sign in via Google at <code>/login/organiser</code> to access this event.
+                </p>
+              </div>
+            </div>
 
             <div className="mt-8 flex justify-end">
               <button 
                 onClick={handleSave}
                 disabled={isSaving}
-                className="px-6 py-2 bg-primary text-white font-label-caps text-label-caps rounded hover:opacity-90 transition-opacity disabled:opacity-50"
+                className="px-6 py-2.5 bg-primary text-white font-label-caps text-label-caps rounded hover:opacity-90 transition-opacity disabled:opacity-50 flex items-center gap-2"
               >
-                {isSaving ? "SAVING..." : "SAVE CHANGES"}
+                {isSaving ? (
+                  <>
+                    <span className="w-3.5 h-3.5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                    SAVING...
+                  </>
+                ) : (
+                  <>
+                    <span className="material-symbols-outlined text-[16px]">save</span>
+                    SAVE CHANGES
+                  </>
+                )}
               </button>
             </div>
           </section>
@@ -178,8 +224,10 @@ export default function SettingsClient({ tournament }: Props) {
                     <div className="flex gap-4">
                       <input 
                         type="text" 
+                        autoFocus
                         value={deleteInput}
                         onChange={e => setDeleteInput(e.target.value)}
+                        onKeyDown={e => { if (e.key === "Enter") handleNextDeletePhase(); }}
                         placeholder="delete"
                         className="flex-1 p-2 border border-error/30 rounded focus:border-error outline-none"
                       />
@@ -195,8 +243,10 @@ export default function SettingsClient({ tournament }: Props) {
                     <div className="flex gap-4">
                       <input 
                         type="text" 
+                        autoFocus
                         value={deleteInput}
                         onChange={e => setDeleteInput(e.target.value)}
+                        onKeyDown={e => { if (e.key === "Enter") handleNextDeletePhase(); }}
                         placeholder={tournament.name}
                         className="flex-1 p-2 border border-error/30 rounded focus:border-error outline-none"
                       />

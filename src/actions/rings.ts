@@ -2,15 +2,13 @@
 
 import { createClient } from "@/utils/supabase/server";
 import { revalidatePath } from "next/cache";
-import { ensureAdmin } from "./admin";
+import { ensureAdmin, ensureAdminOwnsTournament } from "./admin";
 import { ensureOrganiser } from "./organiser";
 
-function generateAccessCode() {
-  return Math.floor(100000 + Math.random() * 900000).toString();
-}
+import { generateAccessCode } from "@/lib/utils";
 
 export async function addRing(tournamentId: string) {
-  const adminId = await ensureAdmin();
+  await ensureAdminOwnsTournament(tournamentId);
   const supabase = await createClient();
 
   // Verify tournament exists
@@ -49,7 +47,7 @@ export async function addRing(tournamentId: string) {
 }
 
 export async function regenerateRingCode(ringId: string, tournamentId: string) {
-  const adminId = await ensureAdmin();
+  await ensureAdminOwnsTournament(tournamentId);
   const supabase = await createClient();
 
   // Basic ownership check
@@ -69,12 +67,19 @@ export async function regenerateRingCode(ringId: string, tournamentId: string) {
 
   if (error) throw new Error(error.message);
 
+  // Invalidate any pending moderator requests made with the old code
+  await supabase
+    .from("moderator_requests")
+    .update({ status: "expired" })
+    .eq("ring_id", ringId)
+    .eq("status", "pending");
+
   revalidatePath(`/admin/event/${tournamentId}/rings`);
   return { success: true, access_code: newCode };
 }
 
 export async function deleteRing(ringId: string, tournamentId: string) {
-  const adminId = await ensureAdmin();
+  await ensureAdminOwnsTournament(tournamentId);
   const supabase = await createClient();
 
   // Delete ring
@@ -90,6 +95,7 @@ export async function deleteRing(ringId: string, tournamentId: string) {
 }
 
 export async function startRingTimer(ringId: string, tournamentId: string) {
+  await ensureAdmin();
   const supabase = await createClient();
   const now = new Date().toISOString();
 
@@ -128,6 +134,7 @@ export async function startRingTimer(ringId: string, tournamentId: string) {
 }
 
 export async function pauseRingTimer(ringId: string, tournamentId: string) {
+  await ensureAdmin();
   const supabase = await createClient();
   const now = Date.now();
   const nowIso = new Date(now).toISOString();
@@ -177,6 +184,7 @@ export async function resumeRingTimer(ringId: string, tournamentId: string) {
 }
 
 export async function resetRingTimer(ringId: string, tournamentId: string) {
+  await ensureAdmin();
   const supabase = await createClient();
   let updateQuery = supabase
     .from("rings")

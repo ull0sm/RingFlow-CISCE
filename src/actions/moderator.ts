@@ -3,10 +3,10 @@
 import { createClient } from "@/utils/supabase/server";
 import { revalidatePath } from "next/cache";
 import { cookies, headers } from "next/headers";
-import { ensureAdmin } from "./admin";
+import { ensureAdmin, ensureAdminOwnsTournament } from "./admin";
 
 export async function approveModeratorRequest(requestId: string, ringId: string, tournamentId: string) {
-  const adminId = await ensureAdmin();
+  await ensureAdminOwnsTournament(tournamentId);
   const supabase = await createClient();
 
   const sessionToken = crypto.randomUUID();
@@ -26,7 +26,7 @@ export async function approveModeratorRequest(requestId: string, ringId: string,
 }
 
 export async function rejectModeratorRequest(requestId: string, tournamentId: string) {
-  const adminId = await ensureAdmin();
+  await ensureAdminOwnsTournament(tournamentId);
   const supabase = await createClient();
 
   // Verify request belongs to the tournament
@@ -53,7 +53,7 @@ export async function rejectModeratorRequest(requestId: string, tournamentId: st
 }
 
 export async function revokeActiveModeratorSession(ringId: string, tournamentId: string) {
-  const adminId = await ensureAdmin();
+  await ensureAdminOwnsTournament(tournamentId);
   const supabase = await createClient();
 
   // Verify ring belongs to the tournament
@@ -159,7 +159,6 @@ export async function checkModeratorStatus(requestId: string) {
   
   return { 
     status: request.status, 
-    sessionToken: request.session_token,
     ringId: request.ring_id 
   };
 }
@@ -265,13 +264,18 @@ export async function adjustMatchCount(assignmentId: string, ringId: string, del
   
   const { data: assignment } = await supabase
     .from("category_assignments")
-    .select("*")
+    .select("*, categories(expected_matches)")
     .eq("id", assignmentId)
     .single();
     
   if (!assignment || assignment.ring_id !== ringId) throw new Error("Assignment not found on this ring");
 
-  const newCount = Math.max(0, assignment.matches_completed + delta);
+  if (assignment.status === "paused") {
+    throw new Error("Cannot adjust match count while the ring/category is paused.");
+  }
+
+  const maxMatches = (assignment.categories as any)?.expected_matches ?? Infinity;
+  const newCount = Math.min(maxMatches, Math.max(0, (assignment.matches_completed || 0) + delta));
 
   // Perform update with 1 automatic retry on transient error
   let updateResult = await supabase

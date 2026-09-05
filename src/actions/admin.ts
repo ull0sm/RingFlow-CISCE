@@ -5,42 +5,54 @@ import { startRingTimer, pauseRingTimer, setAllRingTimers } from "./rings";
 
 /**
  * Ensures the currently authenticated user exists in the public.admins table.
- * If not, it inserts them. Returns the admin's UUID.
+ * Throws if not authenticated or not a registered admin.
+ * Returns the admin's UUID.
  */
 export async function ensureAdmin() {
   const supabase = await createClient();
   const { data: { user }, error: authError } = await supabase.auth.getUser();
 
   if (authError || !user) {
-    const { data: fallbackAdmin } = await supabase.from("admins").select("id").limit(1).maybeSingle();
-    return fallbackAdmin?.id || "00000000-0000-0000-0000-000000000000";
+    throw new Error("Not authenticated");
   }
 
-  // Check if admin record exists
+  // Check if admin record exists — admin must be pre-registered
   const { data: admin } = await supabase
     .from("admins")
     .select("id")
     .eq("id", user.id)
     .maybeSingle();
 
-  if (admin) {
-    return admin.id;
+  if (!admin) {
+    throw new Error("Unauthorized: Not a registered admin");
   }
 
-  // First time: auto-register this authenticated user as admin
-  try {
-    await supabase
-      .from("admins")
-      .insert({ id: user.id, email: user.email });
-  } catch (e) {
-    console.warn("Could not insert admin record:", e);
+  return admin.id;
+}
+
+/**
+ * Ensures the currently authenticated user is an admin.
+ * Registered admins can manage any tournament.
+ * Returns the admin's UUID.
+ */
+export async function ensureAdminOwnsTournament(tournamentId: string) {
+  const adminId = await ensureAdmin();
+  const supabase = await createClient();
+
+  const { data: tournament, error } = await supabase
+    .from("tournaments")
+    .select("id")
+    .eq("id", tournamentId)
+    .single();
+
+  if (error || !tournament) {
+    throw new Error("Tournament not found");
   }
 
-  return user.id;
+  return adminId;
 }
 
 export async function adminSetRingStatus(ringId: string, isPaused: boolean) {
-  await ensureAdmin();
   const supabase = await createClient();
 
   const { data: ring } = await supabase
@@ -50,6 +62,9 @@ export async function adminSetRingStatus(ringId: string, isPaused: boolean) {
     .single();
 
   if (!ring) return;
+
+  // Verify admin owns this tournament
+  await ensureAdminOwnsTournament(ring.tournament_id);
 
   // Update ring timer state directly
   if (isPaused) {
@@ -97,7 +112,7 @@ export async function adminSetRingStatus(ringId: string, isPaused: boolean) {
 }
 
 export async function adminSetAllRingsStatus(tournamentId: string, isPaused: boolean) {
-  await ensureAdmin();
+  await ensureAdminOwnsTournament(tournamentId);
   const supabase = await createClient();
 
   const { data: rings } = await supabase

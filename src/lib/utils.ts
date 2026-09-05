@@ -86,8 +86,14 @@ export function formatDisplayDateWithWeekday(dateVal?: string | null): string {
 }
 
 /**
- * Generates a 6-digit numeric access code for Tatami moderators (e.g. "627472")
+ * Generates a cryptographically secure 6-digit numeric access code for Tatami moderators (e.g. "627472")
  */
 export function generateAccessCode(): string {
-  return Math.floor(100000 + Math.random() * 900000).toString();
+  if (typeof crypto !== "undefined" && typeof (crypto as any).randomInt === "function") {
+    return (crypto as any).randomInt(100000, 1000000).toString();
+  }
+  const array = new Uint32Array(1);
+  globalThis.crypto.getRandomValues(array);
+  return (100000 + (array[0] % 900000)).toString();
 }
+
