@@ -73,6 +73,9 @@ export default function RingBalancingClient({
   // History popover state
   const [historyOpenForRing, setHistoryOpenForRing] = useState<string | null>(null);
 
+  // Revert category confirmation state
+  const [pendingRevertCategory, setPendingRevertCategory] = useState<{ ringId: string; ringName: string; category: Category } | null>(null);
+
   // Filter & Sort State
   const [search, setSearch] = useState("");
   const [beltFilter, setBeltFilter] = useState("");
@@ -168,6 +171,9 @@ export default function RingBalancingClient({
                   if (!catItem) {
                     catItem = unassigned.find(c => c.id === updated.category_id);
                   }
+                  if (!catItem) {
+                    catItem = initialCategories.find(c => c.id === updated.category_id);
+                  }
                 }
                 if (!catItem) return prev;
 
@@ -183,6 +189,19 @@ export default function RingBalancingClient({
                   return { ...prev, [updated.ring_id]: reQueue };
                 }
                 return prev;
+              });
+
+              // Clean from completed queues if it was completed earlier
+              setRingCompletedQueues(compPrev => {
+                let changed = false;
+                const newComp = { ...compPrev };
+                for (const rId of Object.keys(newComp)) {
+                  if (newComp[rId]?.some(c => c.id === updated.category_id)) {
+                    newComp[rId] = newComp[rId].filter(c => c.id !== updated.category_id);
+                    changed = true;
+                  }
+                }
+                return changed ? newComp : compPrev;
               });
             }
           }
@@ -254,31 +273,34 @@ export default function RingBalancingClient({
     if (sourceDroppableId === destDroppableId && source.index === destination.index && !destination.droppableId.startsWith("header_")) return;
 
     // 1. Create shallow copies of active queues
-    const nextUnassigned = [...unassigned];
-    const nextRingQueues = { ...ringQueues };
+    let nextUnassigned = [...unassigned];
+    const nextRingQueues: Record<string, Category[]> = {};
     Object.keys(ringQueues).forEach(key => {
       nextRingQueues[key] = [...ringQueues[key]];
     });
 
-    // 2. Find and extract the category from source
-    let movedItem: Category | undefined;
-    if (sourceDroppableId === "unassigned") {
-      const realIndex = nextUnassigned.findIndex(c => c.id === draggableId);
-      if (realIndex === -1) return;
-      movedItem = nextUnassigned[realIndex];
-      nextUnassigned.splice(realIndex, 1);
-    } else {
-      const sourceQueue = nextRingQueues[sourceDroppableId];
-      if (sourceQueue) {
-        const itemIdx = sourceQueue.findIndex(c => c.id === draggableId);
-        if (itemIdx > -1) {
-          movedItem = sourceQueue[itemIdx];
-          sourceQueue.splice(itemIdx, 1);
+    // 2. Find and extract the category from wherever it currently resides
+    let movedItem: Category | undefined = nextUnassigned.find(c => c.id === draggableId);
+    if (!movedItem) {
+      for (const rId of Object.keys(nextRingQueues)) {
+        const found = nextRingQueues[rId].find(c => c.id === draggableId);
+        if (found) {
+          movedItem = found;
+          break;
         }
       }
     }
+    if (!movedItem) {
+      movedItem = initialCategories.find(c => c.id === draggableId);
+    }
 
     if (!movedItem) return;
+
+    // Purge moved category completely from all queues to guarantee zero duplicates
+    nextUnassigned = nextUnassigned.filter(c => c.id !== draggableId);
+    Object.keys(nextRingQueues).forEach(key => {
+      nextRingQueues[key] = nextRingQueues[key].filter(c => c.id !== draggableId);
+    });
 
     // Frontend Safety Guard: Check if destination or source displacement interrupts an active running/paused category
     const prevUnassigned = [...unassigned];
@@ -314,7 +336,7 @@ export default function RingBalancingClient({
 
     // 3. Insert category into destination position
     if (destDroppableId === "unassigned") {
-      const visibleAtDest = unassigned
+      const visibleAtDest = nextUnassigned
         .filter(cat => {
           if (search && !cat.name.toLowerCase().includes(search.toLowerCase())) return false;
           if (beltFilter && cat.belt !== beltFilter) return false;
@@ -339,6 +361,21 @@ export default function RingBalancingClient({
       destQueue.splice(insertIndex, 0, movedItem);
       nextRingQueues[destDroppableId] = destQueue;
     }
+
+    // Deduplicate queues to safeguard against any stray duplicate keys
+    const seenCatIds = new Set<string>();
+    nextUnassigned = nextUnassigned.filter(c => {
+      if (seenCatIds.has(c.id)) return false;
+      seenCatIds.add(c.id);
+      return true;
+    });
+    Object.keys(nextRingQueues).forEach(key => {
+      nextRingQueues[key] = nextRingQueues[key].filter(c => {
+        if (seenCatIds.has(c.id)) return false;
+        seenCatIds.add(c.id);
+        return true;
+      });
+    });
 
     // 4. Update state atomically
     setUnassigned(nextUnassigned);
@@ -411,39 +448,45 @@ export default function RingBalancingClient({
 
   const handleSave = async () => {
     setIsSaving(true);
-    const payload: { category_id: string; ring_id: string | null; queue_order: number; status?: string; completed_at?: string | null }[] = [];
+    const payloadMap = new Map<string, { category_id: string; ring_id: string | null; queue_order: number; status?: string; completed_at?: string | null }>();
 
     // Process unassigned
     unassigned.forEach((cat, idx) => {
-      payload.push({ category_id: cat.id, ring_id: null, queue_order: idx });
+      payloadMap.set(cat.id, { category_id: cat.id, ring_id: null, queue_order: idx });
     });
 
-    // Process rings — carry current status from assignmentsMap so server can validate
+    // Process rings — active ring assignments take precedence
     Object.keys(ringQueues).forEach(ringId => {
       ringQueues[ringId].forEach((cat, idx) => {
         const liveStatus = assignmentsMap[cat.id]?.status;
-        payload.push({ 
+        const effectiveStatus = (liveStatus === "running" || liveStatus === "paused") ? liveStatus : "pending";
+        payloadMap.set(cat.id, { 
           category_id: cat.id, 
           ring_id: ringId, 
           queue_order: idx, 
-          status: liveStatus || "pending"
+          status: effectiveStatus,
+          completed_at: null,
         });
       });
     });
 
-    // Process completed categories (keep them assigned and completed)
+    // Process completed categories (keep them assigned and completed if not currently in active queue)
     Object.keys(ringCompletedQueues).forEach(ringId => {
       ringCompletedQueues[ringId].forEach((cat, idx) => {
-        const originalAssignment = initialAssignments.find(a => a.category_id === cat.id);
-        payload.push({ 
-          category_id: cat.id, 
-          ring_id: ringId, 
-          queue_order: (ringQueues[ringId]?.length || 0) + idx, 
-          status: "completed",
-          completed_at: originalAssignment?.completed_at || new Date().toISOString()
-        });
+        if (!ringQueues[ringId]?.some(c => c.id === cat.id)) {
+          const originalAssignment = initialAssignments.find(a => a.category_id === cat.id);
+          payloadMap.set(cat.id, { 
+            category_id: cat.id, 
+            ring_id: ringId, 
+            queue_order: (ringQueues[ringId]?.length || 0) + idx, 
+            status: "completed",
+            completed_at: originalAssignment?.completed_at || new Date().toISOString()
+          });
+        }
       });
     });
+
+    const payload = Array.from(payloadMap.values());
 
     try {
       await saveAssignments(tournamentId, payload);
@@ -469,49 +512,62 @@ export default function RingBalancingClient({
     updatedUnassigned?: Category[], 
     updatedRingQueues?: Record<string, Category[]>,
     prevUnassigned?: Category[],
-    prevRingQueues?: Record<string, Category[]>
+    prevRingQueues?: Record<string, Category[]>,
+    updatedCompletedQueues?: Record<string, Category[]>,
+    prevCompletedQueues?: Record<string, Category[]>,
+    updatedAssignmentsMap?: Record<string, { matches_completed: number; status: string; ring_id: string; queue_order: number }>,
+    prevAssignmentsMap?: Record<string, { matches_completed: number; status: string; ring_id: string; queue_order: number }>
   ) => {
     if (!autoSave) return;
     
     // Perform save with latest state snapshot
     const targetUnassigned = updatedUnassigned || unassigned;
     const targetRingQueues = updatedRingQueues || ringQueues;
+    const targetCompletedQueues = updatedCompletedQueues || ringCompletedQueues;
+    const targetAssignmentsMap = updatedAssignmentsMap || assignmentsMap;
 
     setIsSaving(true);
     setSaveStatusText("Auto-saving...");
-    const payload: { category_id: string; ring_id: string | null; queue_order: number; status?: string; completed_at?: string | null }[] = [];
+    const payloadMap = new Map<string, { category_id: string; ring_id: string | null; queue_order: number; status?: string; completed_at?: string | null }>();
 
     // Process unassigned
     targetUnassigned.forEach((cat, idx) => {
-      payload.push({ category_id: cat.id, ring_id: null, queue_order: idx });
+      payloadMap.set(cat.id, { category_id: cat.id, ring_id: null, queue_order: idx });
     });
 
     // Process rings
     Object.keys(targetRingQueues).forEach(ringId => {
       targetRingQueues[ringId].forEach((cat, idx) => {
-        const liveStatus = assignmentsMap[cat.id]?.status;
-        payload.push({ 
+        const liveInfo = targetAssignmentsMap[cat.id];
+        const rawStatus = liveInfo?.status;
+        const effectiveStatus = (rawStatus === "running" || rawStatus === "paused") ? rawStatus : "pending";
+        payloadMap.set(cat.id, { 
           category_id: cat.id, 
           ring_id: ringId, 
           queue_order: idx, 
-          status: liveStatus || "pending"
+          status: effectiveStatus,
+          completed_at: null,
         });
       });
     });
 
     // Process completed categories
-    Object.keys(ringCompletedQueues).forEach(ringId => {
-      ringCompletedQueues[ringId].forEach((cat, idx) => {
-        const originalAssignment = initialAssignments.find(a => a.category_id === cat.id);
-        payload.push({ 
-          category_id: cat.id, 
-          ring_id: ringId, 
-          queue_order: (targetRingQueues[ringId]?.length || 0) + idx, 
-          status: "completed",
-          completed_at: originalAssignment?.completed_at || new Date().toISOString()
-        });
+    Object.keys(targetCompletedQueues).forEach(ringId => {
+      targetCompletedQueues[ringId].forEach((cat, idx) => {
+        if (!targetRingQueues[ringId]?.some(c => c.id === cat.id)) {
+          const originalAssignment = initialAssignments.find(a => a.category_id === cat.id);
+          payloadMap.set(cat.id, { 
+            category_id: cat.id, 
+            ring_id: ringId, 
+            queue_order: (targetRingQueues[ringId]?.length || 0) + idx, 
+            status: "completed",
+            completed_at: originalAssignment?.completed_at || new Date().toISOString()
+          });
+        }
       });
     });
+
+    const payload = Array.from(payloadMap.values());
 
     saveAssignments(tournamentId, payload)
       .then(() => {
@@ -525,6 +581,12 @@ export default function RingBalancingClient({
           setUnassigned(prevUnassigned);
           setRingQueues(prevRingQueues);
         }
+        if (prevCompletedQueues) {
+          setRingCompletedQueues(prevCompletedQueues);
+        }
+        if (prevAssignmentsMap) {
+          setAssignmentsMap(prevAssignmentsMap);
+        }
         setSaveStatusText(null);
 
         const msg: string = err?.message || "";
@@ -533,13 +595,70 @@ export default function RingBalancingClient({
           const catName = initialCategories.find(c => c.id === catId)?.name || "A category";
           alert(`Auto-save blocked & reverted: "${catName}" is currently running on a Tatami.\n\nA running category must stay at the top of its queue.`);
         } else {
-          alert("Auto-save failed. UI reverted to previous state.");
+          alert(`Failed to save: ${msg || "Unknown error"}`);
           console.error("Auto-save error:", err);
         }
       })
       .finally(() => {
         setIsSaving(false);
       });
+  };
+
+  const handleConfirmRevert = () => {
+    if (!pendingRevertCategory || readOnly) return;
+    const { ringId, category } = pendingRevertCategory;
+
+    const prevUnassigned = unassigned;
+    const prevRingQueues = ringQueues;
+    const prevCompletedQueues = ringCompletedQueues;
+    const prevAssignmentsMap = assignmentsMap;
+
+    // 1. Remove from completed queue
+    const updatedCompletedList = (ringCompletedQueues[ringId] || []).filter(c => c.id !== category.id);
+    const nextCompletedQueues = {
+      ...ringCompletedQueues,
+      [ringId]: updatedCompletedList,
+    };
+
+    // 2. Append to active tatami queue (restored to bottom of queue)
+    const currentActiveQueue = ringQueues[ringId] || [];
+    const isAlreadyInActive = currentActiveQueue.some(c => c.id === category.id);
+    const nextActiveQueue = isAlreadyInActive ? currentActiveQueue : [...currentActiveQueue, category];
+    const nextRingQueues = {
+      ...ringQueues,
+      [ringId]: nextActiveQueue,
+    };
+
+    // 3. New assignments map with status explicitly 'pending'
+    const nextAssignmentsMap = {
+      ...assignmentsMap,
+      [category.id]: {
+        matches_completed: 0,
+        status: "pending",
+        ring_id: ringId,
+        queue_order: nextActiveQueue.length - 1,
+      },
+    };
+
+    // 4. Update component state
+    setAssignmentsMap(nextAssignmentsMap);
+    setRingCompletedQueues(nextCompletedQueues);
+    setRingQueues(nextRingQueues);
+    setPendingRevertCategory(null);
+    // Close the history view so user is back on active Tatami queue view!
+    setHistoryOpenForRing(null);
+
+    // 5. Trigger auto-save with nextAssignmentsMap
+    triggerAutoSaveIfNeeded(
+      unassigned,
+      nextRingQueues,
+      prevUnassigned,
+      prevRingQueues,
+      nextCompletedQueues,
+      prevCompletedQueues,
+      nextAssignmentsMap,
+      prevAssignmentsMap
+    );
   };
 
   const calculateRingWorkload = (ringId: string) => {
@@ -965,6 +1084,20 @@ export default function RingBalancingClient({
                                   <span className="material-symbols-outlined text-[12px]">group</span> {cat.athletes_count}
                                 </span>
                               </div>
+                              {!readOnly && (
+                                <div className="flex justify-between items-center ml-2 mt-2 pt-2 border-t border-outline-variant/40">
+                                  <button
+                                    type="button"
+                                    onClick={() => setPendingRevertCategory({ ringId: ring.id, ringName: ring.name, category: cat })}
+                                    className="inline-flex items-center gap-1.5 px-2.5 py-1 text-xs font-semibold text-amber-800 bg-amber-100/80 hover:bg-amber-200 active:bg-amber-300 border border-amber-300 rounded transition-colors shadow-xs cursor-pointer"
+                                    title="Revert category back to active tatami queue"
+                                  >
+                                    <span className="material-symbols-outlined text-[15px]">undo</span>
+                                    Revert to Queue
+                                  </button>
+                                  <span className="text-[10px] text-on-surface-variant/60 font-medium">Put back to stack</span>
+                                </div>
+                              )}
                             </div>
                           );
                         })
@@ -1125,8 +1258,24 @@ export default function RingBalancingClient({
 
       {/* Confirmation Modal */}
       {pendingDragResult && (
-        <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4">
-          <div className="bg-surface-container-lowest rounded-xl max-w-md w-full shadow-2xl overflow-hidden flex flex-col border border-outline-variant">
+        <div 
+          className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4"
+          onKeyDown={(e) => {
+            if (e.key === "Escape") {
+              setPendingDragResult(null);
+            }
+          }}
+        >
+          <form 
+            onSubmit={(e) => {
+              e.preventDefault();
+              if (confirmText.trim().toLowerCase() === "confirm" && pendingDragResult) {
+                executeDrag(pendingDragResult);
+                setPendingDragResult(null);
+              }
+            }}
+            className="bg-surface-container-lowest rounded-xl max-w-md w-full shadow-2xl overflow-hidden flex flex-col border border-outline-variant"
+          >
             <div className="p-6 bg-surface-container-low border-b border-outline-variant">
               <h3 className="font-headline-sm text-xl font-bold text-error flex items-center gap-2">
                 <span className="material-symbols-outlined">warning</span>
@@ -1141,34 +1290,99 @@ export default function RingBalancingClient({
                 <label className="text-xs font-bold text-error block mb-2">Type "confirm" to proceed</label>
                 <input 
                   type="text" 
+                  autoFocus
                   value={confirmText}
                   onChange={(e) => setConfirmText(e.target.value)}
                   placeholder="confirm"
-                  className="w-full bg-white border border-error/30 rounded p-2 text-sm outline-none focus:border-error focus:ring-1 focus:ring-error"
+                  className="w-full bg-white border border-error/30 rounded p-2 text-sm outline-none focus:border-error focus:ring-1 focus:ring-error text-slate-900"
                 />
               </div>
             </div>
             <div className="p-4 bg-surface-container flex justify-end gap-3 border-t border-outline-variant">
               <button 
+                type="button"
                 onClick={() => setPendingDragResult(null)}
                 className="px-4 py-2 text-sm font-bold text-on-surface-variant hover:bg-surface-container-high rounded transition-colors"
               >
                 Cancel
               </button>
               <button 
-                onClick={() => {
-                  if (pendingDragResult) {
-                    executeDrag(pendingDragResult);
-                    setPendingDragResult(null);
-                  }
-                }}
-                disabled={confirmText.toLowerCase() !== "confirm"}
+                type="submit"
+                disabled={confirmText.trim().toLowerCase() !== "confirm"}
                 className="px-4 py-2 bg-error text-white text-sm font-bold rounded hover:opacity-90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 Proceed with Move
               </button>
             </div>
-          </div>
+          </form>
+        </div>
+      )}
+
+      {/* Revert Category Confirmation Modal */}
+      {pendingRevertCategory && (
+        <div 
+          className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4 animate-in fade-in duration-150"
+          onKeyDown={(e) => {
+            if (e.key === "Escape") {
+              setPendingRevertCategory(null);
+            }
+          }}
+        >
+          <form 
+            onSubmit={(e) => {
+              e.preventDefault();
+              handleConfirmRevert();
+            }}
+            className="bg-surface-container-lowest rounded-xl max-w-md w-full shadow-2xl overflow-hidden flex flex-col border border-outline-variant"
+          >
+            <div className="p-6 bg-surface-container-low border-b border-outline-variant flex items-center justify-between">
+              <h3 className="font-headline-sm text-xl font-bold text-amber-700 flex items-center gap-2">
+                <span className="material-symbols-outlined text-amber-600">undo</span>
+                Confirm Revert to Queue
+              </h3>
+              <button
+                type="button"
+                onClick={() => setPendingRevertCategory(null)}
+                className="p-1 rounded text-outline hover:text-on-surface hover:bg-surface-container-high transition-colors"
+                title="Cancel (Esc)"
+              >
+                <span className="material-symbols-outlined text-[20px]">close</span>
+              </button>
+            </div>
+            <div className="p-6 flex flex-col gap-4">
+              <p className="text-sm text-on-surface leading-relaxed">
+                Are you sure you want to pull <strong className="text-primary font-bold">{pendingRevertCategory.category.name}</strong> back to <strong className="text-primary font-bold">{pendingRevertCategory.ringName.replace(/Ring/i, "Tatami")}</strong>'s active queue?
+              </p>
+              <div className="bg-amber-500/10 p-3.5 rounded-lg border border-amber-500/20 text-xs text-amber-900 space-y-1.5">
+                <div className="font-bold flex items-center gap-1 text-amber-800">
+                  <span className="material-symbols-outlined text-[16px]">info</span>
+                  What will happen:
+                </div>
+                <ul className="list-disc list-inside text-[11px] text-amber-900/80 space-y-0.5 ml-1">
+                  <li>Completion status will be cleared and reset back to <strong>pending</strong>.</li>
+                  <li>Category will be restored to the bottom of the active tatami stack.</li>
+                  <li>Tatami moderator will see it back in their active queue.</li>
+                </ul>
+              </div>
+            </div>
+            <div className="p-4 bg-surface-container flex justify-end items-center gap-3 border-t border-outline-variant">
+              <button 
+                type="button"
+                onClick={() => setPendingRevertCategory(null)}
+                className="px-4 py-2 text-sm font-bold text-on-surface-variant hover:bg-surface-container-high rounded transition-colors"
+              >
+                Cancel <span className="text-xs opacity-60">(Esc)</span>
+              </button>
+              <button 
+                type="submit"
+                autoFocus
+                className="px-4 py-2 bg-amber-600 hover:bg-amber-700 active:bg-amber-800 text-white text-sm font-bold rounded shadow transition-colors flex items-center gap-1.5 focus:ring-2 focus:ring-amber-500 focus:outline-none cursor-pointer"
+              >
+                <span className="material-symbols-outlined text-[16px]">undo</span>
+                Revert to Queue <span className="text-xs opacity-80">(Enter)</span>
+              </button>
+            </div>
+          </form>
         </div>
       )}
     </div>

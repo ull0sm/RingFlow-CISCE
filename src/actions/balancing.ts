@@ -1,8 +1,8 @@
 "use server";
 
 import { createClient } from "@/utils/supabase/server";
-import { ensureAdmin } from "./admin";
-import { ensureOrganiser } from "./organiser";
+import { ensureAdminOwnsTournament } from "./admin";
+import { ensureOrganiserHasAccessToTournament } from "./organiser";
 
 export type AssignmentInput = {
   category_id: string;
@@ -13,33 +13,30 @@ export type AssignmentInput = {
 };
 
 export async function saveAssignments(tournamentId: string, assignments: AssignmentInput[]) {
-  // Authorize admin or organiser
+  // Authorize admin or tournament-assigned organiser
   let isAuthorized = false;
   try {
-    await ensureAdmin();
+    await ensureAdminOwnsTournament(tournamentId);
     isAuthorized = true;
   } catch {
     try {
-      await ensureOrganiser();
+      await ensureOrganiserHasAccessToTournament(tournamentId);
       isAuthorized = true;
     } catch {}
   }
   if (!isAuthorized) {
-    throw new Error("Unauthorized to save assignments");
+    throw new Error("Unauthorized to save assignments for this tournament");
   }
 
   const supabase = await createClient();
 
-  // 1. Validate payload for duplicate category IDs
-  const seen = new Set<string>();
-  const validAssignments = assignments.filter((a) => a.ring_id !== null);
-  for (const a of validAssignments) {
-    if (seen.has(a.category_id)) {
-      console.error("Duplicate category_id in assignments payload:", a.category_id);
-      throw new Error("Duplicate category assignment detected in payload");
-    }
-    seen.add(a.category_id);
+  // 1. Deduplicate payload by category_id (latest entry wins)
+  const dedupedMap = new Map<string, AssignmentInput>();
+  for (const a of assignments) {
+    dedupedMap.set(a.category_id, a);
   }
+  const cleanAssignments = Array.from(dedupedMap.values());
+  const validAssignments = cleanAssignments.filter((a) => a.ring_id !== null);
 
   // 2. Fetch all ring IDs and valid categories for this tournament
   const [{ data: rings, error: ringsError }, { data: tournamentCategories, error: catError }] = await Promise.all([
@@ -62,10 +59,15 @@ export async function saveAssignments(tournamentId: string, assignments: Assignm
   const ringIds = (rings || []).map((r) => r.id);
 
   // 3. Fetch current live assignments to preserve matches_completed and guard running categories
-  const { data: currentAssignments } = await supabase
+  const { data: currentAssignments, error: fetchErr } = await supabase
     .from("category_assignments")
     .select("category_id, ring_id, status, matches_completed, completed_at")
     .in("ring_id", ringIds);
+
+  if (fetchErr) {
+    console.error("Error fetching current assignments:", fetchErr);
+    throw new Error(`Failed to load current assignments: ${fetchErr.message}`);
+  }
 
   const currentMap = new Map<string, { status: string; matches_completed: number; completed_at: string | null }>();
   (currentAssignments || []).forEach((a: any) => {
@@ -107,19 +109,24 @@ export async function saveAssignments(tournamentId: string, assignments: Assignm
   if (validAssignments.length > 0) {
     const rows = validAssignments.map((a) => {
       const live = currentMap.get(a.category_id);
+      const isExplicitRevert = a.status === "pending" && live?.status === "completed";
       return {
         ring_id: a.ring_id,
         category_id: a.category_id,
         queue_order: a.queue_order,
         status:
-          live?.status === "running" || live?.status === "paused"
-            ? live.status
-            : (a.status === "completed" ? "completed" : (live?.status || a.status || "pending")),
-        matches_completed: live?.matches_completed ?? 0,
+          isExplicitRevert || a.status === "pending"
+            ? "pending"
+            : (live?.status === "running" || live?.status === "paused"
+                ? live.status
+                : (a.status === "completed" ? "completed" : "pending")),
+        matches_completed: isExplicitRevert ? 0 : (live?.matches_completed ?? 0),
         completed_at:
-          a.status === "completed"
-            ? (live?.completed_at || a.completed_at || new Date().toISOString())
-            : (live?.completed_at || null),
+          isExplicitRevert || a.status === "pending"
+            ? null
+            : (a.status === "completed"
+                ? (live?.completed_at || a.completed_at || new Date().toISOString())
+                : null),
       };
     });
 
@@ -128,7 +135,7 @@ export async function saveAssignments(tournamentId: string, assignments: Assignm
 
     // Stage A: Set negative temporary queue_order for existing rows to avoid transient (ring_id, queue_order) unique constraint conflicts
     if (existingRows.length > 0) {
-      await Promise.all(
+      const stageAResults = await Promise.all(
         existingRows.map((r, idx) =>
           supabase
             .from("category_assignments")
@@ -137,8 +144,15 @@ export async function saveAssignments(tournamentId: string, assignments: Assignm
         )
       );
 
+      for (const res of stageAResults) {
+        if (res.error) {
+          console.error("Error staging assignment queue order:", res.error);
+          throw new Error(`Failed to stage assignment: ${res.error.message}`);
+        }
+      }
+
       // Stage B: Update existing rows with final values by category_id in-place
-      await Promise.all(
+      const stageBResults = await Promise.all(
         existingRows.map((r) =>
           supabase
             .from("category_assignments")
@@ -152,6 +166,13 @@ export async function saveAssignments(tournamentId: string, assignments: Assignm
             .eq("category_id", r.category_id)
         )
       );
+
+      for (const res of stageBResults) {
+        if (res.error) {
+          console.error("Error updating category_assignment:", res.error);
+          throw new Error(`Failed to update assignment: ${res.error.message}`);
+        }
+      }
     }
 
     // Stage C: Insert new rows for newly assigned categories
