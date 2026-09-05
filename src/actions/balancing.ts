@@ -1,6 +1,8 @@
 "use server";
 
 import { createClient } from "@/utils/supabase/server";
+import { ensureAdmin } from "./admin";
+import { ensureOrganiser } from "./organiser";
 
 export type AssignmentInput = {
   category_id: string;
@@ -11,6 +13,21 @@ export type AssignmentInput = {
 };
 
 export async function saveAssignments(tournamentId: string, assignments: AssignmentInput[]) {
+  // Authorize admin or organiser
+  let isAuthorized = false;
+  try {
+    await ensureAdmin();
+    isAuthorized = true;
+  } catch {
+    try {
+      await ensureOrganiser();
+      isAuthorized = true;
+    } catch {}
+  }
+  if (!isAuthorized) {
+    throw new Error("Unauthorized to save assignments");
+  }
+
   const supabase = await createClient();
 
   // 1. Validate payload for duplicate category IDs
@@ -24,18 +41,25 @@ export async function saveAssignments(tournamentId: string, assignments: Assignm
     seen.add(a.category_id);
   }
 
-  // 2. Fetch all ring IDs for this tournament
-  const { data: rings, error: ringsError } = await supabase
-    .from("rings")
-    .select("id")
-    .eq("tournament_id", tournamentId);
+  // 2. Fetch all ring IDs and valid categories for this tournament
+  const [{ data: rings, error: ringsError }, { data: tournamentCategories, error: catError }] = await Promise.all([
+    supabase.from("rings").select("id").eq("tournament_id", tournamentId),
+    supabase.from("categories").select("id").eq("tournament_id", tournamentId)
+  ]);
 
-  if (ringsError) {
-    console.error("Error fetching rings:", ringsError);
+  if (ringsError || catError) {
+    console.error("Error fetching rings or categories:", ringsError || catError);
     throw new Error("Failed to save assignments");
   }
 
-  const ringIds = rings.map((r) => r.id);
+  const validCatIds = new Set((tournamentCategories || []).map((c) => c.id));
+  for (const a of validAssignments) {
+    if (!validCatIds.has(a.category_id)) {
+      throw new Error(`Category ${a.category_id} does not belong to this tournament`);
+    }
+  }
+
+  const ringIds = (rings || []).map((r) => r.id);
 
   // 3. Fetch current live assignments to preserve matches_completed and guard running categories
   const { data: currentAssignments } = await supabase
