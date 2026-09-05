@@ -17,9 +17,14 @@ type Category = {
 interface Props {
   tournamentId: string;
   initialCategories: Category[];
+  readOnly?: boolean;
 }
 
-export default function CategoriesClient({ tournamentId, initialCategories }: Props) {
+export default function CategoriesClient({ 
+  tournamentId, 
+  initialCategories,
+  readOnly = false,
+}: Props) {
   const [categories, setCategories] = useState<Category[]>(initialCategories);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editForm, setEditForm] = useState<Partial<Category>>({});
@@ -175,35 +180,37 @@ export default function CategoriesClient({ tournamentId, initialCategories }: Pr
   };
 
   return (
-    <div className="flex-1 overflow-y-auto p-margin-desktop space-y-8 bg-surface">
+    <div className="p-margin-desktop space-y-8 bg-surface pb-24 w-full">
       <div className="flex justify-between items-center">
         <div>
           <h2 className="font-headline-sm text-headline-sm text-primary">Division Management</h2>
           <p className="text-body-sm text-on-surface-variant">View and manage categories for this tournament.</p>
         </div>
-        <div className="flex gap-4">
-          <input 
-            type="file" 
-            accept=".xlsx, .xls, .csv, .json" 
-            className="hidden" 
-            ref={fileInputRef} 
-            onChange={handleFileUpload} 
-          />
-          <button 
-            onClick={() => fileInputRef.current?.click()}
-            disabled={isUploading || isAdding}
-            className="px-4 py-2 border border-outline text-primary font-label-caps text-label-caps rounded flex items-center gap-2 hover:bg-surface-container-low disabled:opacity-50"
-          >
-            <span className="material-symbols-outlined text-[18px]">upload</span> {isUploading ? "UPLOADING..." : "UPLOAD JSON/EXCEL"}
-          </button>
-          <button 
-            onClick={handleStartAdd}
-            disabled={isAdding || isUploading}
-            className="px-4 py-2 bg-primary text-white font-label-caps text-label-caps rounded flex items-center gap-2 hover:opacity-90 disabled:opacity-50"
-          >
-            <span className="material-symbols-outlined text-[18px]">add</span> ADD CATEGORY
-          </button>
-        </div>
+        {!readOnly && (
+          <div className="flex gap-4">
+            <input 
+              type="file" 
+              accept=".xlsx, .xls, .csv, .json" 
+              className="hidden" 
+              ref={fileInputRef} 
+              onChange={handleFileUpload} 
+            />
+            <button 
+              onClick={() => fileInputRef.current?.click()}
+              disabled={isUploading || isAdding}
+              className="px-4 py-2 border border-outline text-primary font-label-caps text-label-caps rounded flex items-center gap-2 hover:bg-surface-container-low disabled:opacity-50"
+            >
+              <span className="material-symbols-outlined text-[18px]">upload</span> {isUploading ? "UPLOADING..." : "UPLOAD JSON/EXCEL"}
+            </button>
+            <button 
+              onClick={handleStartAdd}
+              disabled={isAdding || isUploading}
+              className="px-4 py-2 bg-primary text-white font-label-caps text-label-caps rounded flex items-center gap-2 hover:opacity-90 disabled:opacity-50"
+            >
+              <span className="material-symbols-outlined text-[18px]">add</span> ADD CATEGORY
+            </button>
+          </div>
+        )}
       </div>
 
       <div className="bg-surface-container-lowest border border-outline-variant rounded-lg overflow-hidden shadow-sm">
@@ -215,7 +222,9 @@ export default function CategoriesClient({ tournamentId, initialCategories }: Pr
               <th className="px-6 py-4 font-label-caps text-label-caps text-on-surface-variant">Weight</th>
               <th className="px-6 py-4 font-label-caps text-label-caps text-on-surface-variant text-center">Athletes</th>
               <th className="px-6 py-4 font-label-caps text-label-caps text-on-surface-variant text-center">Expected Matches</th>
-              <th className="px-6 py-4 font-label-caps text-label-caps text-on-surface-variant text-right">Actions</th>
+              {!readOnly && (
+                <th className="px-6 py-4 font-label-caps text-label-caps text-on-surface-variant text-right">Actions</th>
+              )}
             </tr>
           </thead>
           <tbody className="font-body-sm text-body-sm divide-y divide-outline-variant">
@@ -260,19 +269,21 @@ export default function CategoriesClient({ tournamentId, initialCategories }: Pr
                     <span className="px-2 py-1 bg-secondary-container text-on-secondary-container rounded font-data-mono">{cat.athletes_count}</span>
                   </td>
                   <td className="px-6 py-4 text-center font-data-mono">{cat.expected_matches}</td>
-                  <td className="px-6 py-4 text-right">
-                    <div className="flex justify-end gap-3">
-                      <button onClick={() => handleStartEdit(cat)} className="material-symbols-outlined text-outline hover:text-primary transition-colors text-sm">edit</button>
-                      <button onClick={() => handleDelete(cat.id)} className="material-symbols-outlined text-outline hover:text-error transition-colors text-sm">delete</button>
-                    </div>
-                  </td>
+                  {!readOnly && (
+                    <td className="px-6 py-4 text-right">
+                      <div className="flex justify-end gap-3">
+                        <button onClick={() => handleStartEdit(cat)} className="material-symbols-outlined text-outline hover:text-primary transition-colors text-sm cursor-pointer">edit</button>
+                        <button onClick={() => handleDelete(cat.id)} className="material-symbols-outlined text-outline hover:text-error transition-colors text-sm cursor-pointer">delete</button>
+                      </div>
+                    </td>
+                  )}
                 </tr>
               )
             ))}
             
             {!categories || (categories.length === 0 && !isAdding) && (
               <tr>
-                <td colSpan={6} className="px-6 py-8 text-center text-on-surface-variant italic">
+                <td colSpan={readOnly ? 5 : 6} className="px-6 py-8 text-center text-on-surface-variant italic">
                   No categories found.
                 </td>
               </tr>

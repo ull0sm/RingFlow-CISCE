@@ -19,13 +19,9 @@ export async function approveModeratorRequest(requestId: string, ringId: string,
 
   if (updateError) throw new Error(updateError.message);
 
-  // 2. Generate a session token for the moderator
-  // In a real app we might use JWTs, but for MVP we can use a secure random string stored in a session table
-  // or we can just let the client poll for 'approved' status and store it in their local storage.
-  // The PRD mentions they get an encrypted session cookie.
-  // For now, approving it is enough for the client to proceed if they are polling or listening to Realtime!
-
+  revalidatePath(`/admin/event/${tournamentId}/rings`);
   revalidatePath(`/admin/event/${tournamentId}/dashboard`);
+  return { success: true };
 }
 
 export async function rejectModeratorRequest(requestId: string, tournamentId: string) {
@@ -39,7 +35,9 @@ export async function rejectModeratorRequest(requestId: string, tournamentId: st
 
   if (updateError) throw new Error(updateError.message);
 
+  revalidatePath(`/admin/event/${tournamentId}/rings`);
   revalidatePath(`/admin/event/${tournamentId}/dashboard`);
+  return { success: true };
 }
 
 export async function revokeActiveModeratorSession(ringId: string, tournamentId: string) {
@@ -57,6 +55,7 @@ export async function revokeActiveModeratorSession(ringId: string, tournamentId:
 
   revalidatePath(`/admin/event/${tournamentId}/rings`);
   revalidatePath(`/admin/event/${tournamentId}/dashboard`);
+  return { success: true };
 }
 
 export async function requestModeratorAccess(accessCode: string, moderatorName?: string, deviceInfo?: any, turnstileToken?: string) {
@@ -178,9 +177,20 @@ export async function startCategory(assignmentId: string, ringId: string) {
     
   if (!assignment) throw new Error("Assignment not found");
 
+  const nowIso = new Date().toISOString();
+  const updatePayload: any = { status: "running" };
+  if (!assignment.started_at) {
+    updatePayload.started_at = nowIso;
+  }
+  if (assignment.paused_at) {
+    const pausedSeconds = Math.max(0, Math.floor((Date.now() - new Date(assignment.paused_at).getTime()) / 1000));
+    updatePayload.total_paused_seconds = (assignment.total_paused_seconds || 0) + pausedSeconds;
+    updatePayload.paused_at = null;
+  }
+
   const { error: updateError } = await supabase
     .from("category_assignments")
-    .update({ status: "running" })
+    .update(updatePayload)
     .eq("id", assignmentId);
 
   if (updateError) throw new Error("Update failed: " + updateError.message);
@@ -318,14 +328,26 @@ export async function setRingStatus(assignmentId: string, ringId: string, isPaus
     
   if (!assignment) throw new Error("Assignment not found");
 
+  const nowIso = new Date().toISOString();
+  const updatePayload: any = { status: isPaused ? "paused" : "running" };
+
+  if (isPaused) {
+    updatePayload.paused_at = nowIso;
+  } else {
+    let addSeconds = 0;
+    if (assignment.paused_at) {
+      addSeconds = Math.max(0, Math.floor((Date.now() - new Date(assignment.paused_at).getTime()) / 1000));
+    }
+    updatePayload.paused_at = null;
+    updatePayload.total_paused_seconds = (assignment.total_paused_seconds || 0) + addSeconds;
+  }
+
   const { error: updateError } = await supabase
     .from("category_assignments")
-    .update({ status: isPaused ? "paused" : "running" })
+    .update(updatePayload)
     .eq("id", assignmentId);
 
   if (updateError) throw new Error("Update failed: " + updateError.message);
-
-
 
   await supabase
     .from("event_log")

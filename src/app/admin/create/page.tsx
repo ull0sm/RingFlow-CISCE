@@ -73,7 +73,7 @@ export default function EventCreationWizard() {
   return (
     <>
       <AdminHeader title="Setup Wizard" />
-      <div className="flex-1 overflow-y-auto p-margin-desktop bg-surface">
+      <div className="p-margin-desktop bg-surface pb-24 w-full">
         <div className="max-w-[900px] mx-auto w-full">
           {/* Progress Tracker */}
           <nav className="mb-12">

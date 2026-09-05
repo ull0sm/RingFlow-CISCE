@@ -15,8 +15,7 @@ export async function updateTournamentSettings(
   const { error } = await supabase
     .from("tournaments")
     .update(data)
-    .eq("id", tournamentId)
-    .eq("admin_id", adminId);
+    .eq("id", tournamentId);
 
   if (error) throw new Error(error.message);
 
@@ -32,8 +31,7 @@ export async function deleteTournament(tournamentId: string) {
   const { error } = await supabase
     .from("tournaments")
     .delete()
-    .eq("id", tournamentId)
-    .eq("admin_id", adminId);
+    .eq("id", tournamentId);
 
   if (error) throw new Error(error.message);
 

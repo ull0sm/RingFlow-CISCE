@@ -304,30 +304,45 @@ export default function ModeratorCurrentClient({ ringId, initialAssignments, all
           </div>
         )}
 
-        <div className="grid grid-cols-2 gap-4">
-          {[
-            { delta: -1, label: "-1", colorClass: "text-primary" },
-            { delta: 1, label: "+1", colorClass: "text-primary" },
-            { delta: -5, label: "-5", colorClass: "text-on-surface-variant" },
-            { delta: 5, label: "+5", colorClass: "text-on-surface-variant" },
-          ].map(({ delta, label, colorClass }) => {
-            const isThisUpdating = activeDelta === delta && isUpdatingMatch;
-            const isDisabled = isPaused || loading || isUpdatingMatch;
-            return (
-              <button
-                key={delta}
-                onClick={() => handleAdjustMatch(delta)}
-                disabled={isDisabled}
-                className="bg-surface-container-lowest border border-outline-variant h-16 rounded-xl flex items-center justify-center active:scale-95 transition-transform hover:bg-surface-container shadow-sm disabled:opacity-50 disabled:cursor-not-allowed disabled:active:scale-100 relative"
-              >
-                {isThisUpdating ? (
-                  <span className="w-6 h-6 border-2 border-primary border-t-transparent rounded-full animate-spin"></span>
-                ) : (
-                  <span className={`font-headline-sm text-headline-sm ${colorClass}`}>{label}</span>
-                )}
-              </button>
-            );
-          })}
+        <div className="space-y-3">
+          {/* Prominent, highlighted +1 button */}
+          <button
+            onClick={() => handleAdjustMatch(1)}
+            disabled={isPaused || loading || isUpdatingMatch}
+            className="w-full bg-primary text-white border-2 border-primary h-20 rounded-xl flex items-center justify-center active:scale-[0.98] transition-all hover:bg-neutral-800 shadow-sm disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer relative"
+          >
+            {activeDelta === 1 && isUpdatingMatch ? (
+              <span className="w-7 h-7 border-3 border-white border-t-transparent rounded-full animate-spin"></span>
+            ) : (
+              <span className="font-headline-lg text-4xl font-black tracking-tight">+1</span>
+            )}
+          </button>
+
+          {/* Secondary adjustments */}
+          <div className="grid grid-cols-3 gap-3">
+            {[
+              { delta: -1, label: "-1" },
+              { delta: -5, label: "-5" },
+              { delta: 5, label: "+5" },
+            ].map(({ delta, label }) => {
+              const isThisUpdating = activeDelta === delta && isUpdatingMatch;
+              const isDisabled = isPaused || loading || isUpdatingMatch;
+              return (
+                <button
+                  key={delta}
+                  onClick={() => handleAdjustMatch(delta)}
+                  disabled={isDisabled}
+                  className="bg-surface-container-lowest border border-outline-variant h-14 rounded-xl flex items-center justify-center active:scale-95 transition-transform hover:bg-surface-container shadow-2xs disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
+                >
+                  {isThisUpdating ? (
+                    <span className="w-5 h-5 border-2 border-primary border-t-transparent rounded-full animate-spin"></span>
+                  ) : (
+                    <span className="font-headline-sm text-headline-sm text-on-surface-variant font-bold">{label}</span>
+                  )}
+                </button>
+              );
+            })}
+          </div>
         </div>
       </section>
 

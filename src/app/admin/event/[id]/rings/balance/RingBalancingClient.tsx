@@ -41,9 +41,18 @@ interface Props {
   initialRings: Ring[];
   initialAssignments: Assignment[];
   completedTimes: Record<string, string>;
+  readOnly?: boolean;
 }
 
-export default function RingBalancingClient({ tournamentId, tournamentName, initialCategories, initialRings, initialAssignments, completedTimes }: Props) {
+export default function RingBalancingClient({ 
+  tournamentId, 
+  tournamentName, 
+  initialCategories, 
+  initialRings, 
+  initialAssignments, 
+  completedTimes,
+  readOnly = false,
+}: Props) {
   // State structure:
   // We need a list for "unassigned" and a list for each ring.
   const [unassigned, setUnassigned] = useState<Category[]>([]);
@@ -230,6 +239,7 @@ export default function RingBalancingClient({ tournamentId, tournamentName, init
   }, [initialCategories, initialRings, initialAssignments, isInitialized]);
 
   const executeDrag = (result: DropResult) => {
+    if (readOnly) return;
     const { source, destination, draggableId } = result;
     if (!destination) return;
 
@@ -633,52 +643,53 @@ export default function RingBalancingClient({ tournamentId, tournamentName, init
           </div>
           <div className="h-6 w-[1px] bg-white/20"></div>
           
-          {/* Auto-save & Save Controls aligned with DESIGN.md */}
-          <div className="flex items-center gap-6">
-            <div className="flex flex-col">
-              <span className="text-[10px] font-label-caps opacity-60">SYNC MODE</span>
-              <button 
-                onClick={() => setAutoSave(!autoSave)}
-                className={`flex items-center gap-2 px-3 py-1 rounded-md text-xs font-bold transition-all border ${
-                  autoSave 
-                    ? 'bg-secondary/20 border-secondary text-white' 
-                    : 'bg-white/5 border-outline-variant/40 text-on-primary/70 hover:bg-white/10'
-                }`}
-                title="Toggle Auto Sync after drag and drop"
-              >
-                <span className={`w-2 h-2 rounded-full ${autoSave ? 'bg-secondary animate-pulse' : 'bg-outline-variant'}`}></span>
-                <span className="font-label-caps">{autoSave ? "AUTO SYNC ON" : "MANUAL SYNC"}</span>
-              </button>
-            </div>
-
-            {/* Show Save button only when Auto-Save is OFF */}
-            {!autoSave && (
+          {!readOnly && (
+            <div className="flex items-center gap-6">
               <div className="flex flex-col">
-                <span className="text-[10px] font-label-caps opacity-60">ACTIONS</span>
+                <span className="text-[10px] font-label-caps opacity-60">SYNC MODE</span>
                 <button 
-                  onClick={handleSave} 
-                  disabled={isSaving}
-                  className="bg-secondary text-white px-4 py-1 rounded-md text-xs font-bold hover:opacity-90 disabled:opacity-50 flex items-center gap-1.5 shadow-sm"
+                  onClick={() => setAutoSave(!autoSave)}
+                  className={`flex items-center gap-2 px-3 py-1 rounded-md text-xs font-bold transition-all border ${
+                    autoSave 
+                      ? 'bg-secondary/20 border-secondary text-white' 
+                      : 'bg-white/5 border-outline-variant/40 text-on-primary/70 hover:bg-white/10'
+                  }`}
+                  title="Toggle Auto Sync after drag and drop"
                 >
-                  {isSaving && <span className="w-3 h-3 border-2 border-white border-t-transparent rounded-full animate-spin"></span>}
-                  {isSaving ? "SAVING..." : "SAVE BALANCING"}
+                  <span className={`w-2 h-2 rounded-full ${autoSave ? 'bg-secondary animate-pulse' : 'bg-outline-variant'}`}></span>
+                  <span className="font-label-caps">{autoSave ? "AUTO SYNC ON" : "MANUAL SYNC"}</span>
                 </button>
               </div>
-            )}
 
-            {/* Design-System Aligned Status Cue */}
-            {saveStatusText && (
-              <div className="flex items-center gap-1.5 px-3 py-1 bg-secondary text-white text-xs font-bold rounded-md shadow-md">
-                <span className="material-symbols-outlined text-sm">sync</span>
-                <span className="font-label-caps tracking-wider">{saveStatusText}</span>
-              </div>
-            )}
-            {!saveStatusText && lastSaved && (
-              <span className="text-[11px] opacity-70 font-data-mono">
-                Synced {lastSaved.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })}
-              </span>
-            )}
-          </div>
+              {/* Show Save button only when Auto-Save is OFF */}
+              {!autoSave && (
+                <div className="flex flex-col">
+                  <span className="text-[10px] font-label-caps opacity-60">ACTIONS</span>
+                  <button 
+                    onClick={handleSave} 
+                    disabled={isSaving}
+                    className="bg-secondary text-white px-4 py-1 rounded-md text-xs font-bold hover:opacity-90 disabled:opacity-50 flex items-center gap-1.5 shadow-sm"
+                  >
+                    {isSaving && <span className="w-3 h-3 border-2 border-white border-t-transparent rounded-full animate-spin"></span>}
+                    {isSaving ? "SAVING..." : "SAVE BALANCING"}
+                  </button>
+                </div>
+              )}
+
+              {/* Design-System Aligned Status Cue */}
+              {saveStatusText && (
+                <div className="flex items-center gap-1.5 px-3 py-1 bg-secondary text-white text-xs font-bold rounded-md shadow-md">
+                  <span className="material-symbols-outlined text-sm">sync</span>
+                  <span className="font-label-caps tracking-wider">{saveStatusText}</span>
+                </div>
+              )}
+              {!saveStatusText && lastSaved && (
+                <span className="text-[11px] opacity-70 font-data-mono">
+                  Synced {lastSaved.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })}
+                </span>
+              )}
+            </div>
+          )}
         </div>
       </div>
 
@@ -792,13 +803,13 @@ export default function RingBalancingClient({ tournamentId, tournamentName, init
                     className={`flex-1 overflow-y-auto p-4 space-y-4 bg-surface-container-lowest ${snapshot.isDraggingOver ? 'bg-secondary/5' : ''}`}
                   >
                     {visibleUnassigned.map((cat, index) => (
-                      <Draggable key={cat.id} draggableId={cat.id} index={index}>
+                      <Draggable key={cat.id} draggableId={cat.id} index={index} isDragDisabled={readOnly}>
                         {(provided, snapshot) => (
                           <div
                             ref={provided.innerRef}
                             {...provided.draggableProps}
                             {...provided.dragHandleProps}
-                            className={`p-4 bg-white border ${snapshot.isDragging ? 'border-secondary shadow-lg' : 'border-outline-variant shadow-sm'} rounded-xl cursor-grab active:cursor-grabbing`}
+                            className={`p-4 bg-white border ${snapshot.isDragging ? 'border-secondary shadow-lg' : 'border-outline-variant shadow-sm'} rounded-xl ${!readOnly ? 'cursor-grab active:cursor-grabbing' : ''}`}
                           >
                             <div className="flex justify-between items-start mb-2">
                               <div className="flex gap-1 flex-wrap">
@@ -814,7 +825,7 @@ export default function RingBalancingClient({ tournamentId, tournamentName, init
                                 {cat.weight_class && <span className="px-1.5 py-0.5 bg-surface-container-high text-on-surface rounded text-[9px] font-bold uppercase">{cat.weight_class}</span>}
                                 {cat.day && <span className="px-1.5 py-0.5 bg-surface-container-high text-on-surface rounded text-[9px] font-bold uppercase">{cat.day}</span>}
                               </div>
-                              <span className="material-symbols-outlined text-outline-variant text-sm">drag_indicator</span>
+                              {!readOnly && <span className="material-symbols-outlined text-outline-variant text-sm">drag_indicator</span>}
                             </div>
                             <h4 className="font-headline-sm text-sm text-primary mb-3">{cat.name}</h4>
                             <div className="flex items-center justify-between pt-3 border-t border-outline-variant/30">
@@ -1030,7 +1041,7 @@ export default function RingBalancingClient({ tournamentId, tournamentName, init
                         {...provided.droppableProps}
                       >
                         {ringQueues[ring.id]?.map((cat, index) => (
-                          <Draggable key={cat.id} draggableId={cat.id} index={index}>
+                          <Draggable key={cat.id} draggableId={cat.id} index={index} isDragDisabled={readOnly}>
                             {(provided, snapshot) => {
                               const catAssignment = assignmentsMap[cat.id];
                               const isRunning = catAssignment?.status === 'running' || catAssignment?.status === 'paused';
@@ -1047,7 +1058,7 @@ export default function RingBalancingClient({ tournamentId, tournamentName, init
                                   isRunning
                                     ? 'bg-secondary/5 border-secondary/40 shadow-md'
                                     : `bg-surface-container-lowest border-outline-variant ${snapshot.isDragging ? 'border-secondary shadow-lg' : ''}`
-                                }`}
+                                } ${!readOnly ? 'cursor-grab active:cursor-grabbing' : ''}`}
                               >
                                 {isRunning && (
                                   <div className="absolute top-0 left-0 w-1 h-full bg-secondary"></div>
