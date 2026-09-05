@@ -3,15 +3,18 @@ import OrganiserHeader from "@/components/layout/OrganiserHeader";
 import { createClient } from "@/utils/supabase/server";
 import { redirect } from "next/navigation";
 import AthletesClient from "@/components/admin/AthletesClient";
-import { ensureOrganiser } from "@/actions/organiser";
+import { ensureOrganiserHasAccessToTournament } from "@/actions/organiser";
 
 export default async function OrganiserAthletesPage({ params }: { params: Promise<{ id: string }> }) {
   const { id: tournamentId } = await params;
 
   try {
-    await ensureOrganiser();
-  } catch (err) {
-    redirect("/login/organiser");
+    await ensureOrganiserHasAccessToTournament(tournamentId);
+  } catch (err: any) {
+    if (err.message?.includes("Not authenticated")) {
+      redirect("/login/organiser");
+    }
+    redirect("/organiser");
   }
 
   const supabase = await createClient();

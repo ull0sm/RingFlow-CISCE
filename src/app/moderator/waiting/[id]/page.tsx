@@ -15,7 +15,7 @@ export default function WaitingRoom() {
     // 1. Initial check
     checkModeratorStatus(id).then(res => {
       if (res.status === 'approved') {
-        handleApproved(res.ringId, res.sessionToken);
+        handleApproved(res.ringId, undefined);
       } else if (res.status === 'rejected') {
         setStatus("rejected");
       }
@@ -45,11 +45,13 @@ export default function WaitingRoom() {
 
   const handleApproved = (ringId: string, token?: string) => {
     // Save token in cookie or local storage so middleware/layout can read it
+    const isHttps = typeof window !== 'undefined' && window.location.protocol === 'https:';
+    const secureFlag = isHttps ? '; Secure' : '';
     if (token) {
-      document.cookie = `mod_token=${token}; path=/; max-age=86400; SameSite=Strict`;
+      document.cookie = `mod_token=${token}; path=/; max-age=86400; SameSite=Strict${secureFlag}`;
     } else {
       // MVP fallback
-      document.cookie = `mod_token=${id}; path=/; max-age=86400; SameSite=Strict`;
+      document.cookie = `mod_token=${id}; path=/; max-age=86400; SameSite=Strict${secureFlag}`;
     }
     
     // Animate a bit then redirect

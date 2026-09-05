@@ -3,19 +3,20 @@
 import { createClient } from "@/utils/supabase/server";
 import { revalidatePath } from "next/cache";
 import { cookies, headers } from "next/headers";
-import { ensureAdmin } from "./admin";
+import { ensureAdmin, ensureAdminOwnsTournament } from "./admin";
 
 export async function approveModeratorRequest(requestId: string, ringId: string, tournamentId: string) {
-  const adminId = await ensureAdmin();
+  await ensureAdminOwnsTournament(tournamentId);
   const supabase = await createClient();
 
   const sessionToken = crypto.randomUUID();
 
-  // 1. Mark request as approved
+  // 1. Mark request as approved (scoped to ringId)
   const { error: updateError } = await supabase
     .from("moderator_requests")
     .update({ status: "approved", session_token: sessionToken })
-    .eq("id", requestId);
+    .eq("id", requestId)
+    .eq("ring_id", ringId);
 
   if (updateError) throw new Error(updateError.message);
 
@@ -25,8 +26,19 @@ export async function approveModeratorRequest(requestId: string, ringId: string,
 }
 
 export async function rejectModeratorRequest(requestId: string, tournamentId: string) {
-  const adminId = await ensureAdmin();
+  await ensureAdminOwnsTournament(tournamentId);
   const supabase = await createClient();
+
+  // Verify request belongs to the tournament
+  const { data: req } = await supabase
+    .from("moderator_requests")
+    .select("ring_id, rings!inner(tournament_id)")
+    .eq("id", requestId)
+    .single();
+
+  if (!req || (req.rings as any)?.tournament_id !== tournamentId) {
+    throw new Error("Request not found in this tournament");
+  }
 
   const { error: updateError } = await supabase
     .from("moderator_requests")
@@ -41,8 +53,18 @@ export async function rejectModeratorRequest(requestId: string, tournamentId: st
 }
 
 export async function revokeActiveModeratorSession(ringId: string, tournamentId: string) {
-  const adminId = await ensureAdmin();
+  await ensureAdminOwnsTournament(tournamentId);
   const supabase = await createClient();
+
+  // Verify ring belongs to the tournament
+  const { data: ring } = await supabase
+    .from("rings")
+    .select("id")
+    .eq("id", ringId)
+    .eq("tournament_id", tournamentId)
+    .single();
+
+  if (!ring) throw new Error("Ring not found in this tournament");
 
   // Invalidate all approved sessions for this ring by changing status to revoked and wiping session_token
   const { error } = await supabase
@@ -125,15 +147,18 @@ export async function checkModeratorStatus(requestId: string) {
   const supabase = await createClient();
   const { data: request } = await supabase
     .from("moderator_requests")
-    .select("status, session_token, ring_id")
+    .select("status, session_token, ring_id, expires_at")
     .eq("id", requestId)
     .single();
 
   if (!request) return { status: "not_found" };
+
+  if (request.expires_at && new Date(request.expires_at).getTime() < Date.now()) {
+    return { status: "expired" };
+  }
   
   return { 
     status: request.status, 
-    sessionToken: request.session_token,
     ringId: request.ring_id 
   };
 }
@@ -143,7 +168,7 @@ export async function validateModeratorSession(ringId: string, token: string) {
   
   const { data: latestRequest } = await supabase
     .from("moderator_requests")
-    .select("id, session_token, status, moderator_name")
+    .select("id, session_token, status, moderator_name, expires_at")
     .eq("ring_id", ringId)
     .eq("status", "approved")
     .order("created_at", { ascending: false })
@@ -152,6 +177,11 @@ export async function validateModeratorSession(ringId: string, token: string) {
 
   if (!latestRequest) return false;
   
+  // Check token expiration (24h default)
+  if (latestRequest.expires_at && new Date(latestRequest.expires_at).getTime() < Date.now()) {
+    return false;
+  }
+
   // Exclusivity: 1 ring = 1 active moderator. 
   // Must match the *latest* approved session token.
   if (latestRequest.session_token === token) {
@@ -175,7 +205,7 @@ export async function startCategory(assignmentId: string, ringId: string) {
     .eq("id", assignmentId)
     .single();
     
-  if (!assignment) throw new Error("Assignment not found");
+  if (!assignment || assignment.ring_id !== ringId) throw new Error("Assignment not found on this ring");
 
   const nowIso = new Date().toISOString();
   const updatePayload: any = { status: "running" };
@@ -234,13 +264,18 @@ export async function adjustMatchCount(assignmentId: string, ringId: string, del
   
   const { data: assignment } = await supabase
     .from("category_assignments")
-    .select("*")
+    .select("*, categories(expected_matches)")
     .eq("id", assignmentId)
     .single();
     
-  if (!assignment) throw new Error("Assignment not found");
+  if (!assignment || assignment.ring_id !== ringId) throw new Error("Assignment not found on this ring");
 
-  const newCount = Math.max(0, assignment.matches_completed + delta);
+  if (assignment.status === "paused") {
+    throw new Error("Cannot adjust match count while the ring/category is paused.");
+  }
+
+  const maxMatches = (assignment.categories as any)?.expected_matches ?? Infinity;
+  const newCount = Math.min(maxMatches, Math.max(0, (assignment.matches_completed || 0) + delta));
 
   // Perform update with 1 automatic retry on transient error
   let updateResult = await supabase
@@ -288,7 +323,7 @@ export async function finishCategory(assignmentId: string, ringId: string) {
     .eq("id", assignmentId)
     .single();
     
-  if (!assignment) throw new Error("Assignment not found");
+  if (!assignment || assignment.ring_id !== ringId) throw new Error("Assignment not found on this ring");
 
   const { error: updateError } = await supabase
     .from("category_assignments")
@@ -326,7 +361,7 @@ export async function setRingStatus(assignmentId: string, ringId: string, isPaus
     .eq("id", assignmentId)
     .single();
     
-  if (!assignment) throw new Error("Assignment not found");
+  if (!assignment || assignment.ring_id !== ringId) throw new Error("Assignment not found on this ring");
 
   const nowIso = new Date().toISOString();
   const updatePayload: any = { status: isPaused ? "paused" : "running" };
@@ -420,7 +455,7 @@ export async function returnCategoryToQueue(assignmentId: string, ringId: string
     .eq("id", assignmentId)
     .single();
     
-  if (!assignment) throw new Error("Assignment not found");
+  if (!assignment || assignment.ring_id !== ringId) throw new Error("Assignment not found on this ring");
 
   const { error: updateError } = await supabase
     .from("category_assignments")
@@ -487,12 +522,19 @@ export async function logoutModerator() {
 }
 
 export async function updateModeratorName(requestId: string, newName: string) {
+  const cookieStore = await cookies();
+  const modToken = cookieStore.get("mod_token")?.value;
+  if (!modToken) {
+    throw new Error("Unauthorized: Active moderator session required.");
+  }
+
   const supabase = await createClient();
   
   const { error } = await supabase
     .from("moderator_requests")
-    .update({ moderator_name: newName })
-    .eq("id", requestId);
+    .update({ moderator_name: newName.trim() })
+    .eq("id", requestId)
+    .eq("session_token", modToken);
     
   if (error) {
     throw new Error(error.message);

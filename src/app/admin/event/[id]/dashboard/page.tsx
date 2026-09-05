@@ -64,11 +64,21 @@ export default async function AdminDashboard({ params }: { params: Promise<{ id:
     .order("created_at", { ascending: false })
     .limit(200);
 
-  // Prepare assignments data joined with categories for client
-  const fullAssignments = await Promise.all(assignments?.map(async (a) => {
-    const { data: cat } = await supabase.from("categories").select("*").eq("id", a.category_id).single();
-    return { ...a, categories: cat };
-  }) || []);
+  // Prepare assignments data joined with categories for client (batch query, avoiding N+1)
+  const categoryIds = Array.from(new Set(assignments?.map((a) => a.category_id).filter(Boolean) || []));
+  const categoryMap = new Map<string, any>();
+  if (categoryIds.length > 0) {
+    const { data: cats } = await supabase
+      .from("categories")
+      .select("*")
+      .in("id", categoryIds);
+    cats?.forEach((c) => categoryMap.set(c.id, c));
+  }
+
+  const fullAssignments = (assignments || []).map((a) => ({
+    ...a,
+    categories: categoryMap.get(a.category_id) || null,
+  }));
 
   return (
     <AdminDashboardClient 

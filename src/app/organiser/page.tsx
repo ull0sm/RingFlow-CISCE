@@ -16,9 +16,11 @@ export default async function OrganiserTournamentSelectionPage() {
   try {
     organiser = await ensureOrganiser();
     const supabase = await createClient();
+    const userEmail = (organiser.email || "").trim().toLowerCase();
     const { data, error } = await supabase
       .from("tournaments")
       .select("*")
+      .ilike("organiser_email", `%${userEmail}%`)
       .order("created_at", { ascending: false });
       
     if (error) {

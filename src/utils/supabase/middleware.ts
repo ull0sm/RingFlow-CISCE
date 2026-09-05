@@ -38,17 +38,36 @@ export async function updateSession(request: NextRequest) {
     request.nextUrl.pathname.startsWith('/admin')
   ) {
     const url = request.nextUrl.clone()
-    url.pathname = '/404'
-    return NextResponse.rewrite(url)
+    url.pathname = '/login/admin'
+    return NextResponse.redirect(url)
   }
 
-  // If user is logged in and visits login page, redirect to admin
+  // Protect Organiser routes
+  if (
+    !user &&
+    request.nextUrl.pathname.startsWith('/organiser')
+  ) {
+    const url = request.nextUrl.clone()
+    url.pathname = '/login/organiser'
+    return NextResponse.redirect(url)
+  }
+
+  // If user is logged in and visits login page, redirect to their respective dashboard
   if (
     user &&
     request.nextUrl.pathname === '/login/admin'
   ) {
     const url = request.nextUrl.clone()
     url.pathname = '/admin'
+    return NextResponse.redirect(url)
+  }
+
+  if (
+    user &&
+    request.nextUrl.pathname === '/login/organiser'
+  ) {
+    const url = request.nextUrl.clone()
+    url.pathname = '/organiser'
     return NextResponse.redirect(url)
   }
 

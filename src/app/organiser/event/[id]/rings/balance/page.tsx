@@ -2,15 +2,18 @@ import React from "react";
 import { createClient } from "@/utils/supabase/server";
 import { redirect } from "next/navigation";
 import RingBalancingClient from "@/app/admin/event/[id]/rings/balance/RingBalancingClient";
-import { ensureOrganiser } from "@/actions/organiser";
+import { ensureOrganiserHasAccessToTournament } from "@/actions/organiser";
 
 export default async function OrganiserRingBalancingPage({ params }: { params: Promise<{ id: string }> }) {
   const { id: tournamentId } = await params;
 
   try {
-    await ensureOrganiser();
-  } catch (err) {
-    redirect("/login/organiser");
+    await ensureOrganiserHasAccessToTournament(tournamentId);
+  } catch (err: any) {
+    if (err.message?.includes("Not authenticated")) {
+      redirect("/login/organiser");
+    }
+    redirect("/organiser");
   }
 
   const supabase = await createClient();
