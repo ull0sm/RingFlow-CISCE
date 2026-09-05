@@ -8,6 +8,7 @@ import LiveActivityFeed from "@/components/admin/LiveActivityFeed";
 import ModeratorRequestsWidget from "@/components/admin/ModeratorRequestsWidget";
 import { createClient } from "@/utils/supabase/client";
 import { toggleRingTimer, setAllRingTimers, resetRingTimer } from "@/actions/rings";
+import OverviewSupportFooter from "@/components/support/OverviewSupportFooter";
 
 export default function AdminDashboardClient({ 
   tournament, 
@@ -584,6 +585,9 @@ export default function AdminDashboardClient({
             </div>
           )}
         </div>
+
+        {/* Support & Team Contacts Footer */}
+        <OverviewSupportFooter />
       </div>
     </>
   );
