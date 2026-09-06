@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import { DragDropContext, Droppable, Draggable, DropResult } from "@hello-pangea/dnd";
 import { saveAssignments } from "@/actions/balancing";
 import { createClient } from "@/utils/supabase/client";
@@ -87,6 +87,31 @@ export default function RingBalancingClient({
   const [sortOrder, setSortOrder] = useState<"asc" | "desc">("desc");
   const [statusFilter, setStatusFilter] = useState<"idle" | "queue" | "completed">("idle");
   const [mobileShowPool, setMobileShowPool] = useState(false);
+
+  // Toggle pool with mobile back button / history integration
+  const togglePool = useCallback(() => {
+    setMobileShowPool((prev) => {
+      const next = !prev;
+      if (typeof window !== "undefined") {
+        if (next) {
+          window.history.pushState({ poolOpen: true }, "");
+        } else if (window.history.state?.poolOpen) {
+          window.history.back();
+          return prev;
+        }
+      }
+      return next;
+    });
+  }, []);
+
+  // Shrink unassigned pool when mobile back button is pressed
+  useEffect(() => {
+    const handlePopState = () => {
+      setMobileShowPool(false);
+    };
+    window.addEventListener("popstate", handlePopState);
+    return () => window.removeEventListener("popstate", handlePopState);
+  }, []);
 
   // Realtime assignments map for live match count, status, queue_order and stager status tracking
   const [assignmentsMap, setAssignmentsMap] = useState<Record<string, { matches_completed: number; status: string; ring_id: string; queue_order: number; stager_status: string | null; stager_name: string | null }>>({}); 
@@ -775,7 +800,7 @@ export default function RingBalancingClient({
 
           {/* Mobile Pool vs Board toggle */}
           <button
-            onClick={() => setMobileShowPool(!mobileShowPool)}
+            onClick={togglePool}
             className="md:hidden flex items-center gap-1.5 px-3 py-1.5 bg-white/15 hover:bg-white/25 border border-white/20 rounded-lg text-xs font-bold text-white transition-all cursor-pointer shrink-0"
           >
             <span>{mobileShowPool ? "Show Tatamis" : "Show unassigned categories"}</span>
@@ -837,75 +862,64 @@ export default function RingBalancingClient({
       <DragDropContext onDragEnd={onDragEnd}>
         {/* Main Content Area */}
         <div className="flex-1 flex overflow-hidden w-full relative">
-          
-          {/* Mobile Backdrop */}
-          {mobileShowPool && (
-            <div
-              className="md:hidden fixed inset-0 z-40 bg-black/50 backdrop-blur-xs transition-opacity"
-              onClick={() => setMobileShowPool(false)}
-            />
-          )}
 
-          {/* Floating Smoothened Arrow Button on Mobile when sidebar is closed */}
-          {!mobileShowPool && (
-            <button
-              onClick={() => setMobileShowPool(true)}
-              type="button"
-              title="Show unassigned categories"
-              className="md:hidden fixed top-1/2 -translate-y-1/2 left-0 z-30 flex items-center gap-1.5 pl-2.5 pr-2 py-2 bg-white/95 border-y border-r border-outline-variant rounded-r-xl shadow-lg hover:shadow-xl text-primary active:scale-95 transition-all cursor-pointer group"
-            >
-              <span className="font-label-caps text-[10px] font-bold text-primary whitespace-nowrap">
-                Show unassigned categories
-              </span>
-              <span className="w-5 h-5 rounded-full bg-primary/10 group-hover:bg-primary/20 flex items-center justify-center text-primary transition-colors">
-                <span className="material-symbols-outlined text-[15px] select-none leading-none">
-                  chevron_right
-                </span>
-              </span>
-            </button>
-          )}
-
-          {/* Left Sidebar: Category Pool */}
+          {/* Left Sidebar: Category Pool (expands inline; shrinks to 5% peek on mobile with > arrow) */}
           <section
-            className={`w-80 max-w-[85vw] flex flex-col bg-surface-container-lowest border-r border-outline-variant shrink-0 z-40 relative h-full transition-all duration-200 ${
+            className={`h-full flex flex-col bg-surface-container-lowest border-r border-outline-variant shrink-0 relative transition-[width] duration-300 ease-in-out z-20 ${
               mobileShowPool
-                ? "fixed md:relative inset-y-0 left-0 shadow-2xl md:shadow-none flex"
-                : "hidden md:flex"
+                ? "w-[85vw] max-w-[340px] md:w-80 shadow-lg md:shadow-none"
+                : "w-5 sm:w-6 md:w-80 overflow-hidden bg-surface-container-low/70 hover:bg-surface-container-low cursor-pointer select-none"
             }`}
+            onClick={!mobileShowPool ? togglePool : undefined}
+            title={!mobileShowPool ? "Expand unassigned categories" : undefined}
           >
-            {/* Smoothened Arrow Toggle Button on mobile sidebar edge */}
+            {/* Smoothened Arrow Toggle Button (no text, clean circle arrow) */}
             <button
-              onClick={() => setMobileShowPool(false)}
+              onClick={(e) => {
+                e.stopPropagation();
+                togglePool();
+              }}
               type="button"
-              title="Hide sidebar"
-              className="md:hidden absolute top-1/2 -right-3.5 -translate-y-1/2 w-7 h-7 bg-white border border-outline-variant rounded-full shadow-md hover:shadow-lg flex items-center justify-center text-on-surface-variant hover:text-primary active:scale-95 transition-all cursor-pointer z-50"
+              title={mobileShowPool ? "Shrink sidebar" : "Expand unassigned categories"}
+              className="md:hidden absolute top-1/2 -right-3.5 -translate-y-1/2 w-7 h-7 bg-white border border-outline-variant rounded-full shadow-md hover:shadow-lg flex items-center justify-center text-on-surface-variant hover:text-primary hover:scale-110 active:scale-95 transition-all cursor-pointer z-30"
             >
               <span className="material-symbols-outlined text-[18px] select-none leading-none">
-                chevron_left
+                {mobileShowPool ? "chevron_left" : "chevron_right"}
               </span>
             </button>
 
-            <div className="p-4 border-b border-outline-variant bg-surface-container-low flex flex-col gap-3">
-              <div className="flex justify-between items-center">
-                <h3 className="font-label-caps text-label-caps text-primary">
-                  {statusFilter === "idle" ? `Unassigned (${visibleUnassigned.length})` : statusFilter === "queue" ? `In Queue (${queuedCategories.length})` : `Completed (${allCompletedCategories.length})`}
-                </h3>
-                <div className="flex items-center gap-2">
-                  <button 
-                    onClick={() => {
-                      setSearch(""); setBeltFilter(""); setAgeFilter(""); setSexFilter("");
-                    }}
-                    className="text-[10px] text-secondary hover:underline"
-                  >Clear Filters</button>
-                  <button
-                    onClick={() => setMobileShowPool(false)}
-                    className="md:hidden p-1 rounded-md text-on-surface-variant hover:bg-surface-container-high transition-colors"
-                    title="Close sidebar"
-                  >
-                    <span className="material-symbols-outlined text-[18px] leading-none">close</span>
-                  </button>
+            {/* Inner Content Container */}
+            <div
+              className={`w-80 max-w-[85vw] md:max-w-none flex flex-col h-full transition-opacity duration-200 ${
+                mobileShowPool
+                  ? "opacity-100 overflow-y-auto"
+                  : "opacity-0 md:opacity-100 pointer-events-none md:pointer-events-auto overflow-hidden"
+              }`}
+            >
+              <div className="p-4 border-b border-outline-variant bg-surface-container-low flex flex-col gap-3 shrink-0">
+                <div className="flex justify-between items-center">
+                  <h3 className="font-label-caps text-label-caps text-primary">
+                    {statusFilter === "idle" ? `Unassigned (${visibleUnassigned.length})` : statusFilter === "queue" ? `In Queue (${queuedCategories.length})` : `Completed (${allCompletedCategories.length})`}
+                  </h3>
+                  <div className="flex items-center gap-2">
+                    <button 
+                      onClick={() => {
+                        setSearch(""); setBeltFilter(""); setAgeFilter(""); setSexFilter("");
+                      }}
+                      className="text-[10px] text-secondary hover:underline"
+                    >Clear Filters</button>
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        togglePool();
+                      }}
+                      className="md:hidden p-1 rounded-md text-on-surface-variant hover:bg-surface-container-high transition-colors"
+                      title="Shrink sidebar"
+                    >
+                      <span className="material-symbols-outlined text-[18px] leading-none">chevron_left</span>
+                    </button>
+                  </div>
                 </div>
-              </div>
 
               {/* Status Filter Tabs */}
               <div className="flex rounded-lg overflow-hidden border border-outline-variant bg-surface-container-high">
@@ -1127,6 +1141,7 @@ export default function RingBalancingClient({
                 })}
               </div>
             )}
+            </div>
           </section>
 
           {/* Horizontal Scrollable Ring Grid */}
