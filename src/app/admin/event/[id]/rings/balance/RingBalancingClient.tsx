@@ -868,12 +868,12 @@ export default function RingBalancingClient({
             className={`h-full flex flex-col bg-surface-container-lowest border-r border-outline-variant shrink-0 relative transition-[width] duration-300 ease-in-out z-20 ${
               mobileShowPool
                 ? "w-[85vw] max-w-[340px] md:w-80 shadow-lg md:shadow-none"
-                : "w-5 sm:w-6 md:w-80 overflow-hidden bg-surface-container-low/70 hover:bg-surface-container-low cursor-pointer select-none"
+                : "w-5 sm:w-6 md:w-80 overflow-visible bg-surface-container-low/70 hover:bg-surface-container-low cursor-pointer select-none"
             }`}
             onClick={!mobileShowPool ? togglePool : undefined}
             title={!mobileShowPool ? "Expand unassigned categories" : undefined}
           >
-            {/* Smoothened Arrow Toggle Button (no text, clean circle arrow) */}
+            {/* Pop-out black button with white arrow */}
             <button
               onClick={(e) => {
                 e.stopPropagation();
@@ -881,9 +881,9 @@ export default function RingBalancingClient({
               }}
               type="button"
               title={mobileShowPool ? "Shrink sidebar" : "Expand unassigned categories"}
-              className="md:hidden absolute top-1/2 -right-3.5 -translate-y-1/2 w-7 h-7 bg-white border border-outline-variant rounded-full shadow-md hover:shadow-lg flex items-center justify-center text-on-surface-variant hover:text-primary hover:scale-110 active:scale-95 transition-all cursor-pointer z-30"
+              className="md:hidden absolute top-1/2 left-full -translate-x-1/2 -translate-y-1/2 w-9 h-9 bg-black text-white rounded-full shadow-xl hover:scale-110 active:scale-95 transition-all cursor-pointer z-50 flex items-center justify-center border-2 border-white/80"
             >
-              <span className="material-symbols-outlined text-[18px] select-none leading-none">
+              <span className="material-symbols-outlined text-[22px] select-none leading-none text-white">
                 {mobileShowPool ? "chevron_left" : "chevron_right"}
               </span>
             </button>
