@@ -995,8 +995,11 @@ export default function RingBalancingClient({
                 {sidebarCategoriesToShow.map(cat => {
                   const assignment = assignmentsMap[cat.id];
                   const ringName = initialRings.find(r => r.id === assignment?.ring_id)?.name?.replace(/Ring/i, 'Tatami') || "";
-                  const isCompleted = assignment?.status === 'completed';
-                  const isRunning = assignment?.status === 'running' || assignment?.status === 'paused';
+                  const status = assignment?.status;
+                  const isCompleted = status === 'completed';
+                  const isRunning = status === 'running';
+                  const isPaused = status === 'paused';
+                  const hasLeftAccent = isRunning || isPaused || isCompleted;
                   const matchesDone = assignment?.matches_completed || 0;
                   const matchesTotal = cat.expected_matches || 0;
                   const pct = matchesTotal > 0 ? (matchesDone / matchesTotal) * 100 : 0;
@@ -1005,38 +1008,63 @@ export default function RingBalancingClient({
                     <div
                       key={cat.id}
                       className={`p-3 border rounded-xl relative overflow-hidden ${
-                        isCompleted
-                          ? 'bg-surface-container border-outline-variant/50 opacity-60'
-                          : 'bg-surface-container border-outline-variant/50 opacity-70'
+                        isPaused
+                          ? 'bg-amber-500/5 border-amber-300 shadow-2xs'
+                          : isRunning
+                            ? 'bg-secondary/5 border-secondary/30 shadow-2xs'
+                            : isCompleted
+                              ? 'bg-surface-container border-outline-variant/50 opacity-60'
+                              : 'bg-surface-container border-outline-variant/50 opacity-70'
                       }`}
                     >
-                      <div className="flex gap-1 flex-wrap mb-1.5">
+                      {isPaused && (
+                        <div className="absolute top-0 left-0 w-1 h-full bg-amber-500"></div>
+                      )}
+                      {isRunning && (
+                        <div className="absolute top-0 left-0 w-1 h-full bg-secondary"></div>
+                      )}
+                      {isCompleted && (
+                        <div className="absolute top-0 left-0 w-1 h-full bg-blue-600"></div>
+                      )}
+                      <div className={`flex gap-1 flex-wrap mb-1.5 ${hasLeftAccent ? 'ml-1.5' : ''}`}>
                         {cat.belt && <span className="px-1.5 py-0.5 bg-surface-container-high text-on-surface rounded text-[9px] font-bold uppercase">{cat.belt}</span>}
                         {cat.sex && <span className="px-1.5 py-0.5 bg-surface-container-high text-on-surface rounded text-[9px] font-bold uppercase">{cat.sex}</span>}
                         {cat.age_bracket && <span className="px-1.5 py-0.5 bg-surface-container-high text-on-surface rounded text-[9px] font-bold uppercase">{cat.age_bracket}</span>}
                         {cat.weight_class && <span className="px-1.5 py-0.5 bg-surface-container-high text-on-surface rounded text-[9px] font-bold uppercase">{cat.weight_class}</span>}
                       </div>
-                      <h4 className="text-xs font-bold text-on-surface mb-1.5">{cat.name}</h4>
-                      <div className="flex justify-between items-center text-[10px] text-on-surface-variant mb-1">
+                      <h4 className={`text-xs font-bold text-on-surface mb-1.5 ${hasLeftAccent ? 'ml-1.5' : ''}`}>{cat.name}</h4>
+                      <div className={`flex justify-between items-center text-[10px] text-on-surface-variant mb-1 ${hasLeftAccent ? 'ml-1.5' : ''}`}>
                         <span className="flex items-center gap-1 font-bold">
-                          <span className="material-symbols-outlined text-[12px]">{isCompleted ? 'done_all' : 'schedule'}</span>
+                          <span className="material-symbols-outlined text-[12px]">{isCompleted ? 'done_all' : isPaused ? 'pause_circle' : 'schedule'}</span>
                           {ringName}
                         </span>
+                        {isPaused && (
+                          <span className="inline-flex items-center gap-1 text-[9px] font-bold text-amber-800 bg-amber-50 border border-amber-200 px-1.5 py-0.5 rounded uppercase tracking-wider shadow-2xs">
+                            <span className="w-1.5 h-1.5 rounded-full bg-amber-600 animate-pulse" />
+                            PAUSED
+                          </span>
+                        )}
                         {isRunning && (
-                          <span className="text-[9px] font-bold text-secondary bg-secondary/10 px-1.5 py-0.5 rounded uppercase tracking-wider">Live</span>
+                          <span className="inline-flex items-center gap-1 text-[9px] font-bold text-emerald-800 bg-emerald-50 border border-emerald-200 px-1.5 py-0.5 rounded uppercase tracking-wider shadow-2xs">
+                            <span className="w-1.5 h-1.5 rounded-full bg-emerald-600 animate-pulse" />
+                            LIVE
+                          </span>
                         )}
                         {isCompleted && (
-                          <span className="text-[9px] font-bold text-green-600 bg-green-500/10 px-1.5 py-0.5 rounded uppercase tracking-wider">Done</span>
+                          <span className="inline-flex items-center gap-1 text-[9px] font-bold text-blue-800 bg-blue-50 border border-blue-200 px-1.5 py-0.5 rounded uppercase tracking-wider shadow-2xs">
+                            <span className="material-symbols-outlined text-[10px] text-blue-600">done_all</span>
+                            DONE
+                          </span>
                         )}
                       </div>
-                      {(isRunning || isCompleted) && (
-                        <div className="mt-1.5">
+                      {(isRunning || isPaused || isCompleted) && (
+                        <div className={`mt-1.5 ${hasLeftAccent ? 'ml-1.5' : ''}`}>
                           <div className="flex justify-between text-[9px] font-bold text-on-surface-variant mb-0.5">
                             <span>{matchesDone} / {matchesTotal} matches</span>
                             <span>{pct.toFixed(0)}%</span>
                           </div>
                           <div className="w-full bg-surface-container-high h-1 rounded-full overflow-hidden">
-                            <div className={`h-full transition-all duration-500 ${isCompleted ? 'bg-green-500' : 'bg-secondary'}`} style={{ width: `${Math.min(100, pct)}%` }}></div>
+                            <div className={`h-full transition-all duration-500 ${isCompleted ? 'bg-blue-600' : isPaused ? 'bg-amber-500' : 'bg-secondary'}`} style={{ width: `${Math.min(100, pct)}%` }}></div>
                           </div>
                         </div>
                       )}
@@ -1199,7 +1227,11 @@ export default function RingBalancingClient({
                           <Draggable key={cat.id} draggableId={cat.id} index={index} isDragDisabled={readOnly}>
                             {(provided, snapshot) => {
                               const catAssignment = assignmentsMap[cat.id];
-                              const isRunning = catAssignment?.status === 'running' || catAssignment?.status === 'paused';
+                              const status = catAssignment?.status;
+                              const isRunning = status === 'running';
+                              const isPaused = status === 'paused';
+                              const isCompleted = status === 'completed';
+                              const hasLeftAccent = isRunning || isPaused || isCompleted;
                               const matchesDone = catAssignment?.matches_completed || 0;
                               const matchesTotal = cat.expected_matches || 0;
                               const pct = matchesTotal > 0 ? (matchesDone / matchesTotal) * 100 : 0;
@@ -1212,37 +1244,66 @@ export default function RingBalancingClient({
                                 {...provided.draggableProps}
                                 {...provided.dragHandleProps}
                                 className={`p-3 border rounded-lg relative overflow-hidden ${
-                                  isRunning
-                                    ? 'bg-secondary/5 border-secondary/40 shadow-md'
-                                    : `bg-surface-container-lowest border-outline-variant ${snapshot.isDragging ? 'border-secondary shadow-lg' : ''}`
+                                  isPaused
+                                    ? 'bg-amber-500/5 border-amber-400/50 shadow-md'
+                                    : isRunning
+                                      ? 'bg-secondary/5 border-secondary/40 shadow-md'
+                                      : isCompleted
+                                        ? 'bg-surface-container/60 border-outline-variant opacity-80'
+                                        : `bg-surface-container-lowest border-outline-variant ${snapshot.isDragging ? 'border-secondary shadow-lg' : ''}`
                                 } ${!readOnly ? 'cursor-grab active:cursor-grabbing' : ''}`}
                               >
+                                {isPaused && (
+                                  <div className="absolute top-0 left-0 w-1 h-full bg-amber-500"></div>
+                                )}
                                 {isRunning && (
                                   <div className="absolute top-0 left-0 w-1 h-full bg-secondary"></div>
                                 )}
-                                <div className={`flex justify-between items-center mb-1 ${isRunning ? 'ml-2' : ''}`}>
-                                  <span className="text-[9px] font-bold text-secondary uppercase tracking-wider">
+                                {isCompleted && (
+                                  <div className="absolute top-0 left-0 w-1 h-full bg-blue-600"></div>
+                                )}
+                                <div className={`flex justify-between items-center mb-1 ${hasLeftAccent ? 'ml-2' : ''}`}>
+                                  <span className={`text-[9px] font-bold uppercase tracking-wider ${
+                                    isPaused ? 'text-amber-700' : isCompleted ? 'text-blue-700' : 'text-secondary'
+                                  }`}>
                                     {(cat.age_bracket || (cat.age_min !== null && cat.age_max !== null ? `${cat.age_min}-${cat.age_max}` : ""))} | {cat.weight_class || cat.belt || "-"}
                                   </span>
-                                  {isRunning ? (
-                                    <span className="text-[9px] font-bold text-secondary bg-secondary/10 px-1.5 py-0.5 rounded uppercase tracking-wider animate-pulse">Live</span>
+                                  {isPaused ? (
+                                    <span className="inline-flex items-center gap-1 text-[9px] font-bold text-amber-800 bg-amber-50 border border-amber-200 px-1.5 py-0.5 rounded uppercase tracking-wider shadow-2xs">
+                                      <span className="w-1.5 h-1.5 rounded-full bg-amber-600 animate-pulse" />
+                                      PAUSED
+                                    </span>
+                                  ) : isRunning ? (
+                                    <span className="inline-flex items-center gap-1 text-[9px] font-bold text-emerald-800 bg-emerald-50 border border-emerald-200 px-1.5 py-0.5 rounded uppercase tracking-wider shadow-2xs">
+                                      <span className="w-1.5 h-1.5 rounded-full bg-emerald-600 animate-pulse" />
+                                      LIVE
+                                    </span>
+                                  ) : isCompleted ? (
+                                    <span className="inline-flex items-center gap-1 text-[9px] font-bold text-blue-800 bg-blue-50 border border-blue-200 px-1.5 py-0.5 rounded uppercase tracking-wider shadow-2xs">
+                                      <span className="material-symbols-outlined text-[11px] text-blue-600">done_all</span>
+                                      COMPLETED
+                                    </span>
                                   ) : (
-                                    <span className="font-data-mono text-[10px] font-bold">{Math.ceil((cat.expected_matches * 109) / 60)}m</span>
+                                    <span className="font-data-mono text-[10px] font-bold text-on-surface-variant">{Math.ceil((cat.expected_matches * 109) / 60)}m</span>
                                   )}
                                 </div>
-                                <h5 className={`text-xs font-bold text-primary mb-2 ${isRunning ? 'ml-2' : ''}`}>{cat.name}</h5>
-                                <div className={`flex gap-4 text-[10px] font-data-mono text-outline ${isRunning ? 'ml-2' : ''}`}>
+                                <h5 className={`text-xs font-bold text-primary mb-2 ${hasLeftAccent ? 'ml-2' : ''}`}>{cat.name}</h5>
+                                <div className={`flex gap-4 text-[10px] font-data-mono text-outline ${hasLeftAccent ? 'ml-2' : ''}`}>
                                   <span className="flex items-center gap-1"><span className="material-symbols-outlined text-[12px]">group</span> {cat.athletes_count}</span>
                                 </div>
-                                {isRunning && (
+                                {(isRunning || isPaused || isCompleted) && (
                                   <div className="mt-2 ml-2">
-                                    <div className="flex justify-between text-[9px] font-bold text-secondary mb-0.5">
+                                    <div className={`flex justify-between text-[9px] font-bold mb-0.5 ${
+                                      isPaused ? 'text-amber-700' : isCompleted ? 'text-blue-700' : 'text-secondary'
+                                    }`}>
                                       <span>{matchesDone} / {matchesTotal} matches</span>
                                       <span>{pct.toFixed(0)}%</span>
                                     </div>
                                     <div className="w-full bg-surface-container-high h-1.5 rounded-full overflow-hidden">
                                       <div
-                                        className="bg-secondary h-full transition-all duration-500 ease-out"
+                                        className={`h-full transition-all duration-500 ease-out ${
+                                          isPaused ? 'bg-amber-500' : isCompleted ? 'bg-blue-600' : 'bg-secondary'
+                                        }`}
                                         style={{ width: `${Math.min(100, pct)}%` }}
                                       ></div>
                                     </div>
@@ -1250,7 +1311,7 @@ export default function RingBalancingClient({
                                 )}
                                 {/* Stager Status Badge */}
                                 {stagerStatus && (
-                                  <div className={`mt-2 flex items-center gap-1.5 px-2 py-1 rounded text-[10px] font-bold ${isRunning ? 'ml-2' : ''} ${
+                                  <div className={`mt-2 flex items-center gap-1.5 px-2 py-1 rounded text-[10px] font-bold ${hasLeftAccent ? 'ml-2' : ''} ${
                                     stagerStatus === 'calling'
                                       ? 'bg-amber-100 text-amber-800 border border-amber-300'
                                       : 'bg-green-100 text-green-800 border border-green-300'
