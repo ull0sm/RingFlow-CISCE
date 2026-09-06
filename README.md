@@ -49,3 +49,4 @@ RingFlow solves these challenges by centralizing live mat operations on a single
 
 * **Local Installation & Setup**: Follow the [QUICKSTART.md](file:///d:/Programming/RingFlowDevelopment/docs/RingFlow/QUICKSTART.md) guide to configure environment variables, databases, and OAuth.
 * **Contribution & Coding Guidelines**: Review [CONTRIBUTING.md](file:///d:/Programming/RingFlowDevelopment/docs/RingFlow/CONTRIBUTING.md) to understand project conventions, branching strategies, and architecture guidelines.
+
