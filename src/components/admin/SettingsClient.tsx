@@ -1,7 +1,27 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { updateTournamentSettings, deleteTournament } from "@/actions/settings";
+import { 
+  approveOrganiserRequest, 
+  rejectOrganiserRequest, 
+  revokeOrganiserSession, 
+  regenerateOrganiserCode 
+} from "@/actions/organiser";
+import { createClient } from "@/utils/supabase/client";
+import { useRouter } from "next/navigation";
+
+export interface OrganiserRequest {
+  id: string;
+  tournament_id: string;
+  access_code_used: string;
+  status: "pending" | "approved" | "rejected" | "revoked";
+  session_token?: string | null;
+  device_info?: any;
+  organiser_name?: string | null;
+  created_at: string;
+  expires_at: string;
+}
 
 interface Tournament {
   id: string;
@@ -10,29 +30,147 @@ interface Tournament {
   status: string;
   venue: string | null;
   city: string | null;
-  organiser_email?: string | null;
+  organiser_code?: string | null;
 }
 
 interface Props {
   tournament: Tournament;
+  initialOrganiserRequests?: OrganiserRequest[];
 }
 
-export default function SettingsClient({ tournament }: Props) {
+export default function SettingsClient({ tournament, initialOrganiserRequests = [] }: Props) {
+  const router = useRouter();
+  const supabase = createClient();
+
   const [form, setForm] = useState({
     name: tournament.name,
     event_date: tournament.event_date || "",
     status: tournament.status,
     venue: tournament.venue || "",
     city: tournament.city || "",
-    organiser_email: tournament.organiser_email || "",
   });
   
+  const [organiserCode, setOrganiserCode] = useState(tournament.organiser_code || "------");
+  const [showOrganiserCode, setShowOrganiserCode] = useState(false);
+  const [requests, setRequests] = useState<OrganiserRequest[]>(initialOrganiserRequests);
+  const [copied, setCopied] = useState(false);
+  const [loadingAction, setLoadingAction] = useState<string | null>(null);
   const [isSaving, setIsSaving] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
   
   // 0 = closed, 1 = typing "delete", 2 = typing "tournament name"
   const [deletePhase, setDeletePhase] = useState(0);
   const [deleteInput, setDeleteInput] = useState("");
+
+  // Realtime subscription for organiser requests
+  useEffect(() => {
+    setRequests(initialOrganiserRequests);
+  }, [initialOrganiserRequests]);
+
+  useEffect(() => {
+    const channel = supabase
+      .channel(`org_reqs_${tournament.id}`)
+      .on(
+        "postgres_changes",
+        {
+          event: "*",
+          schema: "public",
+          table: "organiser_requests",
+          filter: `tournament_id=eq.${tournament.id}`,
+        },
+        (payload) => {
+          if (payload.eventType === "INSERT") {
+            const newReq = payload.new as OrganiserRequest;
+            setRequests((prev) => [newReq, ...prev.filter((r) => r.id !== newReq.id)]);
+          } else if (payload.eventType === "UPDATE") {
+            const updated = payload.new as OrganiserRequest;
+            setRequests((prev) => prev.map((r) => (r.id === updated.id ? updated : r)));
+          } else if (payload.eventType === "DELETE") {
+            setRequests((prev) => prev.filter((r) => r.id !== (payload.old as any).id));
+          }
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [tournament.id, supabase]);
+
+  const handleCopyCode = () => {
+    if (!organiserCode || organiserCode === "------") return;
+    navigator.clipboard.writeText(organiserCode);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  };
+
+  const handleRegenerateCode = async () => {
+    if (!confirm("Regenerate organiser access code? Previous codes will no longer work for new logins.")) {
+      return;
+    }
+    setLoadingAction("regen-code");
+    try {
+      const res = await regenerateOrganiserCode(tournament.id);
+      if (res?.organiser_code) {
+        setOrganiserCode(res.organiser_code);
+        setShowOrganiserCode(true);
+      }
+      router.refresh();
+    } catch (err: any) {
+      alert(err.message || "Failed to regenerate code.");
+    } finally {
+      setLoadingAction(null);
+    }
+  };
+
+  const handleApprove = async (requestId: string) => {
+    setLoadingAction(`approve-${requestId}`);
+    try {
+      await approveOrganiserRequest(requestId, tournament.id);
+      setRequests((prev) =>
+        prev.map((r) => (r.id === requestId ? { ...r, status: "approved" } : r))
+      );
+      router.refresh();
+    } catch (err: any) {
+      alert(err.message || "Failed to approve organiser.");
+    } finally {
+      setLoadingAction(null);
+    }
+  };
+
+  const handleReject = async (requestId: string) => {
+    setLoadingAction(`reject-${requestId}`);
+    try {
+      await rejectOrganiserRequest(requestId, tournament.id);
+      setRequests((prev) =>
+        prev.map((r) => (r.id === requestId ? { ...r, status: "rejected" } : r))
+      );
+      router.refresh();
+    } catch (err: any) {
+      alert(err.message || "Failed to reject request.");
+    } finally {
+      setLoadingAction(null);
+    }
+  };
+
+  const handleRevoke = async (requestId: string, organiserName?: string | null) => {
+    const name = organiserName || "this organiser";
+    if (!confirm(`Are you sure you want to log out and revoke access for ${name}? Their session will end immediately.`)) {
+      return;
+    }
+    setLoadingAction(`revoke-${requestId}`);
+    try {
+      await revokeOrganiserSession(requestId, tournament.id);
+      setRequests((prev) =>
+        prev.map((r) => (r.id === requestId ? { ...r, status: "revoked", session_token: null } : r))
+      );
+      router.refresh();
+    } catch (err: any) {
+      alert(err.message || "Failed to revoke session.");
+    } finally {
+      setLoadingAction(null);
+    }
+  };
 
   const handleSave = async () => {
     setIsSaving(true);
@@ -72,6 +210,9 @@ export default function SettingsClient({ tournament }: Props) {
       setIsDeleting(false);
     }
   };
+
+  const pendingRequests = requests.filter((r) => r.status === "pending");
+  const approvedOrganisers = requests.filter((r) => r.status === "approved");
 
   return (
     <div className="p-margin-desktop space-y-8 bg-surface pb-24 w-full">
@@ -142,40 +283,6 @@ export default function SettingsClient({ tournament }: Props) {
                 </div>
               </div>
             </div>
-          </section>
-
-          {/* Organiser Access Control */}
-          <section className="bg-surface-container-lowest border border-outline-variant rounded-xl p-8 shadow-sm">
-            <div className="flex items-start justify-between mb-4">
-              <div>
-                <h3 className="font-label-caps text-label-caps text-secondary mb-1">Organiser Access Control</h3>
-                <p className="text-body-sm text-on-surface-variant">
-                  Set the Gmail/email address of the tournament organiser. Only this Google account will be granted organiser access to this specific tournament.
-                </p>
-              </div>
-              <span className="material-symbols-outlined text-secondary text-2xl">manage_accounts</span>
-            </div>
-
-            <div className="space-y-4">
-              <div className="flex flex-col gap-2">
-                <label className="font-label-caps text-[10px] text-on-surface-variant">ORGANISER GMAIL / EMAIL ADDRESS</label>
-                <div className="relative">
-                  <span className="absolute left-3.5 top-1/2 -translate-y-1/2 material-symbols-outlined text-outline text-[18px]">
-                    mail
-                  </span>
-                  <input 
-                    type="email" 
-                    value={form.organiser_email}
-                    onChange={e => setForm({...form, organiser_email: e.target.value})}
-                    placeholder="e.g. organiser.event@gmail.com"
-                    className="w-full pl-10 pr-3 py-3 border border-outline-variant rounded focus:border-secondary focus:ring-1 focus:ring-secondary outline-none font-body-md" 
-                  />
-                </div>
-                <p className="text-xs text-on-surface-variant/80">
-                  Multiple emails can be comma-separated. The assigned organiser can sign in via Google at <code>/login/organiser</code> to access this event.
-                </p>
-              </div>
-            </div>
 
             <div className="mt-8 flex justify-end">
               <button 
@@ -191,10 +298,201 @@ export default function SettingsClient({ tournament }: Props) {
                 ) : (
                   <>
                     <span className="material-symbols-outlined text-[16px]">save</span>
-                    SAVE CHANGES
+                    SAVE GENERAL SETTINGS
                   </>
                 )}
               </button>
+            </div>
+          </section>
+
+          {/* Organiser Access Control & Code Management */}
+          <section className="bg-surface-container-lowest border border-outline-variant rounded-xl p-8 shadow-sm space-y-6">
+            <div className="flex items-start justify-between">
+              <div>
+                <h3 className="font-label-caps text-label-caps text-secondary mb-1">Organiser Access Control</h3>
+                <p className="text-body-sm text-on-surface-variant">
+                  Multiple organisers can use the same access code to request access. All organisers must be approved by you below before entering the portal.
+                </p>
+              </div>
+              <span className="material-symbols-outlined text-secondary text-2xl">group</span>
+            </div>
+
+            {/* Access Code Box (Styled matching Tatamis section for mods) */}
+            <div className="p-6 bg-surface-container-low border border-outline-variant rounded-xl flex flex-col sm:flex-row items-center justify-between gap-4">
+              <div className="flex flex-col items-center sm:items-start">
+                <span className="text-[11px] font-label-caps text-on-surface-variant uppercase tracking-wider mb-1">
+                  ORGANISER ACCESS CODE
+                </span>
+                <span className="font-data-mono text-3xl md:text-4xl font-black text-secondary tracking-widest select-all">
+                  {showOrganiserCode ? organiserCode : "••••••"}
+                </span>
+              </div>
+
+              <div className="flex items-center gap-2 w-full sm:w-auto flex-wrap">
+                <button
+                  onClick={() => setShowOrganiserCode((prev) => !prev)}
+                  className="flex-1 sm:flex-initial px-4 py-2.5 bg-surface-container hover:bg-surface-container-high border border-outline-variant rounded-lg font-label-caps text-xs text-primary transition-colors flex items-center justify-center gap-1.5 cursor-pointer"
+                  title={showOrganiserCode ? "Hide access code" : "Reveal access code"}
+                >
+                  <span className="material-symbols-outlined text-[16px]">
+                    {showOrganiserCode ? "visibility_off" : "visibility"}
+                  </span>
+                  {showOrganiserCode ? "HIDE CODE" : "REVEAL CODE"}
+                </button>
+
+                <button
+                  onClick={handleCopyCode}
+                  className="flex-1 sm:flex-initial px-4 py-2.5 bg-surface-container hover:bg-surface-container-high border border-outline-variant rounded-lg font-label-caps text-xs text-primary transition-colors flex items-center justify-center gap-1.5 cursor-pointer"
+                  title="Copy access code"
+                >
+                  <span className="material-symbols-outlined text-[16px]">
+                    {copied ? "check" : "content_copy"}
+                  </span>
+                  {copied ? "COPIED" : "COPY CODE"}
+                </button>
+
+                <button
+                  onClick={handleRegenerateCode}
+                  disabled={loadingAction === "regen-code"}
+                  className="flex-1 sm:flex-initial px-4 py-2.5 bg-surface-container hover:bg-surface-container-high border border-outline-variant rounded-lg font-label-caps text-xs text-primary transition-colors flex items-center justify-center gap-1.5 disabled:opacity-50 cursor-pointer"
+                  title="Generate a new 6-character code"
+                >
+                  <span className="material-symbols-outlined text-[16px]">refresh</span>
+                  {loadingAction === "regen-code" ? "..." : "REGEN CODE"}
+                </button>
+              </div>
+            </div>
+
+            {/* PENDING APPROVAL REQUESTS */}
+            {pendingRequests.length > 0 && (
+              <div className="p-4 bg-amber-500/10 border border-amber-500/30 rounded-xl space-y-3">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-1.5 text-amber-900 font-label-caps text-xs font-bold">
+                    <span className="material-symbols-outlined text-[18px]">lock_clock</span>
+                    <span>PENDING ORGANISER REQUESTS ({pendingRequests.length})</span>
+                  </div>
+                  <span className="text-[11px] text-amber-800 font-medium">Requires approval</span>
+                </div>
+
+                <div className="space-y-2">
+                  {pendingRequests.map((req) => {
+                    const dev = req.device_info || {};
+                    const devString = [dev.browser, dev.os, dev.ip && `IP: ${dev.ip}`].filter(Boolean).join(" • ");
+
+                    return (
+                      <div
+                        key={req.id}
+                        className="bg-white p-3.5 rounded-lg border border-amber-300/60 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 shadow-xs"
+                      >
+                        <div>
+                          <div className="flex items-center gap-2">
+                            <span className="font-headline-sm text-sm font-bold text-primary">
+                              {req.organiser_name || "Organiser"}
+                            </span>
+                            <span className="px-2 py-0.5 rounded bg-amber-100 text-amber-800 text-[10px] font-bold">
+                              PENDING
+                            </span>
+                          </div>
+                          <div className="text-[11px] text-on-surface-variant opacity-80 mt-0.5">
+                            {devString || "Device info unavailable"}
+                          </div>
+                        </div>
+
+                        <div className="flex items-center gap-2 w-full sm:w-auto">
+                          <button
+                            onClick={() => handleApprove(req.id)}
+                            disabled={loadingAction === `approve-${req.id}`}
+                            className="flex-1 sm:flex-initial px-3 py-1.5 bg-green-600 hover:bg-green-700 text-white rounded font-label-caps text-xs font-bold flex items-center justify-center gap-1 transition-colors disabled:opacity-50"
+                          >
+                            <span className="material-symbols-outlined text-[14px]">check</span>
+                            {loadingAction === `approve-${req.id}` ? "..." : "APPROVE"}
+                          </button>
+                          <button
+                            onClick={() => handleReject(req.id)}
+                            disabled={loadingAction === `reject-${req.id}`}
+                            className="flex-1 sm:flex-initial px-3 py-1.5 bg-error/10 hover:bg-error/20 text-error border border-error/30 rounded font-label-caps text-xs font-bold flex items-center justify-center gap-1 transition-colors disabled:opacity-50"
+                          >
+                            <span className="material-symbols-outlined text-[14px]">close</span>
+                            {loadingAction === `reject-${req.id}` ? "..." : "REJECT"}
+                          </button>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+
+            {/* APPROVED ORGANISERS LIST ("show who and all have been approved below that") */}
+            <div className="pt-4 border-t border-outline-variant/50 space-y-3">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-1.5">
+                  <span className="font-label-caps text-xs text-primary font-bold tracking-wider uppercase">
+                    Approved Organisers ({approvedOrganisers.length})
+                  </span>
+                </div>
+                <span className="text-[11px] text-on-surface-variant">Active access holders</span>
+              </div>
+
+              {approvedOrganisers.length === 0 ? (
+                <div className="p-6 bg-surface-container-low border border-outline-variant/50 rounded-xl text-center">
+                  <span className="material-symbols-outlined text-outline text-3xl mb-1">person_search</span>
+                  <p className="text-body-sm text-on-surface-variant font-medium">No approved organisers yet</p>
+                  <p className="text-xs text-on-surface-variant/70 mt-0.5">
+                    Share the code <strong className="font-data-mono">{organiserCode}</strong> with your staff. Their requests will appear above for approval.
+                  </p>
+                </div>
+              ) : (
+                <div className="space-y-2.5">
+                  {approvedOrganisers.map((org) => {
+                    const dev = org.device_info || {};
+                    const devString = [dev.browser, dev.os, dev.ip && `IP: ${dev.ip}`].filter(Boolean).join(" • ");
+                    const approvedDate = new Date(org.created_at).toLocaleDateString(undefined, {
+                      month: "short",
+                      day: "numeric",
+                      hour: "2-digit",
+                      minute: "2-digit",
+                    });
+
+                    return (
+                      <div
+                        key={org.id}
+                        className="bg-surface-container-low border border-outline-variant rounded-xl p-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3"
+                      >
+                        <div className="flex items-start gap-3">
+                          <div className="w-9 h-9 rounded-full bg-green-500/10 text-green-700 flex items-center justify-center shrink-0 mt-0.5">
+                            <span className="material-symbols-outlined text-[20px]">badge</span>
+                          </div>
+                          <div>
+                            <div className="flex items-center gap-2">
+                              <span className="font-headline-sm text-sm font-bold text-primary">
+                                {org.organiser_name || "Organiser"}
+                              </span>
+                              <span className="flex items-center gap-1 px-2 py-0.5 bg-green-500/10 border border-green-500/30 rounded text-green-700 text-[10px] font-bold">
+                                <span className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse" />
+                                ACTIVE
+                              </span>
+                            </div>
+                            <div className="text-[11px] text-on-surface-variant mt-0.5">
+                              {devString || "Web Client"} • Approved {approvedDate}
+                            </div>
+                          </div>
+                        </div>
+
+                        <button
+                          onClick={() => handleRevoke(org.id, org.organiser_name)}
+                          disabled={loadingAction === `revoke-${org.id}`}
+                          className="px-3 py-1.5 bg-error/10 hover:bg-error/20 text-error border border-error/30 rounded font-label-caps text-xs font-bold transition-colors flex items-center justify-center gap-1.5 disabled:opacity-50"
+                          title="Revoke active organiser access"
+                        >
+                          <span className="material-symbols-outlined text-[14px]">logout</span>
+                          {loadingAction === `revoke-${org.id}` ? "REVOKING..." : "REVOKE ACCESS"}
+                        </button>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
             </div>
           </section>
 

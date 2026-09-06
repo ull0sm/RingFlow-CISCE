@@ -13,7 +13,6 @@ export async function updateTournamentSettings(
     status: string; 
     venue: string; 
     city: string; 
-    organiser_email?: string | null;
   }
 ) {
   await ensureAdminOwnsTournament(tournamentId);
@@ -26,22 +25,6 @@ export async function updateTournamentSettings(
     venue: data.venue || null,
     city: data.city || null,
   };
-
-  if (data.organiser_email !== undefined) {
-    const cleanEmail = data.organiser_email?.trim().toLowerCase() || null;
-    updatePayload.organiser_email = cleanEmail;
-
-    // If an organiser email is assigned, ensure it is added to public.organisers
-    // so they can authenticate via Google Sign-In as an organizer
-    if (cleanEmail) {
-      const emails = cleanEmail.split(",").map(e => e.trim()).filter(Boolean);
-      for (const email of emails) {
-        await supabase
-          .from("organisers")
-          .upsert({ email }, { onConflict: "email", ignoreDuplicates: true });
-      }
-    }
-  }
 
   const { error } = await supabase
     .from("tournaments")
