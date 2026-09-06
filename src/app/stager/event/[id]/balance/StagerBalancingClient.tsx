@@ -92,6 +92,24 @@ export default function StagerBalancingClient({
   // Action loading state: key is categoryId + action
   const [loadingAction, setLoadingAction] = useState<string | null>(null);
 
+  // Minimal Confirmation Modal State
+  const [confirmModal, setConfirmModal] = useState<{
+    categoryId: string;
+    categoryName: string;
+    requestedStatus: "calling" | "ready";
+    isClearing: boolean;
+  } | null>(null);
+
+  // Close confirmation modal on Escape key
+  useEffect(() => {
+    if (!confirmModal) return;
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setConfirmModal(null);
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [confirmModal]);
+
   // ── Initialize from props ──────────────────────────────────────────────────
   useEffect(() => {
     if (isInitialized) return;
@@ -410,7 +428,14 @@ export default function StagerBalancingClient({
         {/* Stager Action Buttons */}
         <div className={`mt-2.5 pt-2.5 border-t border-outline-variant/30 flex gap-2 ${hasLeftAccent ? "ml-2" : ""}`}>
           <button
-            onClick={() => handleStagerAction(cat.id, "calling")}
+            onClick={() => {
+              setConfirmModal({
+                categoryId: cat.id,
+                categoryName: cat.name,
+                requestedStatus: "calling",
+                isClearing: stagerStatus === "calling",
+              });
+            }}
             disabled={!!loadingAction}
             className={`flex-1 flex items-center justify-center gap-1.5 py-1.5 px-2 rounded text-[10px] font-bold transition-all border whitespace-nowrap select-none cursor-pointer ${
               stagerStatus === "calling"
@@ -428,7 +453,14 @@ export default function StagerBalancingClient({
           </button>
 
           <button
-            onClick={() => handleStagerAction(cat.id, "ready")}
+            onClick={() => {
+              setConfirmModal({
+                categoryId: cat.id,
+                categoryName: cat.name,
+                requestedStatus: "ready",
+                isClearing: stagerStatus === "ready",
+              });
+            }}
             disabled={!!loadingAction}
             className={`flex-1 flex items-center justify-center gap-1.5 py-1.5 px-2 rounded text-[10px] font-bold transition-all border whitespace-nowrap select-none cursor-pointer ${
               stagerStatus === "ready"
@@ -565,16 +597,94 @@ export default function StagerBalancingClient({
         )}
       </div>
 
-      {/* Footer */}
-      <footer className="h-9 bg-surface-container-highest border-t border-outline-variant px-6 flex items-center justify-between shrink-0">
-        <div className="flex items-center gap-2">
-          <span className="w-2 h-2 rounded-full bg-green-500 animate-pulse" />
-          <span className="font-label-caps text-[10px] text-on-surface-variant">System Live</span>
+      {/* Minimal Confirmation Modal */}
+      {confirmModal && (
+        <div
+          className="fixed inset-0 z-50 bg-black/60 backdrop-blur-[2px] flex items-center justify-center p-4 animate-in fade-in duration-150"
+          onClick={() => setConfirmModal(null)}
+        >
+          <div
+            className="bg-white border border-outline-variant/80 rounded-2xl p-5 w-full max-w-[320px] shadow-2xl space-y-3.5 animate-in zoom-in-95 duration-150 text-center"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Minimal Icon */}
+            <div
+              className={`w-11 h-11 rounded-full flex items-center justify-center mx-auto ${
+                confirmModal.isClearing
+                  ? "bg-surface-container-high text-on-surface-variant"
+                  : confirmModal.requestedStatus === "calling"
+                  ? "bg-amber-100 text-amber-700"
+                  : "bg-green-100 text-green-700"
+              }`}
+            >
+              <span className="material-symbols-outlined text-2xl">
+                {confirmModal.isClearing
+                  ? "restart_alt"
+                  : confirmModal.requestedStatus === "calling"
+                  ? "notifications_active"
+                  : "check_circle"}
+              </span>
+            </div>
+
+            {/* Title & Body */}
+            <div>
+              <h3 className="font-headline-sm text-base text-primary font-bold">
+                {confirmModal.isClearing
+                  ? `Clear ${confirmModal.requestedStatus === "calling" ? "In Progress" : "Called"}?`
+                  : `Mark as ${confirmModal.requestedStatus === "calling" ? "In Progress" : "Called"}?`}
+              </h3>
+              <p className="text-xs text-on-surface-variant mt-1.5 leading-relaxed">
+                {confirmModal.isClearing ? (
+                  <>
+                    Are you sure you want to clear this status for{" "}
+                    <span className="font-semibold text-primary">{confirmModal.categoryName}</span>?
+                  </>
+                ) : confirmModal.requestedStatus === "calling" ? (
+                  <>
+                    Are you sure you want to alert the team that{" "}
+                    <span className="font-semibold text-primary">{confirmModal.categoryName}</span> is{" "}
+                    <span className="text-amber-700 font-bold">In Progress</span>?
+                  </>
+                ) : (
+                  <>
+                    Are you sure you want to alert the team that{" "}
+                    <span className="font-semibold text-primary">{confirmModal.categoryName}</span> is{" "}
+                    <span className="text-green-700 font-bold">Called &amp; Ready</span>?
+                  </>
+                )}
+              </p>
+            </div>
+
+            {/* Actions */}
+            <div className="flex gap-2 pt-1">
+              <button
+                type="button"
+                onClick={() => setConfirmModal(null)}
+                className="flex-1 py-2 px-3 rounded-xl border border-outline-variant text-xs font-bold text-on-surface hover:bg-surface-container transition-colors cursor-pointer"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  const { categoryId, requestedStatus } = confirmModal;
+                  setConfirmModal(null);
+                  handleStagerAction(categoryId, requestedStatus);
+                }}
+                className={`flex-1 py-2 px-3 rounded-xl text-xs font-bold text-white shadow-sm transition-colors cursor-pointer ${
+                  confirmModal.isClearing
+                    ? "bg-neutral-800 hover:bg-neutral-900"
+                    : confirmModal.requestedStatus === "calling"
+                    ? "bg-amber-600 hover:bg-amber-700"
+                    : "bg-green-600 hover:bg-green-700"
+                }`}
+              >
+                Yes, Confirm
+              </button>
+            </div>
+          </div>
         </div>
-        <span className="text-[10px] text-on-surface-variant opacity-60">
-          Stager: {stagerName} · Read-only · Click buttons on assigned categories
-        </span>
-      </footer>
+      )}
     </div>
   );
 }
