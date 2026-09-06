@@ -214,16 +214,16 @@ export default function CategoriesClient({
       </div>
 
       <div className="bg-surface-container-lowest border border-outline-variant rounded-lg overflow-hidden shadow-sm">
-        <table className="w-full text-left border-collapse">
+        <table className="w-full table-fixed text-left border-collapse">
           <thead className="bg-surface-container-low border-b border-outline-variant">
             <tr>
-              <th className="px-6 py-4 font-label-caps text-label-caps text-on-surface-variant">Name</th>
-              <th className="px-6 py-4 font-label-caps text-label-caps text-on-surface-variant">Age</th>
-              <th className="px-6 py-4 font-label-caps text-label-caps text-on-surface-variant">Weight</th>
-              <th className="px-6 py-4 font-label-caps text-label-caps text-on-surface-variant text-center">Athletes</th>
-              <th className="px-6 py-4 font-label-caps text-label-caps text-on-surface-variant text-center">Expected Matches</th>
+              <th className={`${readOnly ? "w-[46%] sm:w-[44%] md:w-[36%]" : "w-[38%] sm:w-[36%] md:w-[30%]"} px-2.5 sm:px-4 md:px-6 py-3 sm:py-4 font-label-caps text-label-caps text-on-surface-variant`}>Name</th>
+              <th className={`${readOnly ? "w-[21%] sm:w-[22%] md:w-[18%]" : "w-[18%] sm:w-[18%] md:w-[15%]"} px-1.5 sm:px-3 md:px-4 py-3 sm:py-4 font-label-caps text-label-caps text-on-surface-variant`}>Age</th>
+              <th className={`${readOnly ? "w-[21%] sm:w-[22%] md:w-[18%]" : "w-[18%] sm:w-[18%] md:w-[15%]"} px-1.5 sm:px-3 md:px-4 py-3 sm:py-4 font-label-caps text-label-caps text-on-surface-variant`}>Weight</th>
+              <th className={`${readOnly ? "w-[12%] sm:w-[12%] md:w-[12%]" : "w-[12%] sm:w-[12%] md:w-[11%]"} px-1 sm:px-2 md:px-4 py-3 sm:py-4 font-label-caps text-label-caps text-on-surface-variant text-center`}>Athletes</th>
+              <th className="hidden md:table-cell md:w-[16%] px-2 md:px-4 py-3 sm:py-4 font-label-caps text-label-caps text-on-surface-variant text-center">Expected Matches</th>
               {!readOnly && (
-                <th className="px-6 py-4 font-label-caps text-label-caps text-on-surface-variant text-right">Actions</th>
+                <th className="w-[14%] sm:w-[16%] md:w-[14%] px-2 sm:px-4 md:px-6 py-3 sm:py-4 font-label-caps text-label-caps text-on-surface-variant text-right">Actions</th>
               )}
             </tr>
           </thead>
@@ -231,15 +231,15 @@ export default function CategoriesClient({
             {/* Add Row */}
             {isAdding && (
               <tr className="bg-surface-container-low">
-                <td className="px-6 py-2"><input value={addForm.name} onChange={e => setAddForm({...addForm, name: e.target.value})} placeholder="Name" className="w-full p-2 border rounded" /></td>
-                <td className="px-6 py-2"><input value={addForm.age_bracket} onChange={e => setAddForm({...addForm, age_bracket: e.target.value})} placeholder="Age" className="w-full p-2 border rounded" /></td>
-                <td className="px-6 py-2"><input value={addForm.weight_class} onChange={e => setAddForm({...addForm, weight_class: e.target.value})} placeholder="Weight" className="w-full p-2 border rounded" /></td>
-                <td className="px-6 py-2"><input type="number" value={addForm.athletes_count} onChange={e => setAddForm({...addForm, athletes_count: parseInt(e.target.value)||0})} className="w-full p-2 border rounded text-center" /></td>
-                <td className="px-6 py-2 text-center text-on-surface-variant text-xs">Auto</td>
-                <td className="px-6 py-2 text-right">
-                  <div className="flex gap-2 justify-end">
-                    <button onClick={handleSaveAdd} className="px-3 py-1 bg-primary text-white rounded font-label-caps text-[10px]">SAVE</button>
-                    <button onClick={handleCancelAdd} className="px-3 py-1 border rounded font-label-caps text-[10px]">CANCEL</button>
+                <td className="px-2.5 sm:px-4 md:px-6 py-2"><input value={addForm.name} onChange={e => setAddForm({...addForm, name: e.target.value})} placeholder="Name" className="w-full p-1.5 sm:p-2 text-xs sm:text-sm border rounded" /></td>
+                <td className="px-1.5 sm:px-3 md:px-4 py-2"><input value={addForm.age_bracket} onChange={e => setAddForm({...addForm, age_bracket: e.target.value})} placeholder="Age" className="w-full p-1.5 sm:p-2 text-xs sm:text-sm border rounded" /></td>
+                <td className="px-1.5 sm:px-3 md:px-4 py-2"><input value={addForm.weight_class} onChange={e => setAddForm({...addForm, weight_class: e.target.value})} placeholder="Weight" className="w-full p-1.5 sm:p-2 text-xs sm:text-sm border rounded" /></td>
+                <td className="px-1 sm:px-2 md:px-4 py-2"><input type="number" value={addForm.athletes_count} onChange={e => setAddForm({...addForm, athletes_count: parseInt(e.target.value)||0})} className="w-full p-1.5 sm:p-2 text-xs sm:text-sm border rounded text-center font-data-mono" /></td>
+                <td className="hidden md:table-cell px-2 md:px-4 py-2 text-center text-on-surface-variant text-xs font-data-mono">Auto</td>
+                <td className="px-2 sm:px-4 md:px-6 py-2 text-right">
+                  <div className="flex gap-1.5 sm:gap-2 justify-end">
+                    <button onClick={handleSaveAdd} className="px-2.5 sm:px-3 py-1 bg-primary text-white rounded font-label-caps text-[10px]">SAVE</button>
+                    <button onClick={handleCancelAdd} className="px-2.5 sm:px-3 py-1 border rounded font-label-caps text-[10px]">CANCEL</button>
                   </div>
                 </td>
               </tr>
@@ -248,30 +248,30 @@ export default function CategoriesClient({
             {categories.map((cat) => (
               editingId === cat.id ? (
                 <tr key={cat.id} className="bg-surface-container-low">
-                  <td className="px-6 py-2"><input value={editForm.name} onChange={e => setEditForm({...editForm, name: e.target.value})} className="w-full p-2 border rounded" /></td>
-                  <td className="px-6 py-2"><input value={editForm.age_bracket || ""} onChange={e => setEditForm({...editForm, age_bracket: e.target.value})} className="w-full p-2 border rounded" /></td>
-                  <td className="px-6 py-2"><input value={editForm.weight_class || ""} onChange={e => setEditForm({...editForm, weight_class: e.target.value})} className="w-full p-2 border rounded" /></td>
-                  <td className="px-6 py-2"><input type="number" value={editForm.athletes_count} onChange={e => setEditForm({...editForm, athletes_count: parseInt(e.target.value)||0})} className="w-full p-2 border rounded text-center" /></td>
-                  <td className="px-6 py-2"><input type="number" value={editForm.expected_matches} onChange={e => setEditForm({...editForm, expected_matches: parseInt(e.target.value)||0})} className="w-full p-2 border rounded text-center font-data-mono" /></td>
-                  <td className="px-6 py-2 text-right">
-                    <div className="flex gap-2 justify-end">
-                      <button onClick={handleSaveEdit} className="px-3 py-1 bg-secondary text-white rounded font-label-caps text-[10px]">SAVE</button>
-                      <button onClick={handleCancelEdit} className="px-3 py-1 border rounded font-label-caps text-[10px]">CANCEL</button>
+                  <td className="px-2.5 sm:px-4 md:px-6 py-2"><input value={editForm.name} onChange={e => setEditForm({...editForm, name: e.target.value})} className="w-full p-1.5 sm:p-2 text-xs sm:text-sm border rounded" /></td>
+                  <td className="px-1.5 sm:px-3 md:px-4 py-2"><input value={editForm.age_bracket || ""} onChange={e => setEditForm({...editForm, age_bracket: e.target.value})} className="w-full p-1.5 sm:p-2 text-xs sm:text-sm border rounded" /></td>
+                  <td className="px-1.5 sm:px-3 md:px-4 py-2"><input value={editForm.weight_class || ""} onChange={e => setEditForm({...editForm, weight_class: e.target.value})} className="w-full p-1.5 sm:p-2 text-xs sm:text-sm border rounded" /></td>
+                  <td className="px-1 sm:px-2 md:px-4 py-2"><input type="number" value={editForm.athletes_count} onChange={e => setEditForm({...editForm, athletes_count: parseInt(e.target.value)||0})} className="w-full p-1.5 sm:p-2 text-xs sm:text-sm border rounded text-center font-data-mono" /></td>
+                  <td className="hidden md:table-cell px-2 md:px-4 py-2"><input type="number" value={editForm.expected_matches} onChange={e => setEditForm({...editForm, expected_matches: parseInt(e.target.value)||0})} className="w-full p-1.5 sm:p-2 text-xs sm:text-sm border rounded text-center font-data-mono" /></td>
+                  <td className="px-2 sm:px-4 md:px-6 py-2 text-right">
+                    <div className="flex gap-1.5 sm:gap-2 justify-end">
+                      <button onClick={handleSaveEdit} className="px-2.5 sm:px-3 py-1 bg-secondary text-white rounded font-label-caps text-[10px]">SAVE</button>
+                      <button onClick={handleCancelEdit} className="px-2.5 sm:px-3 py-1 border rounded font-label-caps text-[10px]">CANCEL</button>
                     </div>
                   </td>
                 </tr>
               ) : (
                 <tr key={cat.id} className="hover:bg-surface-container-low transition-colors">
-                  <td className="px-6 py-4 font-bold text-primary">{cat.name}</td>
-                  <td className="px-6 py-4">{cat.age_bracket || "-"}</td>
-                  <td className="px-6 py-4">{cat.weight_class || "-"}</td>
-                  <td className="px-6 py-4 text-center">
-                    <span className="px-2 py-1 bg-secondary-container text-on-secondary-container rounded font-data-mono">{cat.athletes_count}</span>
+                  <td className="px-2.5 sm:px-4 md:px-6 py-3 sm:py-4 font-bold text-primary break-words">{cat.name}</td>
+                  <td className="px-1.5 sm:px-3 md:px-4 py-3 sm:py-4 break-words text-on-surface">{cat.age_bracket || "-"}</td>
+                  <td className="px-1.5 sm:px-3 md:px-4 py-3 sm:py-4 break-words text-on-surface">{cat.weight_class || "-"}</td>
+                  <td className="px-1 sm:px-2 md:px-4 py-3 sm:py-4 text-center font-data-mono text-on-surface text-sm sm:text-base font-medium">
+                    {cat.athletes_count}
                   </td>
-                  <td className="px-6 py-4 text-center font-data-mono">{cat.expected_matches}</td>
+                  <td className="hidden md:table-cell px-2 md:px-4 py-3 sm:py-4 text-center font-data-mono">{cat.expected_matches}</td>
                   {!readOnly && (
-                    <td className="px-6 py-4 text-right">
-                      <div className="flex justify-end gap-3">
+                    <td className="px-2 sm:px-4 md:px-6 py-3 sm:py-4 text-right">
+                      <div className="flex justify-end gap-2 sm:gap-3">
                         <button onClick={() => handleStartEdit(cat)} className="material-symbols-outlined text-outline hover:text-primary transition-colors text-sm cursor-pointer">edit</button>
                         <button onClick={() => handleDelete(cat.id)} className="material-symbols-outlined text-outline hover:text-error transition-colors text-sm cursor-pointer">delete</button>
                       </div>
