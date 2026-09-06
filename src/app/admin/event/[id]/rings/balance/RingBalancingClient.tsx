@@ -863,12 +863,12 @@ export default function RingBalancingClient({
         {/* Main Content Area */}
         <div className="flex-1 flex overflow-hidden w-full relative">
 
-          {/* Left Sidebar: Category Pool (expands inline; shrinks to 5% peek on mobile with > arrow) */}
+          {/* Left Sidebar: Category Pool (expands inline; shrinks to 10% peek on mobile with > arrow) */}
           <section
             className={`h-full flex flex-col bg-surface-container-lowest border-r border-outline-variant shrink-0 relative transition-[width] duration-300 ease-in-out z-20 ${
               mobileShowPool
                 ? "w-[85vw] max-w-[340px] md:w-80 shadow-lg md:shadow-none"
-                : "w-5 sm:w-6 md:w-80 overflow-visible bg-surface-container-low/70 hover:bg-surface-container-low cursor-pointer select-none"
+                : "w-[10vw] min-w-[36px] md:w-80 overflow-visible bg-surface-container-low/70 hover:bg-surface-container-low cursor-pointer select-none"
             }`}
             onClick={!mobileShowPool ? togglePool : undefined}
             title={!mobileShowPool ? "Expand unassigned categories" : undefined}
