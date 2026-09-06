@@ -43,10 +43,11 @@ export async function ensureAdminOwnsTournament(tournamentId: string) {
     .from("tournaments")
     .select("id")
     .eq("id", tournamentId)
+    .eq("admin_id", adminId)
     .single();
 
   if (error || !tournament) {
-    throw new Error("Tournament not found");
+    throw new Error("Tournament not found or unauthorized");
   }
 
   return adminId;

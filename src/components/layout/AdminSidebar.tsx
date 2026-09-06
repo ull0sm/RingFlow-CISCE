@@ -31,7 +31,7 @@ export default function AdminSidebar() {
     { name: "Tatami Balancing", href: `/admin/event/${id}/rings/balance`, icon: "balance" },
     { name: "Categories", href: `/admin/event/${id}/categories`, icon: "category" },
     { name: "Athletes", href: `/admin/event/${id}/athletes`, icon: "groups" },
-    { name: "Tatamis", href: `/admin/event/${id}/rings`, icon: "grid_view" },
+    { name: "Access", href: `/admin/event/${id}/rings`, icon: "key" },
     { name: "Settings", href: `/admin/event/${id}/settings`, icon: "settings" },
   ];
 

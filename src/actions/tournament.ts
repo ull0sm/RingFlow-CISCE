@@ -40,6 +40,7 @@ export async function createTournament(input: TournamentInput) {
   }
 
   // 1. Create Tournament
+  const organiserCode = Math.random().toString(36).substring(2, 8).toUpperCase();
   const { data: tournament, error: tournamentError } = await supabase
     .from("tournaments")
     .insert({
@@ -49,6 +50,7 @@ export async function createTournament(input: TournamentInput) {
       venue,
       city,
       status: "draft",
+      organiser_code: organiserCode,
     })
     .select("id")
     .single();

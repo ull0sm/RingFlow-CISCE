@@ -4,11 +4,18 @@ import RingCard from "@/components/admin/RingCard";
 import AdminDashboardClient from "@/components/admin/AdminDashboardClient";
 import { createClient } from "@/utils/supabase/server";
 import { redirect } from "next/navigation";
+import { ensureAdminOwnsTournament } from "@/actions/admin";
 import LiveActivityFeed from "@/components/admin/LiveActivityFeed";
 import ModeratorRequestsWidget from "@/components/admin/ModeratorRequestsWidget";
 
 export default async function AdminDashboard({ params }: { params: Promise<{ id: string }> }) {
   const { id: tournamentId } = await params;
+  try {
+    await ensureAdminOwnsTournament(tournamentId);
+  } catch {
+    redirect("/admin");
+  }
+
   const supabase = await createClient();
 
   // 1. Fetch Tournament
