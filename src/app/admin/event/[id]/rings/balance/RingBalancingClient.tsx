@@ -32,6 +32,8 @@ type Assignment = {
   status?: string;
   created_at?: string;
   completed_at?: string | null;
+  stager_status?: string | null;
+  stager_name?: string | null;
 };
 
 interface Props {
@@ -84,18 +86,21 @@ export default function RingBalancingClient({
   const [sortBy, setSortBy] = useState<"name" | "athletes" | "weight">("athletes");
   const [sortOrder, setSortOrder] = useState<"asc" | "desc">("desc");
   const [statusFilter, setStatusFilter] = useState<"idle" | "queue" | "completed">("idle");
+  const [mobileShowPool, setMobileShowPool] = useState(false);
 
-  // Realtime assignments map for live match count, status, queue_order tracking
-  const [assignmentsMap, setAssignmentsMap] = useState<Record<string, { matches_completed: number; status: string; ring_id: string; queue_order: number }>>({});
+  // Realtime assignments map for live match count, status, queue_order and stager status tracking
+  const [assignmentsMap, setAssignmentsMap] = useState<Record<string, { matches_completed: number; status: string; ring_id: string; queue_order: number; stager_status: string | null; stager_name: string | null }>>({}); 
 
   useEffect(() => {
-    const map: Record<string, { matches_completed: number; status: string; ring_id: string; queue_order: number }> = {};
+    const map: Record<string, { matches_completed: number; status: string; ring_id: string; queue_order: number; stager_status: string | null; stager_name: string | null }> = {};
     initialAssignments.forEach(a => {
       map[a.category_id] = {
         matches_completed: (a as any).matches_completed || 0,
         status: a.status || "pending",
         ring_id: a.ring_id,
         queue_order: a.queue_order ?? 0,
+        stager_status: (a as any).stager_status ?? null,
+        stager_name: (a as any).stager_name ?? null,
       };
     });
     setAssignmentsMap(map);
@@ -122,6 +127,8 @@ export default function RingBalancingClient({
                 status: updated.status || "pending",
                 ring_id: updated.ring_id,
                 queue_order: updated.queue_order ?? prev[updated.category_id]?.queue_order ?? 0,
+                stager_status: updated.stager_status ?? null,
+                stager_name: updated.stager_name ?? null,
               }
             }));
 
@@ -391,6 +398,8 @@ export default function RingBalancingClient({
             queue_order: idx,
             status: nextMap[cat.id]?.status || "pending",
             matches_completed: nextMap[cat.id]?.matches_completed || 0,
+            stager_status: nextMap[cat.id]?.stager_status ?? null,
+            stager_name: nextMap[cat.id]?.stager_name ?? null,
           };
         });
       });
@@ -515,8 +524,8 @@ export default function RingBalancingClient({
     prevRingQueues?: Record<string, Category[]>,
     updatedCompletedQueues?: Record<string, Category[]>,
     prevCompletedQueues?: Record<string, Category[]>,
-    updatedAssignmentsMap?: Record<string, { matches_completed: number; status: string; ring_id: string; queue_order: number }>,
-    prevAssignmentsMap?: Record<string, { matches_completed: number; status: string; ring_id: string; queue_order: number }>
+    updatedAssignmentsMap?: Record<string, { matches_completed: number; status: string; ring_id: string; queue_order: number; stager_status: string | null; stager_name: string | null }>,
+    prevAssignmentsMap?: Record<string, { matches_completed: number; status: string; ring_id: string; queue_order: number; stager_status: string | null; stager_name: string | null }>
   ) => {
     if (!autoSave) return;
     
@@ -637,6 +646,8 @@ export default function RingBalancingClient({
         status: "pending",
         ring_id: ringId,
         queue_order: nextActiveQueue.length - 1,
+        stager_status: null,
+        stager_name: null,
       },
     };
 
@@ -739,36 +750,47 @@ export default function RingBalancingClient({
   const uniqueSexes = Array.from(new Set(initialCategories.map(c => c.sex).filter(Boolean)));
 
   return (
-    <div className="flex flex-col h-full overflow-hidden w-full">
+    <div className="flex flex-col overflow-hidden w-full h-[calc(100dvh-4rem)] md:h-screen">
       {/* TopNavBar */}
-      <header className="flex justify-between items-center w-full px-8 h-16 bg-surface-container-lowest border-b border-outline-variant shrink-0 z-10">
-        <div className="flex items-center gap-6">
-          <span className="font-headline-lg text-headline-lg font-black text-primary tracking-tighter">Ring Flow</span>
-          <div className="h-8 w-[1px] bg-outline-variant"></div>
-          <div className="flex items-center gap-2">
-            <h2 className="font-headline-sm text-headline-sm text-primary">Tatami Balancing</h2>
-            <span className="text-outline-variant">/</span>
-            <span className="text-on-surface-variant font-label-caps text-label-caps opacity-70">{tournamentName}</span>
+      <header className="flex justify-between items-center w-full px-4 sm:px-8 h-14 sm:h-16 bg-surface-container-lowest border-b border-outline-variant shrink-0 z-10">
+        <div className="flex items-center gap-3 sm:gap-6 min-w-0 pr-2">
+          <span className="text-base sm:text-headline-lg font-black text-primary tracking-tighter shrink-0 whitespace-nowrap">Ring Flow</span>
+          <div className="h-6 sm:h-8 w-[1px] bg-outline-variant hidden xs:block shrink-0"></div>
+          <div className="flex items-center gap-1.5 sm:gap-2 min-w-0">
+            <h2 className="font-headline-sm text-xs sm:text-headline-sm text-primary whitespace-nowrap">Tatami Balancing</h2>
+            <span className="text-outline-variant shrink-0">/</span>
+            <span className="text-on-surface-variant font-label-caps text-label-caps opacity-70 truncate max-w-[100px] sm:max-w-[220px] whitespace-nowrap">{tournamentName}</span>
           </div>
         </div>
       </header>
 
       {/* Tournament Overview Bar */}
-      <div className="bg-primary text-on-primary px-8 py-3 flex items-center justify-between shrink-0 shadow-lg z-10 w-full">
-        <div className="flex items-center gap-10">
+      <div className="bg-primary text-on-primary px-4 sm:px-8 py-2.5 sm:py-3 flex items-center justify-between shrink-0 shadow-lg z-10 w-full overflow-x-auto gap-4">
+        <div className="flex items-center gap-4 sm:gap-10 shrink-0">
           <div className="flex flex-col">
-            <span className="text-[10px] font-label-caps opacity-60">TOTAL TATAMIS</span>
-            <span className="font-data-mono text-lg font-bold">{initialRings.length} ACTIVE</span>
+            <span className="text-[9px] sm:text-[10px] font-label-caps opacity-60">TOTAL TATAMIS</span>
+            <span className="font-data-mono text-sm sm:text-lg font-bold">{initialRings.length} ACTIVE</span>
           </div>
           <div className="h-6 w-[1px] bg-white/20"></div>
+
+          {/* Mobile Pool vs Board toggle */}
+          <button
+            onClick={() => setMobileShowPool(!mobileShowPool)}
+            className="md:hidden flex items-center gap-1.5 px-3 py-1.5 bg-white/10 hover:bg-white/20 rounded-md text-xs font-bold transition-colors cursor-pointer"
+          >
+            <span className="material-symbols-outlined text-sm">
+              {mobileShowPool ? "grid_view" : "list"}
+            </span>
+            <span>{mobileShowPool ? "Show Tatamis" : `Pool (${visibleUnassigned.length})`}</span>
+          </button>
           
           {!readOnly && (
-            <div className="flex items-center gap-6">
+            <div className="flex items-center gap-4 sm:gap-6 flex-wrap">
               <div className="flex flex-col">
-                <span className="text-[10px] font-label-caps opacity-60">SYNC MODE</span>
+                <span className="text-[9px] sm:text-[10px] font-label-caps opacity-60">SYNC MODE</span>
                 <button 
                   onClick={() => setAutoSave(!autoSave)}
-                  className={`flex items-center gap-2 px-3 py-1 rounded-md text-xs font-bold transition-all border ${
+                  className={`flex items-center gap-2 px-2.5 sm:px-3 py-1 rounded-md text-xs font-bold transition-all border ${
                     autoSave 
                       ? 'bg-secondary/20 border-secondary text-white' 
                       : 'bg-white/5 border-outline-variant/40 text-on-primary/70 hover:bg-white/10'
@@ -776,18 +798,18 @@ export default function RingBalancingClient({
                   title="Toggle Auto Sync after drag and drop"
                 >
                   <span className={`w-2 h-2 rounded-full ${autoSave ? 'bg-secondary animate-pulse' : 'bg-outline-variant'}`}></span>
-                  <span className="font-label-caps">{autoSave ? "AUTO SYNC ON" : "MANUAL SYNC"}</span>
+                  <span className="font-label-caps text-[10px] sm:text-xs">{autoSave ? "AUTO SYNC ON" : "MANUAL SYNC"}</span>
                 </button>
               </div>
 
               {/* Show Save button only when Auto-Save is OFF */}
               {!autoSave && (
                 <div className="flex flex-col">
-                  <span className="text-[10px] font-label-caps opacity-60">ACTIONS</span>
+                  <span className="text-[9px] sm:text-[10px] font-label-caps opacity-60">ACTIONS</span>
                   <button 
                     onClick={handleSave} 
                     disabled={isSaving}
-                    className="bg-secondary text-white px-4 py-1 rounded-md text-xs font-bold hover:opacity-90 disabled:opacity-50 flex items-center gap-1.5 shadow-sm"
+                    className="bg-secondary text-white px-3 sm:px-4 py-1 rounded-md text-xs font-bold hover:opacity-90 disabled:opacity-50 flex items-center gap-1.5 shadow-sm cursor-pointer"
                   >
                     {isSaving && <span className="w-3 h-3 border-2 border-white border-t-transparent rounded-full animate-spin"></span>}
                     {isSaving ? "SAVING..." : "SAVE BALANCING"}
@@ -797,13 +819,13 @@ export default function RingBalancingClient({
 
               {/* Design-System Aligned Status Cue */}
               {saveStatusText && (
-                <div className="flex items-center gap-1.5 px-3 py-1 bg-secondary text-white text-xs font-bold rounded-md shadow-md">
+                <div className="flex items-center gap-1.5 px-2.5 sm:px-3 py-1 bg-secondary text-white text-xs font-bold rounded-md shadow-md">
                   <span className="material-symbols-outlined text-sm">sync</span>
-                  <span className="font-label-caps tracking-wider">{saveStatusText}</span>
+                  <span className="font-label-caps text-[10px] sm:text-xs tracking-wider">{saveStatusText}</span>
                 </div>
               )}
               {!saveStatusText && lastSaved && (
-                <span className="text-[11px] opacity-70 font-data-mono">
+                <span className="text-[10px] sm:text-[11px] opacity-70 font-data-mono hidden sm:inline">
                   Synced {lastSaved.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })}
                 </span>
               )}
@@ -1026,14 +1048,14 @@ export default function RingBalancingClient({
           </section>
 
           {/* Horizontal Scrollable Ring Grid */}
-          <section className="flex-1 overflow-x-auto bg-surface-container-low flex p-6 gap-6 items-start">
+          <section className="flex-1 overflow-x-auto bg-surface-container-low flex p-3 sm:p-6 gap-3 sm:gap-6 items-start">
             {initialRings.map(ring => {
               const overloaded = isOverloaded(ring.id);
               const isHistoryView = historyOpenForRing === ring.id;
               
               if (isHistoryView) {
                 return (
-                  <div key={ring.id} className="w-72 shrink-0 flex flex-col bg-surface-container-lowest border border-outline-variant rounded-xl overflow-hidden shadow-sm h-full">
+                  <div key={ring.id} className="w-[85vw] max-w-[340px] md:w-72 shrink-0 flex flex-col bg-surface-container-lowest border border-outline-variant rounded-xl overflow-hidden shadow-sm h-full">
                     <div className="sticky top-0 z-10 p-4 flex justify-between items-start shrink-0 bg-surface-container-highest text-on-surface">
                       <div className="flex items-start gap-2">
                         <span className="material-symbols-outlined text-[20px] text-primary mt-1">history</span>
@@ -1109,7 +1131,7 @@ export default function RingBalancingClient({
 
 
               return (
-                <div key={ring.id} className="w-72 shrink-0 flex flex-col bg-white border border-outline-variant rounded-xl overflow-hidden shadow-sm h-full">
+                <div key={ring.id} className="w-[85vw] max-w-[340px] md:w-72 shrink-0 flex flex-col bg-white border border-outline-variant rounded-xl overflow-hidden shadow-sm h-full">
                   {/* Header Droppable Shortcut Target */}
                   <Droppable droppableId={`header_${ring.id}`}>
                     {(providedHeader, snapshotHeader) => (
@@ -1181,6 +1203,8 @@ export default function RingBalancingClient({
                               const matchesDone = catAssignment?.matches_completed || 0;
                               const matchesTotal = cat.expected_matches || 0;
                               const pct = matchesTotal > 0 ? (matchesDone / matchesTotal) * 100 : 0;
+                              const stagerStatus = catAssignment?.stager_status ?? null;
+                              const stagerActorName = catAssignment?.stager_name ?? null;
 
                               return (
                               <div 
@@ -1224,6 +1248,22 @@ export default function RingBalancingClient({
                                     </div>
                                   </div>
                                 )}
+                                {/* Stager Status Badge */}
+                                {stagerStatus && (
+                                  <div className={`mt-2 flex items-center gap-1.5 px-2 py-1 rounded text-[10px] font-bold ${isRunning ? 'ml-2' : ''} ${
+                                    stagerStatus === 'calling'
+                                      ? 'bg-amber-100 text-amber-800 border border-amber-300'
+                                      : 'bg-green-100 text-green-800 border border-green-300'
+                                  }`}>
+                                    <span className="material-symbols-outlined text-[13px]">
+                                      {stagerStatus === 'calling' ? 'notifications_active' : 'check_circle'}
+                                    </span>
+                                    {stagerStatus === 'calling'
+                                      ? `Calling in progress by ${stagerActorName}`
+                                      : `Ready — called by ${stagerActorName}`
+                                    }
+                                  </div>
+                                )}
                               </div>
                               );
                             }}
@@ -1241,19 +1281,43 @@ export default function RingBalancingClient({
       </DragDropContext>
 
       {/* Bottom Status Bar */}
-      <footer className="h-10 bg-surface-container-highest border-t border-outline-variant px-8 flex items-center justify-between shrink-0 z-10 w-full">
-        <div className="flex gap-6 items-center">
-          <div className="flex items-center gap-2">
+      <footer className="h-10 bg-surface-container-highest border-t border-outline-variant px-4 sm:px-8 flex items-center justify-between shrink-0 z-10 w-full gap-2">
+        <div className="flex gap-4 sm:gap-6 items-center min-w-0">
+          <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
             <span className="w-2 h-2 rounded-full bg-green-500 animate-pulse"></span>
-            <span className="font-label-caps text-[10px] text-on-surface-variant">System Live</span>
+            <span className="font-label-caps text-[10px] text-on-surface-variant whitespace-nowrap">System Live</span>
           </div>
-          <div className="flex items-center gap-2">
-            <span className="material-symbols-outlined text-[14px] text-outline">sync</span>
-            <span className="font-label-caps text-[10px] text-on-surface-variant">
+          <div className="flex items-center gap-1.5 sm:gap-2 min-w-0">
+            <span className="material-symbols-outlined text-[14px] text-outline shrink-0">sync</span>
+            <span className="font-label-caps text-[10px] text-on-surface-variant truncate whitespace-nowrap">
               {isMounted && lastSaved ? `Last saved at ${lastSaved.toLocaleTimeString()}` : "Not saved yet"}
             </span>
           </div>
         </div>
+
+        {/* CruxStudios Footer Badge - only when not readOnly (Organiser has full FooterDemo at the end) */}
+        {!readOnly && (
+          <a
+            href="https://cruxstudios.dev"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="group inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-[#1B1815] hover:bg-black text-[#F5F3EC] border border-[#E1DDCF]/40 hover:border-cyan-400/60 shadow-[0_2px_8px_rgba(27,24,21,0.12)] hover:shadow-[0_0_15px_rgba(0,229,255,0.25)] transition-all duration-300 shrink-0"
+          >
+            <span className="font-['Inter',sans-serif] font-medium text-[9px] text-[#F5F3EC]/90 group-hover:text-white transition-colors hidden xs:inline whitespace-nowrap">
+              Developed by
+            </span>
+            <div className="flex items-center gap-1">
+              <img
+                src="https://cruxstudios.dev/favicon.svg"
+                alt="CruxStudios"
+                className="h-3.5 w-3.5 drop-shadow-[0_0_6px_rgba(0,229,255,0.7)] group-hover:scale-110 transition-all duration-300"
+              />
+              <span className="font-['Plus_Jakarta_Sans',sans-serif] font-black text-[11px] text-white tracking-tight group-hover:text-[#00E5FF] transition-colors whitespace-nowrap">
+                CruxStudios
+              </span>
+            </div>
+          </a>
+        )}
       </footer>
 
       {/* Confirmation Modal */}
