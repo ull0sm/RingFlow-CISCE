@@ -3,120 +3,231 @@ import Link from "next/link";
 import Image from "next/image";
 import { createClient } from "@/utils/supabase/server";
 import PublicStats from "@/components/public/PublicStats";
+import PublicTournamentGrid from "@/components/public/PublicTournamentGrid";
+import { RingFlowLogo } from "@/components/ui/ringflow-logo";
+import { getEventDateKey } from "@/lib/utils";
 
 export default async function PublicHome() {
   const supabase = await createClient();
   const { data: tournaments } = await supabase
     .from("tournaments")
-    .select("*")
+    .select(`
+      *,
+      rings (id),
+      categories (id)
+    `)
     .order("event_date", { ascending: true });
 
-  const activeTournaments = tournaments?.filter(t => t.status === "active") || [];
-  const upcomingTournaments = tournaments?.filter(t => t.status === "draft") || [];
+  const now = new Date();
+  const year = now.getFullYear();
+  const month = String(now.getMonth() + 1).padStart(2, "0");
+  const day = String(now.getDate()).padStart(2, "0");
+  const todayStr = `${year}-${month}-${day}`;
+
+  const getEventStatus = (t: any): "live" | "upcoming" | "past" => {
+    if (t.status === "completed" || t.status === "archived") return "past";
+    if (t.status === "live") return "live";
+    if (!t.event_date) return "upcoming";
+    const dateKey = getEventDateKey(t.event_date);
+    const rawKey = String(t.event_date).split("T")[0];
+    if (dateKey === todayStr || rawKey === todayStr) {
+      return "live";
+    } else if (dateKey > todayStr || rawKey > todayStr) {
+      return "upcoming";
+    } else {
+      return "past";
+    }
+  };
+
+  // Strictly Stacked: 1. Live Events on top -> 2. Upcoming Events in middle -> 3. Over Events at bottom
+  const liveTournaments = (tournaments || [])
+    .filter((t) => getEventStatus(t) === "live")
+    .sort((a, b) => new Date(a.event_date || 0).getTime() - new Date(b.event_date || 0).getTime());
+
+  const upcomingTournaments = (tournaments || [])
+    .filter((t) => getEventStatus(t) === "upcoming")
+    .sort((a, b) => new Date(a.event_date || 0).getTime() - new Date(b.event_date || 0).getTime());
+
+  const pastTournaments = (tournaments || [])
+    .filter((t) => getEventStatus(t) === "past")
+    .sort((a, b) => new Date(b.event_date || 0).getTime() - new Date(a.event_date || 0).getTime());
+
+  const allTournaments = [...liveTournaments, ...upcomingTournaments, ...pastTournaments];
 
   return (
     <>
-      {/* TopAppBar Section */}
-      <header className="w-full top-0 sticky z-50 bg-white border-b border-outline-variant flex justify-between items-center h-16 px-margin-desktop mx-auto">
-        <div className="flex items-center gap-8">
-          <div className="flex items-center gap-3">
-            <span className="text-headline-sm font-bold text-primary tracking-tight">Ring Flow</span>
-          </div>
-        </div>
-        <div className="flex items-center gap-4">
-          {/* Admin link removed from public visibility */}
+      {/* Top Navigation Bar */}
+      <header className="w-full top-0 sticky z-50 bg-[#F5F3EC]/90 backdrop-blur-md border-b border-[#E1DDCF] transition-all font-['Inter',sans-serif]">
+        <div className="max-w-7xl mx-auto flex justify-between items-center h-16 px-4 md:px-margin-desktop">
+          <Link href="/" className="flex items-center gap-2.5 group">
+            <RingFlowLogo className="h-[34px] w-[34px] text-[#1B1815] group-hover:scale-105 transition-transform shrink-0" />
+            <span className="text-[23px] font-black text-[#1B1815] tracking-[-0.02em] leading-none font-['Plus_Jakarta_Sans',sans-serif]">
+              RingFlow
+            </span>
+          </Link>
+
+          <nav className="flex items-center">
+            <Link
+              href="#events"
+              className="inline-flex items-center px-4 py-2 bg-[#1B1815] hover:bg-black text-[#F5F3EC] rounded-lg text-[13.5px] font-bold font-['Plus_Jakarta_Sans',sans-serif] transition-all shadow-sm hover:shadow"
+            >
+              <span>Tournaments</span>
+            </Link>
+          </nav>
         </div>
       </header>
       
-      <main className="flex-grow">
+      <main className="flex-grow font-['Inter',sans-serif]">
         {/* Hero Section */}
-        <section className="relative h-[500px] overflow-hidden bg-primary-container">
-          <div className="absolute inset-0 bg-[url('/hero-section.png')] bg-cover bg-center" />
-          <div className="absolute inset-0 hero-overlay flex items-center">
-            <div className="max-w-7xl mx-auto px-margin-desktop w-full">
-              <div className="max-w-2xl">
-                <h1 className="font-display-lg text-display-lg mb-4 text-white">Find Your Next Tournament</h1>
-                <p className="text-white/90 font-body-md mb-8 text-xl max-w-xl">
-                  Browse upcoming martial arts competitions, kata events, and kumite championships.
-                </p>
-                <div className="flex flex-wrap gap-4">
-                  <Link href="#events" className="px-8 py-3 bg-secondary-container text-on-secondary-container font-headline-sm rounded-lg hover:bg-opacity-90 transition-all shadow-lg inline-block">
-                    View Events
-                  </Link>
+        <section className="relative min-h-[calc(100svh-4rem)] min-h-[calc(100dvh-4rem)] md:min-h-0 md:h-[580px] lg:h-[620px] overflow-hidden bg-[#F5F3EC] border-b border-[#E1DDCF] flex flex-col justify-between md:justify-center">
+          <div className="absolute inset-0 bg-[url('/hero-section.jpg')] bg-cover bg-[position:82%_center] md:bg-center opacity-95" />
+          <div className="absolute inset-0 bg-gradient-to-r from-[#F5F3EC] via-[#F5F3EC]/90 to-transparent md:via-[#F5F3EC]/60" />
+
+          {/* 📱 MOBILE VIEW ONLY (md:hidden) */}
+          <div className="relative max-w-7xl mx-auto px-6 sm:px-8 w-full pt-3 sm:pt-6 pb-12 sm:pb-14 flex-1 flex flex-col justify-between z-10 md:hidden">
+            {/* Top: Header Text */}
+            <div className="max-w-2xl pt-5 sm:pt-6">
+              <h1 className="font-['Plus_Jakarta_Sans',sans-serif] text-[32px] sm:text-[44px] font-black tracking-[-0.03em] leading-[1.08] mb-2 text-[#1B1815]">
+                Find Your Next Championship
+              </h1>
+              <p className="text-[#68645A] font-['Inter',sans-serif] font-normal text-[14px] sm:text-lg max-w-md leading-relaxed">
+                Track live tatami rings, category assignments, and athlete queue status in real time.
+              </p>
+            </div>
+
+            {/* Bullet points: single column with the exact spacing */}
+            <div className="mt-11 sm:mt-10 mb-auto max-w-2xl">
+              <div className="space-y-6 sm:space-y-7 max-w-[270px] sm:max-w-sm">
+                <div className="flex items-center gap-2.5 text-[13.5px] sm:text-[14.5px] text-[#3D3A33] font-medium">
+                  <span className="w-1.5 h-1.5 rounded-full bg-[#1B1815] shrink-0" />
+                  <span>Live tatami ring status</span>
+                </div>
+                <div className="flex items-center gap-2.5 text-[13.5px] sm:text-[14.5px] text-[#3D3A33] font-medium">
+                  <span className="w-1.5 h-1.5 rounded-full bg-[#1B1815] shrink-0" />
+                  <span>Real-time match queues</span>
+                </div>
+                <div className="flex items-center gap-2.5 text-[13.5px] sm:text-[14.5px] text-[#3D3A33] font-medium">
+                  <span className="w-1.5 h-1.5 rounded-full bg-[#1B1815] shrink-0" />
+                  <span>Category allocations</span>
+                </div>
+                <div className="flex items-center gap-2.5 text-[13.5px] sm:text-[14.5px] text-[#3D3A33] font-medium">
+                  <span className="w-1.5 h-1.5 rounded-full bg-[#1B1815] shrink-0" />
+                  <span>Athlete bullpen tracking</span>
+                </div>
+                <div className="flex items-center gap-2.5 text-[13.5px] sm:text-[14.5px] text-[#3D3A33] font-medium">
+                  <span className="w-1.5 h-1.5 rounded-full bg-[#1B1815] shrink-0" />
+                  <span>Instant bracket progression</span>
+                </div>
+                <div className="flex items-center gap-2.5 text-[13.5px] sm:text-[14.5px] text-[#3D3A33] font-medium">
+                  <span className="w-1.5 h-1.5 rounded-full bg-[#1B1815] shrink-0" />
+                  <span>Match schedule routing</span>
+                </div>
+                <div className="flex items-center gap-2.5 text-[13.5px] sm:text-[14.5px] text-[#3D3A33] font-medium">
+                  <span className="w-1.5 h-1.5 rounded-full bg-[#1B1815] shrink-0" />
+                  <span>Referee floor assignments</span>
+                </div>
+                <div className="flex items-center gap-2.5 text-[13.5px] sm:text-[14.5px] text-[#3D3A33] font-medium">
+                  <span className="w-1.5 h-1.5 rounded-full bg-[#1B1815] shrink-0" />
+                  <span>Live spectator scoreboards</span>
                 </div>
               </div>
             </div>
+
+            {/* Bottom: Button positioned right above Explore */}
+            <div className="max-w-2xl w-full flex flex-col items-center pb-3">
+              <Link
+                href="#events"
+                className="w-full sm:w-auto text-center px-8 py-3.5 bg-[#1B1815]/75 hover:bg-[#1B1815]/90 backdrop-blur-md border border-[#F5F3EC]/25 text-[#F5F3EC] font-['Plus_Jakarta_Sans',sans-serif] font-bold text-[15px] rounded-xl transition-all shadow-[0_8px_24px_rgba(27,24,21,0.12)] hover:shadow-[0_12px_28px_rgba(27,24,21,0.2)] inline-block active:scale-[0.98]"
+              >
+                View Events
+              </Link>
+            </div>
+          </div>
+
+          {/* 💻 DESKTOP & LAPTOP VIEW ONLY (hidden md:flex) */}
+          <div className="relative max-w-7xl mx-auto px-margin-desktop w-full py-16 hidden md:flex md:flex-col md:justify-center z-10">
+            <div className="max-w-2xl">
+              <h1 className="font-['Plus_Jakarta_Sans',sans-serif] text-[46px] lg:text-[54px] font-black tracking-[-0.03em] leading-[1.08] mb-3 text-[#1B1815]">
+                Find Your Next Championship
+              </h1>
+              <p className="text-[#68645A] font-['Inter',sans-serif] font-normal text-lg lg:text-xl max-w-xl leading-relaxed mb-6">
+                Track live tatami rings, category assignments, and athlete queue status in real time.
+              </p>
+
+              {/* 2-Column Desktop Grid for Bullet Points */}
+              <div className="grid grid-cols-2 gap-x-8 gap-y-3 max-w-xl mb-8">
+                <div className="flex items-center gap-2.5 text-[14px] text-[#3D3A33] font-medium">
+                  <span className="w-1.5 h-1.5 rounded-full bg-[#1B1815] shrink-0" />
+                  <span>Live tatami ring status</span>
+                </div>
+                <div className="flex items-center gap-2.5 text-[14px] text-[#3D3A33] font-medium">
+                  <span className="w-1.5 h-1.5 rounded-full bg-[#1B1815] shrink-0" />
+                  <span>Instant bracket progression</span>
+                </div>
+                <div className="flex items-center gap-2.5 text-[14px] text-[#3D3A33] font-medium">
+                  <span className="w-1.5 h-1.5 rounded-full bg-[#1B1815] shrink-0" />
+                  <span>Real-time match queues</span>
+                </div>
+                <div className="flex items-center gap-2.5 text-[14px] text-[#3D3A33] font-medium">
+                  <span className="w-1.5 h-1.5 rounded-full bg-[#1B1815] shrink-0" />
+                  <span>Match schedule routing</span>
+                </div>
+                <div className="flex items-center gap-2.5 text-[14px] text-[#3D3A33] font-medium">
+                  <span className="w-1.5 h-1.5 rounded-full bg-[#1B1815] shrink-0" />
+                  <span>Category allocations</span>
+                </div>
+                <div className="flex items-center gap-2.5 text-[14px] text-[#3D3A33] font-medium">
+                  <span className="w-1.5 h-1.5 rounded-full bg-[#1B1815] shrink-0" />
+                  <span>Referee floor assignments</span>
+                </div>
+                <div className="flex items-center gap-2.5 text-[14px] text-[#3D3A33] font-medium">
+                  <span className="w-1.5 h-1.5 rounded-full bg-[#1B1815] shrink-0" />
+                  <span>Athlete bullpen tracking</span>
+                </div>
+                <div className="flex items-center gap-2.5 text-[14px] text-[#3D3A33] font-medium">
+                  <span className="w-1.5 h-1.5 rounded-full bg-[#1B1815] shrink-0" />
+                  <span>Live spectator scoreboards</span>
+                </div>
+              </div>
+
+              {/* Desktop View Events Button */}
+              <div className="flex items-center gap-4">
+                <Link
+                  href="#events"
+                  className="px-8 py-3.5 bg-[#1B1815] hover:bg-black text-[#F5F3EC] font-['Plus_Jakarta_Sans',sans-serif] font-bold text-[15px] rounded-lg transition-all shadow-md hover:shadow-lg inline-block active:scale-[0.98]"
+                >
+                  View Events
+                </Link>
+              </div>
+            </div>
+          </div>
+
+          {/* Explore indicator pinned to the bottom of the screen on mobile only */}
+          <div className="absolute bottom-2 left-1/2 -translate-x-1/2 flex flex-col items-center text-[#8C877C] animate-bounce pointer-events-none md:hidden opacity-85">
+            <span className="text-[10px] font-bold tracking-widest uppercase font-['Plus_Jakarta_Sans',sans-serif] mb-0.5">Explore</span>
+            <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+              <path d="M19 9l-7 7-7-7" />
+            </svg>
           </div>
         </section>
 
         {/* Stats Bar */}
         <PublicStats />
 
-        {/* Events Filter & Grid Section */}
-        <section id="events" className="max-w-7xl mx-auto px-margin-desktop py-12 scroll-mt-20">
-          <div className="mb-10">
-            <h2 className="font-headline-lg text-headline-lg text-primary mb-6">Active &amp; Upcoming Events</h2>
+        {/* Unified Events Grid */}
+        <section id="events" className="max-w-7xl mx-auto px-6 sm:px-8 md:px-margin-desktop py-14 scroll-mt-20">
+          <div className="mb-8">
+            <h2 className="font-['Plus_Jakarta_Sans',sans-serif] text-[28px] md:text-[32px] font-black tracking-[-0.02em] text-[#1B1815] mb-2">
+              Tournaments
+            </h2>
+            <p className="text-[#68645A] text-[15px]">
+              Live floor operations, tatami status, and category allocations.
+            </p>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-            {activeTournaments.map(t => (
-              <Link key={t.id} href={`/public/event/${t.id}`} className="bg-surface-container-lowest border border-outline-variant rounded-xl overflow-hidden event-card-hover transition-all duration-300 flex flex-col group cursor-pointer">
-                <div className="relative h-56 overflow-hidden bg-primary-container">
-                  <div className="absolute inset-0 bg-[url('https://images.unsplash.com/photo-1555597673-b21d5c935865?q=80&w=600&auto=format&fit=crop')] bg-cover bg-center opacity-80 transition-transform duration-500 group-hover:scale-110" />
-                  <div className="absolute top-4 left-4 bg-error text-white px-3 py-1 rounded-full flex items-center gap-2 shadow-lg border border-white/20">
-                    <span className="block w-2 h-2 bg-white rounded-full animate-pulse"></span>
-                    <span className="font-label-caps text-[10px] uppercase font-black">LIVE</span>
-                  </div>
-                </div>
-                <div className="p-6 flex-grow tatami-texture">
-                  <h3 className="font-headline-sm text-primary mb-4">{t.name}</h3>
-                  <div className="space-y-4 mb-8">
-                    <div className="flex items-center gap-3 text-on-surface-variant">
-                      <span className="material-symbols-outlined text-secondary">calendar_today</span>
-                      <span className="text-body-sm font-medium">{t.event_date ? new Date(t.event_date).toLocaleDateString() : 'TBD'}</span>
-                    </div>
-                    <div className="flex items-center gap-3 text-on-surface-variant">
-                      <span className="material-symbols-outlined text-secondary">location_on</span>
-                      <span className="text-body-sm font-medium">{t.venue || t.city || 'TBD'}</span>
-                    </div>
-                  </div>
-                  <button className="w-full bg-secondary text-white py-3 rounded-lg font-headline-sm hover:bg-secondary/90 transition-colors shadow-md group-hover:shadow-lg">
-                    Enter Arena
-                  </button>
-                </div>
-              </Link>
-            ))}
-
-            {upcomingTournaments.map(t => (
-              <Link key={t.id} href={`/public/event/${t.id}`} className="bg-surface-container-lowest border border-outline-variant rounded-xl overflow-hidden event-card-hover transition-all duration-300 flex flex-col group cursor-pointer">
-                <div className="relative h-56 overflow-hidden bg-primary-container">
-                  <div className="absolute inset-0 bg-[url('https://images.unsplash.com/photo-1595078475328-1ab05d0a6a0e?q=80&w=600&auto=format&fit=crop')] bg-cover bg-center opacity-80 transition-transform duration-500 group-hover:scale-110" />
-                  <div className="absolute top-4 left-4 bg-secondary text-white px-3 py-1 rounded-full flex items-center gap-2 shadow-lg border border-white/20">
-                    <span className="font-label-caps text-[10px] uppercase font-black">UPCOMING</span>
-                  </div>
-                </div>
-                <div className="p-6 flex-grow tatami-texture">
-                  <h3 className="font-headline-sm text-primary mb-4">{t.name}</h3>
-                  <div className="space-y-4 mb-8">
-                    <div className="flex items-center gap-3 text-on-surface-variant">
-                      <span className="material-symbols-outlined text-secondary">calendar_today</span>
-                      <span className="text-body-sm font-medium">{t.event_date ? new Date(t.event_date).toLocaleDateString() : 'TBD'}</span>
-                    </div>
-                    <div className="flex items-center gap-3 text-on-surface-variant">
-                      <span className="material-symbols-outlined text-secondary">location_on</span>
-                      <span className="text-body-sm font-medium">{t.venue || t.city || 'TBD'}</span>
-                    </div>
-                  </div>
-                  <button className="w-full border-2 border-secondary text-secondary py-3 rounded-lg font-headline-sm hover:bg-secondary hover:text-white transition-all">
-                    View Details
-                  </button>
-                </div>
-              </Link>
-            ))}
-          </div>
+          <PublicTournamentGrid tournaments={allTournaments} todayStr={todayStr} />
         </section>
       </main>
-
     </>
   );
 }
