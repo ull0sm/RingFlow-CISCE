@@ -776,12 +776,12 @@ export default function RingBalancingClient({
           {/* Mobile Pool vs Board toggle */}
           <button
             onClick={() => setMobileShowPool(!mobileShowPool)}
-            className="md:hidden flex items-center gap-1.5 px-3 py-1.5 bg-white/10 hover:bg-white/20 rounded-md text-xs font-bold transition-colors cursor-pointer"
+            className="md:hidden flex items-center gap-1.5 px-3 py-1.5 bg-white/15 hover:bg-white/25 border border-white/20 rounded-lg text-xs font-bold text-white transition-all cursor-pointer shrink-0"
           >
-            <span className="material-symbols-outlined text-sm">
-              {mobileShowPool ? "grid_view" : "list"}
+            <span>{mobileShowPool ? "Show Tatamis" : "Show unassigned categories"}</span>
+            <span className="material-symbols-outlined text-[16px] leading-none">
+              {mobileShowPool ? "chevron_left" : "chevron_right"}
             </span>
-            <span>{mobileShowPool ? "Show Tatamis" : `Pool (${visibleUnassigned.length})`}</span>
           </button>
           
           {!readOnly && (
@@ -836,21 +836,75 @@ export default function RingBalancingClient({
 
       <DragDropContext onDragEnd={onDragEnd}>
         {/* Main Content Area */}
-        <div className="flex-1 flex overflow-hidden w-full">
+        <div className="flex-1 flex overflow-hidden w-full relative">
           
-          {/* Persistent Left Sidebar: Category Pool */}
-          <section className="w-80 flex flex-col bg-surface-container-lowest border-r border-outline-variant shrink-0 z-10 relative">
+          {/* Mobile Backdrop */}
+          {mobileShowPool && (
+            <div
+              className="md:hidden fixed inset-0 z-40 bg-black/50 backdrop-blur-xs transition-opacity"
+              onClick={() => setMobileShowPool(false)}
+            />
+          )}
+
+          {/* Floating Smoothened Arrow Button on Mobile when sidebar is closed */}
+          {!mobileShowPool && (
+            <button
+              onClick={() => setMobileShowPool(true)}
+              type="button"
+              title="Show unassigned categories"
+              className="md:hidden fixed top-1/2 -translate-y-1/2 left-0 z-30 flex items-center gap-1.5 pl-2.5 pr-2 py-2 bg-white/95 border-y border-r border-outline-variant rounded-r-xl shadow-lg hover:shadow-xl text-primary active:scale-95 transition-all cursor-pointer group"
+            >
+              <span className="font-label-caps text-[10px] font-bold text-primary whitespace-nowrap">
+                Show unassigned categories
+              </span>
+              <span className="w-5 h-5 rounded-full bg-primary/10 group-hover:bg-primary/20 flex items-center justify-center text-primary transition-colors">
+                <span className="material-symbols-outlined text-[15px] select-none leading-none">
+                  chevron_right
+                </span>
+              </span>
+            </button>
+          )}
+
+          {/* Left Sidebar: Category Pool */}
+          <section
+            className={`w-80 max-w-[85vw] flex flex-col bg-surface-container-lowest border-r border-outline-variant shrink-0 z-40 relative h-full transition-all duration-200 ${
+              mobileShowPool
+                ? "fixed md:relative inset-y-0 left-0 shadow-2xl md:shadow-none flex"
+                : "hidden md:flex"
+            }`}
+          >
+            {/* Smoothened Arrow Toggle Button on mobile sidebar edge */}
+            <button
+              onClick={() => setMobileShowPool(false)}
+              type="button"
+              title="Hide sidebar"
+              className="md:hidden absolute top-1/2 -right-3.5 -translate-y-1/2 w-7 h-7 bg-white border border-outline-variant rounded-full shadow-md hover:shadow-lg flex items-center justify-center text-on-surface-variant hover:text-primary active:scale-95 transition-all cursor-pointer z-50"
+            >
+              <span className="material-symbols-outlined text-[18px] select-none leading-none">
+                chevron_left
+              </span>
+            </button>
+
             <div className="p-4 border-b border-outline-variant bg-surface-container-low flex flex-col gap-3">
               <div className="flex justify-between items-center">
                 <h3 className="font-label-caps text-label-caps text-primary">
                   {statusFilter === "idle" ? `Unassigned (${visibleUnassigned.length})` : statusFilter === "queue" ? `In Queue (${queuedCategories.length})` : `Completed (${allCompletedCategories.length})`}
                 </h3>
-                <button 
-                  onClick={() => {
-                    setSearch(""); setBeltFilter(""); setAgeFilter(""); setSexFilter("");
-                  }}
-                  className="text-[10px] text-secondary hover:underline"
-                >Clear Filters</button>
+                <div className="flex items-center gap-2">
+                  <button 
+                    onClick={() => {
+                      setSearch(""); setBeltFilter(""); setAgeFilter(""); setSexFilter("");
+                    }}
+                    className="text-[10px] text-secondary hover:underline"
+                  >Clear Filters</button>
+                  <button
+                    onClick={() => setMobileShowPool(false)}
+                    className="md:hidden p-1 rounded-md text-on-surface-variant hover:bg-surface-container-high transition-colors"
+                    title="Close sidebar"
+                  >
+                    <span className="material-symbols-outlined text-[18px] leading-none">close</span>
+                  </button>
+                </div>
               </div>
 
               {/* Status Filter Tabs */}
