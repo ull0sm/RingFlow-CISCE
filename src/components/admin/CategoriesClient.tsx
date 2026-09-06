@@ -180,8 +180,8 @@ export default function CategoriesClient({
   };
 
   return (
-    <div className="p-margin-desktop space-y-8 bg-surface pb-24 w-full">
-      <div className="flex justify-between items-center">
+    <div className="p-4 sm:p-6 md:p-margin-desktop space-y-6 sm:space-y-8 bg-surface pb-24 w-full">
+      <div className="flex flex-wrap justify-between items-center gap-4">
         <div>
           <h2 className="font-headline-sm text-headline-sm text-primary">Division Management</h2>
           <p className="text-body-sm text-on-surface-variant">View and manage categories for this tournament.</p>

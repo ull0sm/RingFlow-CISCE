@@ -2,16 +2,15 @@
 
 import React, { useState, Suspense } from "react";
 import { useRouter } from "next/navigation";
-import { requestOrganiserAccess } from "@/actions/organiser";
+import { requestStagerAccess } from "@/actions/stager";
 import { Turnstile } from "@marsidev/react-turnstile";
 import { RingFlowLogo } from "@/components/ui/ringflow-logo";
 import { v4 as uuidv4 } from "uuid";
 
-// Simple user-agent parser
 function parseUserAgent(ua: string) {
   let browser = "Unknown";
   let os = "Unknown";
-  let deviceType = /Mobile|Android|iP(ad|hone)/.test(ua) ? "Mobile" : "Desktop";
+  const deviceType = /Mobile|Android|iP(ad|hone)/.test(ua) ? "Mobile" : "Desktop";
 
   if (ua.includes("Chrome")) browser = "Chrome";
   else if (ua.includes("Firefox")) browser = "Firefox";
@@ -27,9 +26,9 @@ function parseUserAgent(ua: string) {
   return { browser, os, deviceType };
 }
 
-function OrganiserLoginContent() {
+function StagerLoginContent() {
   const [accessCode, setAccessCode] = useState("");
-  const [organiserName, setOrganiserName] = useState("");
+  const [stagerName, setStagerName] = useState("");
   const [turnstileToken, setTurnstileToken] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState("");
@@ -44,7 +43,7 @@ function OrganiserLoginContent() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!organiserName.trim()) {
+    if (!stagerName.trim()) {
       setError("Please enter your name.");
       return;
     }
@@ -61,17 +60,14 @@ function OrganiserLoginContent() {
     setError("");
 
     try {
-      // 1. Persistent device ID
-      let deviceId = localStorage.getItem("ringflow_org_device_id");
+      let deviceId = localStorage.getItem("ringflow_stager_device_id");
       if (!deviceId) {
         deviceId = uuidv4();
-        localStorage.setItem("ringflow_org_device_id", deviceId);
+        localStorage.setItem("ringflow_stager_device_id", deviceId);
       }
 
-      // 2. Parse User Agent
       const { browser, os, deviceType } = parseUserAgent(navigator.userAgent);
 
-      // 3. Approximate location & IP
       let ip = "Unknown";
       let location = "Unknown";
       try {
@@ -81,28 +77,27 @@ function OrganiserLoginContent() {
           ip = data.ip;
           location = `${data.city}, ${data.region}`;
         }
-      } catch (e) {
-        // Fallback silently if blocked
+      } catch {
+        // silent fallback
       }
 
-      const deviceInfo = {
-        deviceId,
-        browser,
-        os,
-        deviceType,
-        ip,
-        location,
-      };
+      const deviceInfo = { deviceId, browser, os, deviceType, ip, location };
 
-      const result = await requestOrganiserAccess(
+      const result = await requestStagerAccess(
         accessCode,
-        organiserName,
+        stagerName,
         deviceInfo,
         turnstileToken
       );
 
       if (result.success && result.requestId) {
-        router.push(`/organiser/waiting/${result.requestId}`);
+        if (typeof window !== "undefined") {
+          localStorage.setItem("ringflow_stager_name", stagerName.trim());
+          const isHttps = window.location.protocol === "https:";
+          const secureFlag = isHttps ? "; Secure" : "";
+          document.cookie = `stager_name=${encodeURIComponent(stagerName.trim())}; path=/; max-age=172800; SameSite=Strict${secureFlag}`;
+        }
+        router.push(`/stager/waiting/${result.requestId}`);
       } else {
         setError(result.error || "Failed to submit access request.");
       }
@@ -122,9 +117,9 @@ function OrganiserLoginContent() {
           <RingFlowLogo className="h-8 w-8 text-primary shrink-0" />
           <span className="font-headline-sm text-headline-sm font-black text-primary tracking-tight">RingFlow</span>
         </div>
-        <h1 className="font-headline-md text-headline-md font-bold text-primary mb-1">Organiser Portal</h1>
+        <h1 className="font-headline-md text-headline-md font-bold text-primary mb-1">Stager Portal</h1>
         <p className="font-body-sm text-on-surface-variant mb-6">
-          Enter your Tournament Organiser Access Code to request entry
+          Enter your Stager Access Code to request entry to the tournament board
         </p>
 
         {error && (
@@ -141,9 +136,9 @@ function OrganiserLoginContent() {
             <input
               type="text"
               required
-              value={organiserName}
+              value={stagerName}
               onChange={(e) => {
-                setOrganiserName(e.target.value);
+                setStagerName(e.target.value);
                 setError("");
               }}
               placeholder="E.g., Priya Mehta"
@@ -153,12 +148,12 @@ function OrganiserLoginContent() {
 
           <div className="relative group">
             <label className="font-label-caps text-label-caps text-on-surface-variant mb-1.5 block">
-              6-CHARACTER ORGANISER CODE
+              6-CHARACTER STAGER CODE
             </label>
             <input
               autoComplete="off"
               className="w-full bg-surface-container-lowest border border-outline-variant text-center font-data-mono tracking-[0.4em] px-4 rounded-lg focus:outline-none focus:border-secondary transition-all uppercase placeholder:opacity-20 text-headline-md py-4"
-              id="access-code"
+              id="stager-code"
               maxLength={6}
               placeholder="••••••"
               type="text"
@@ -168,7 +163,7 @@ function OrganiserLoginContent() {
             <div
               className="absolute bottom-0 left-0 h-0.5 bg-secondary transition-all duration-500 rounded-b"
               style={{ width: `${percentage}%` }}
-            ></div>
+            />
           </div>
 
           <div className="flex justify-between items-center px-1 text-xs text-on-surface-variant">
@@ -183,15 +178,13 @@ function OrganiserLoginContent() {
                 setTurnstileToken(token);
                 setError("");
               }}
-              options={{
-                theme: "light",
-              }}
+              options={{ theme: "light" }}
             />
           </div>
 
           <button
             type="submit"
-            disabled={!turnstileToken || isLoading || accessCode.length < 6 || !organiserName.trim()}
+            disabled={!turnstileToken || isLoading || accessCode.length < 6 || !stagerName.trim()}
             className="w-full bg-primary hover:bg-black text-white font-headline-sm py-4 rounded-lg transition-all flex items-center justify-center gap-2 group disabled:opacity-50 mt-2 shadow-xs"
           >
             {isLoading ? (
@@ -219,9 +212,9 @@ function OrganiserLoginContent() {
             <span className="material-symbols-outlined text-[14px]">lock</span>
             Tatami Moderator
           </a>
-          <a href="/login/stager" className="hover:underline flex items-center gap-1">
-            <span className="material-symbols-outlined text-[14px]">sports_kabaddi</span>
-            Stager
+          <a href="/login/organiser" className="hover:underline flex items-center gap-1">
+            <span className="material-symbols-outlined text-[14px]">badge</span>
+            Organiser
           </a>
         </div>
       </div>
@@ -229,10 +222,10 @@ function OrganiserLoginContent() {
   );
 }
 
-export default function OrganiserLoginPage() {
+export default function StagerLoginPage() {
   return (
     <Suspense fallback={<div className="flex h-screen w-full items-center justify-center bg-background">Loading...</div>}>
-      <OrganiserLoginContent />
+      <StagerLoginContent />
     </Suspense>
   );
 }

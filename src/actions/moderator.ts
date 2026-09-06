@@ -11,7 +11,14 @@ export async function approveModeratorRequest(requestId: string, ringId: string,
 
   const sessionToken = crypto.randomUUID();
 
-  // 1. Mark request as approved (scoped to ringId)
+  // 1. Revoke any previous approved session for this ring
+  await supabase
+    .from("moderator_requests")
+    .update({ status: "revoked" })
+    .eq("ring_id", ringId)
+    .eq("status", "approved");
+
+  // 2. Mark request as approved (scoped to ringId)
   const { error: updateError } = await supabase
     .from("moderator_requests")
     .update({ status: "approved", session_token: sessionToken })
@@ -81,6 +88,9 @@ export async function revokeActiveModeratorSession(ringId: string, tournamentId:
 }
 
 export async function requestModeratorAccess(accessCode: string, moderatorName?: string, deviceInfo?: any, turnstileToken?: string) {
+  if (!moderatorName || !moderatorName.trim()) {
+    return { success: false, error: "Please enter your name." };
+  }
   if (!turnstileToken) {
     return { success: false, error: "Security check is required." };
   }
@@ -159,7 +169,8 @@ export async function checkModeratorStatus(requestId: string) {
   
   return { 
     status: request.status, 
-    ringId: request.ring_id 
+    ringId: request.ring_id,
+    sessionToken: request.session_token
   };
 }
 
@@ -183,8 +194,8 @@ export async function validateModeratorSession(ringId: string, token: string) {
   }
 
   // Exclusivity: 1 ring = 1 active moderator. 
-  // Must match the *latest* approved session token.
-  if (latestRequest.session_token === token) {
+  // Must match the approved session token or request id (fallback)
+  if (latestRequest.session_token === token || latestRequest.id === token) {
     return latestRequest;
   }
   return false;

@@ -120,10 +120,10 @@ export default function OverviewSupportFooter() {
                 <button
                   type="button"
                   onClick={() => reveal("ullas")}
-                  className="w-full py-2 px-3 bg-surface-container-highest hover:bg-surface-container-high border border-outline-variant/60 rounded-lg text-xs font-semibold text-on-surface flex items-center justify-between group transition-all cursor-pointer"
+                  className="w-full py-2 px-3 bg-surface-container-highest hover:bg-surface-container-high border border-outline-variant/60 rounded-lg text-xs font-semibold text-on-surface flex items-center justify-between gap-2 group transition-all cursor-pointer min-w-0"
                 >
-                  <span className="font-data-mono text-outline">+91 ••••• 8404</span>
-                  <span className="text-[11px] font-bold text-secondary flex items-center gap-1 group-hover:underline">
+                  <span className="font-data-mono text-outline truncate">+91 ••••• 8404</span>
+                  <span className="text-[11px] font-bold text-secondary flex items-center gap-1 group-hover:underline whitespace-nowrap shrink-0">
                     <span className="material-symbols-outlined text-[13px]">visibility</span>
                     Show Number
                   </span>
@@ -174,10 +174,10 @@ export default function OverviewSupportFooter() {
                 <button
                   type="button"
                   onClick={() => reveal("prateek")}
-                  className="w-full py-2 px-3 bg-surface-container-highest hover:bg-surface-container-high border border-outline-variant/60 rounded-lg text-xs font-semibold text-on-surface flex items-center justify-between group transition-all cursor-pointer"
+                  className="w-full py-2 px-3 bg-surface-container-highest hover:bg-surface-container-high border border-outline-variant/60 rounded-lg text-xs font-semibold text-on-surface flex items-center justify-between gap-2 group transition-all cursor-pointer min-w-0"
                 >
-                  <span className="font-data-mono text-outline">+91 ••••• 6242</span>
-                  <span className="text-[11px] font-bold text-secondary flex items-center gap-1 group-hover:underline">
+                  <span className="font-data-mono text-outline truncate">+91 ••••• 6242</span>
+                  <span className="text-[11px] font-bold text-secondary flex items-center gap-1 group-hover:underline whitespace-nowrap shrink-0">
                     <span className="material-symbols-outlined text-[13px]">visibility</span>
                     Show Number
                   </span>
@@ -205,14 +205,14 @@ export default function OverviewSupportFooter() {
 
             <div className="mt-1">
               {revealed.mail && supportMail ? (
-                <div className="flex items-center justify-between bg-white border border-outline-variant/80 rounded-lg p-2 gap-2">
+                <div className="flex items-center justify-between bg-white border border-outline-variant/80 rounded-lg p-2 gap-2 min-w-0">
                   <a
                     href={`mailto:${supportMail}`}
-                    className="font-data-mono text-xs font-bold text-primary hover:text-secondary flex items-center gap-1.5 transition-colors min-w-0"
+                    className="font-data-mono text-xs font-bold text-primary hover:text-secondary flex items-center gap-1.5 transition-colors min-w-0 truncate"
                     title={supportMail}
                   >
                     <span className="material-symbols-outlined text-[14px] text-blue-600 shrink-0">outgoing_mail</span>
-                    <span className="whitespace-nowrap select-all">{supportMail}</span>
+                    <span className="whitespace-nowrap select-all truncate">{supportMail}</span>
                   </a>
                   <button
                     type="button"
@@ -229,10 +229,10 @@ export default function OverviewSupportFooter() {
                 <button
                   type="button"
                   onClick={() => reveal("mail")}
-                  className="w-full py-2 px-3 bg-surface-container-highest hover:bg-surface-container-high border border-outline-variant/60 rounded-lg text-xs font-semibold text-on-surface flex items-center justify-between group transition-all cursor-pointer"
+                  className="w-full py-2 px-3 bg-surface-container-highest hover:bg-surface-container-high border border-outline-variant/60 rounded-lg text-xs font-semibold text-on-surface flex items-center justify-between gap-2 group transition-all cursor-pointer min-w-0"
                 >
-                  <span className="font-data-mono text-outline">c•••••@cruxstudios.dev</span>
-                  <span className="text-[11px] font-bold text-secondary flex items-center gap-1 group-hover:underline">
+                  <span className="font-data-mono text-outline truncate text-[11px] sm:text-xs">c•••••@cruxstudios.dev</span>
+                  <span className="text-[11px] font-bold text-secondary flex items-center gap-1 group-hover:underline whitespace-nowrap shrink-0">
                     <span className="material-symbols-outlined text-[13px]">visibility</span>
                     Show Email
                   </span>

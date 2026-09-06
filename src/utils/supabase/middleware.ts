@@ -43,32 +43,28 @@ export async function updateSession(request: NextRequest) {
   }
 
   // Protect Organiser routes
-  if (
-    !user &&
-    request.nextUrl.pathname.startsWith('/organiser')
-  ) {
-    const url = request.nextUrl.clone()
-    url.pathname = '/login/organiser'
-    return NextResponse.redirect(url)
+  if (request.nextUrl.pathname.startsWith('/organiser')) {
+    const isWaitingRoom = request.nextUrl.pathname.startsWith('/organiser/waiting');
+    const orgToken = request.cookies.get('org_token')?.value;
+
+    // Allow waiting room without token, or allow if admin user or valid orgToken
+    if (!isWaitingRoom && !user && !orgToken) {
+      const url = request.nextUrl.clone();
+      url.pathname = '/login/organiser';
+      return NextResponse.redirect(url);
+    }
   }
 
-  // If user is logged in and visits login page, redirect to their respective dashboard
-  if (
-    user &&
-    request.nextUrl.pathname === '/login/admin'
-  ) {
-    const url = request.nextUrl.clone()
-    url.pathname = '/admin'
-    return NextResponse.redirect(url)
-  }
+  // Protect Stager routes
+  if (request.nextUrl.pathname.startsWith('/stager')) {
+    const isWaitingRoom = request.nextUrl.pathname.startsWith('/stager/waiting');
+    const stagerToken = request.cookies.get('stager_token')?.value;
 
-  if (
-    user &&
-    request.nextUrl.pathname === '/login/organiser'
-  ) {
-    const url = request.nextUrl.clone()
-    url.pathname = '/organiser'
-    return NextResponse.redirect(url)
+    if (!isWaitingRoom && !user && !stagerToken) {
+      const url = request.nextUrl.clone();
+      url.pathname = '/login/stager';
+      return NextResponse.redirect(url);
+    }
   }
 
   return supabaseResponse

@@ -21,7 +21,7 @@ export default function ModeratorBottomNav({ ringId }: { ringId: string }) {
           }`}
         >
           <span className={`material-symbols-outlined size-6 ${isCurrent ? "active-tab" : ""}`} style={{fontVariationSettings: isCurrent ? '"FILL" 1' : '"FILL" 0'}}>grid_view</span>
-          <span className={`font-label-caps text-[10px] mt-1 ${isCurrent ? "font-bold" : ""}`}>Current</span>
+          <span className={`font-label-caps text-[10px] mt-1 whitespace-nowrap ${isCurrent ? "font-bold" : ""}`}>Current</span>
         </Link>
 
         <Link 
@@ -31,7 +31,7 @@ export default function ModeratorBottomNav({ ringId }: { ringId: string }) {
           }`}
         >
           <span className={`material-symbols-outlined size-6 ${isQueue ? "active-tab" : ""}`} style={{fontVariationSettings: isQueue ? '"FILL" 1' : '"FILL" 0'}}>format_list_bulleted</span>
-          <span className={`font-label-caps text-[10px] mt-1 ${isQueue ? "font-bold" : ""}`}>Queue</span>
+          <span className={`font-label-caps text-[10px] mt-1 whitespace-nowrap ${isQueue ? "font-bold" : ""}`}>Queue</span>
         </Link>
 
         <Link 
@@ -41,7 +41,7 @@ export default function ModeratorBottomNav({ ringId }: { ringId: string }) {
           }`}
         >
           <span className={`material-symbols-outlined size-6 ${isControls ? "active-tab" : ""}`} style={{fontVariationSettings: isControls ? '"FILL" 1' : '"FILL" 0'}}>settings_accessibility</span>
-          <span className={`font-label-caps text-[10px] mt-1 ${isControls ? "font-bold" : ""}`}>Controls</span>
+          <span className={`font-label-caps text-[10px] mt-1 whitespace-nowrap ${isControls ? "font-bold" : ""}`}>Controls</span>
         </Link>
       </div>
     </nav>

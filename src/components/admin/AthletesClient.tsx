@@ -174,14 +174,14 @@ export default function AthletesClient({
   };
 
   return (
-    <div className="p-margin-desktop space-y-8 bg-surface pb-24 w-full">
-      <div className="flex justify-between items-center">
+    <div className="p-4 sm:p-6 md:p-margin-desktop space-y-6 sm:space-y-8 bg-surface pb-24 w-full">
+      <div className="flex flex-wrap justify-between items-center gap-4">
         <div>
           <h2 className="font-headline-sm text-headline-sm text-primary">Athlete Roster</h2>
           <p className="text-body-sm text-on-surface-variant">Manage athletes or drag-and-drop Excel files to bulk upload by category.</p>
         </div>
         {!readOnly && (
-          <div className="flex gap-4">
+          <div className="flex flex-wrap gap-2 sm:gap-4">
             <input 
               type="file" 
               accept=".xlsx, .xls, .csv" 
@@ -192,7 +192,7 @@ export default function AthletesClient({
             <button 
               onClick={() => fileInputRef.current?.click()}
               disabled={isUploading || isAdding}
-              className="px-4 py-2 border border-outline text-primary font-label-caps text-label-caps rounded flex items-center gap-2 hover:bg-surface-container-low disabled:opacity-50"
+              className="px-4 py-2 border border-outline text-primary font-label-caps text-label-caps rounded flex items-center gap-2 hover:bg-surface-container-low disabled:opacity-50 text-xs"
             >
               <span className="material-symbols-outlined text-[18px]">upload</span> {isUploading ? "UPLOADING..." : "MASTER EXCEL UPLOAD"}
             </button>
@@ -200,7 +200,7 @@ export default function AthletesClient({
               onClick={() => setIsAdding(true)}
               disabled={isAdding || isUploading || categories.length === 0}
               title={categories.length === 0 ? "Add a category first" : ""}
-              className="px-4 py-2 bg-primary text-white font-label-caps text-label-caps rounded flex items-center gap-2 hover:opacity-90 disabled:opacity-50"
+              className="px-4 py-2 bg-primary text-white font-label-caps text-label-caps rounded flex items-center gap-2 hover:opacity-90 disabled:opacity-50 text-xs"
             >
               <span className="material-symbols-outlined text-[18px]">person_add</span> ADD ATHLETE
             </button>
@@ -215,7 +215,7 @@ export default function AthletesClient({
       )}
 
       {/* Filters */}
-      <div className="flex gap-4 mb-4">
+      <div className="flex flex-col sm:flex-row gap-3 sm:gap-4 mb-4">
         <input 
           type="text" 
           placeholder="Search by name or chest no..."
@@ -226,7 +226,7 @@ export default function AthletesClient({
         <select 
           value={filterCategoryId}
           onChange={(e) => setFilterCategoryId(e.target.value)}
-          className="w-64 bg-white border border-outline-variant rounded p-2 text-sm outline-none"
+          className="w-full sm:w-64 bg-white border border-outline-variant rounded p-2 text-sm outline-none"
         >
           <option value="all">All Categories</option>
           <option value="uncategorized">Uncategorized</option>
@@ -236,7 +236,7 @@ export default function AthletesClient({
         </select>
       </div>
 
-      <div className="bg-surface-container-lowest border border-outline-variant rounded-lg overflow-hidden shadow-sm">
+      <div className="bg-surface-container-lowest border border-outline-variant rounded-lg overflow-x-auto shadow-sm">
         <table className="w-full text-left border-collapse">
           <thead className="bg-surface-container-low border-b border-outline-variant">
             <tr>

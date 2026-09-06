@@ -12,16 +12,29 @@ export default function WaitingRoom() {
   const [status, setStatus] = useState("pending");
 
   useEffect(() => {
-    // 1. Initial check
-    checkModeratorStatus(id).then(res => {
-      if (res.status === 'approved') {
-        handleApproved(res.ringId, undefined);
-      } else if (res.status === 'rejected') {
-        setStatus("rejected");
-      }
-    });
+    let isCancelled = false;
 
-    // 2. Realtime listener
+    const checkStatus = async () => {
+      try {
+        const res = await checkModeratorStatus(id);
+        if (isCancelled) return;
+        if (res.status === "approved" && res.ringId) {
+          handleApproved(res.ringId, res.sessionToken || undefined);
+        } else if (res.status === "rejected") {
+          setStatus("rejected");
+        }
+      } catch (err) {
+        console.error("Error checking moderator status:", err);
+      }
+    };
+
+    // 1. Initial check
+    checkStatus();
+
+    // 2. Fallback polling every 2.5s (ensures approval is caught even if realtime websocket misses)
+    const pollInterval = setInterval(checkStatus, 2500);
+
+    // 3. Realtime listener
     const channel = supabase.channel(`mod_req_${id}`)
       .on('postgres_changes', { 
         event: 'UPDATE', 
@@ -29,6 +42,7 @@ export default function WaitingRoom() {
         table: 'moderator_requests',
         filter: `id=eq.${id}`
       }, (payload) => {
+        if (isCancelled) return;
         const newStatus = payload.new.status;
         if (newStatus === 'approved') {
           handleApproved(payload.new.ring_id, payload.new.session_token);
@@ -39,6 +53,8 @@ export default function WaitingRoom() {
       .subscribe();
 
     return () => {
+      isCancelled = true;
+      clearInterval(pollInterval);
       supabase.removeChannel(channel);
     };
   }, [id, router, supabase]);
@@ -75,9 +91,29 @@ export default function WaitingRoom() {
           {status === "pending" && (
             <>
               <div className="w-24 h-24 mb-10 relative flex justify-center items-center">
-                <div className="absolute inset-0 border-4 border-surface-container-high rounded-full"></div>
-                <div className="absolute inset-0 border-4 border-secondary border-t-transparent rounded-full animate-spin"></div>
-                <span className="material-symbols-outlined text-secondary text-3xl" style={{fontVariationSettings: '"FILL" 1'}}>admin_panel_settings</span>
+                <svg className="w-24 h-24 -rotate-90 animate-spin text-secondary" viewBox="0 0 100 100">
+                  <circle
+                    cx="50"
+                    cy="50"
+                    r="42"
+                    stroke="currentColor"
+                    strokeWidth="5"
+                    fill="none"
+                    className="text-surface-container-high opacity-30"
+                  />
+                  <circle
+                    cx="50"
+                    cy="50"
+                    r="42"
+                    stroke="currentColor"
+                    strokeWidth="5"
+                    strokeDasharray="264"
+                    strokeDashoffset="180"
+                    strokeLinecap="round"
+                    fill="none"
+                  />
+                </svg>
+                <span className="absolute material-symbols-outlined text-secondary text-3xl animate-pulse" style={{fontVariationSettings: '"FILL" 1'}}>admin_panel_settings</span>
               </div>
               <h1 className="text-display-sm font-headline-lg text-primary mb-4 tracking-tight">Waiting for Admin</h1>
               <p className="text-body-lg text-on-surface-variant max-w-xs mx-auto mb-10">
@@ -108,7 +144,7 @@ export default function WaitingRoom() {
               <h1 className="text-display-sm font-headline-lg text-error mb-4 tracking-tight">Access Denied</h1>
               <p className="text-body-lg text-on-error-container mb-10">The administrator declined your request.</p>
               <button 
-                onClick={() => router.push('/moderator/login')}
+                onClick={() => router.push('/login/mod')}
                 className="bg-error text-white px-6 py-3 rounded-lg font-headline-sm"
               >
                 Try Again
