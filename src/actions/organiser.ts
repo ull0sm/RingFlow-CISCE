@@ -4,6 +4,7 @@ import { createClient } from "@/utils/supabase/server";
 import { revalidatePath } from "next/cache";
 import { cookies, headers } from "next/headers";
 import { ensureAdminOwnsTournament } from "./admin";
+import { normalizeAccessCode, generateUnambiguousCode } from "@/lib/utils";
 
 /**
  * Organiser requests access to a tournament using a 6-character access code.
@@ -53,22 +54,40 @@ export async function requestOrganiserAccess(
   };
 
   // 1. Locate tournament by organiser_code
-  const { data: tournament, error: tournamentError } = await supabase
+  let { data: tournament } = await supabase
     .from("tournaments")
-    .select("id, name")
+    .select("id, name, organiser_code")
     .ilike("organiser_code", cleanCode)
-    .single();
+    .maybeSingle();
 
-  if (tournamentError || !tournament) {
+  // Fallback: match normalized code to prevent 0 vs O and 1 vs I/L confusion
+  if (!tournament) {
+    const normInput = normalizeAccessCode(cleanCode);
+    const { data: candidates } = await supabase
+      .from("tournaments")
+      .select("id, name, organiser_code")
+      .not("organiser_code", "is", null);
+
+    if (candidates) {
+      tournament =
+        candidates.find(
+          (t) => t.organiser_code && normalizeAccessCode(t.organiser_code) === normInput
+        ) || null;
+    }
+  }
+
+  if (!tournament) {
     return { success: false, error: "Invalid organiser access code. Please check with the administrator." };
   }
+
+  const canonicalCode = tournament.organiser_code || cleanCode;
 
   // 2. Insert into organiser_requests with status 'pending'
   const { data: request, error: reqError } = await supabase
     .from("organiser_requests")
     .insert({
       tournament_id: tournament.id,
-      access_code_used: cleanCode,
+      access_code_used: canonicalCode,
       status: "pending",
       organiser_name: cleanName,
       device_info: finalDeviceInfo,
@@ -175,7 +194,7 @@ export async function regenerateOrganiserCode(tournamentId: string) {
   await ensureAdminOwnsTournament(tournamentId);
   const supabase = await createClient();
 
-  const newCode = Math.random().toString(36).substring(2, 8).toUpperCase();
+  const newCode = generateUnambiguousCode(6);
 
   const { error } = await supabase
     .from("tournaments")

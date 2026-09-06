@@ -2,7 +2,7 @@
 
 import { createClient } from "@/utils/supabase/server";
 import { ensureAdmin } from "./admin";
-import { generateAccessCode } from "@/lib/utils";
+import { generateAccessCode, generateUnambiguousCode } from "@/lib/utils";
 
 export type CategoryInput = {
   name: string;
@@ -40,7 +40,7 @@ export async function createTournament(input: TournamentInput) {
   }
 
   // 1. Create Tournament
-  const organiserCode = Math.random().toString(36).substring(2, 8).toUpperCase();
+  const organiserCode = generateUnambiguousCode(6);
   const { data: tournament, error: tournamentError } = await supabase
     .from("tournaments")
     .insert({

@@ -92,6 +92,24 @@ export default function StagerBalancingClient({
   // Action loading state: key is categoryId + action
   const [loadingAction, setLoadingAction] = useState<string | null>(null);
 
+  // Minimal Confirmation Modal State
+  const [confirmModal, setConfirmModal] = useState<{
+    categoryId: string;
+    categoryName: string;
+    requestedStatus: "calling" | "ready";
+    isClearing: boolean;
+  } | null>(null);
+
+  // Close confirmation modal on Escape key
+  useEffect(() => {
+    if (!confirmModal) return;
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setConfirmModal(null);
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [confirmModal]);
+
   // ── Initialize from props ──────────────────────────────────────────────────
   useEffect(() => {
     if (isInitialized) return;
@@ -186,6 +204,55 @@ export default function StagerBalancingClient({
                   return prev;
                 });
               }
+
+              // Handle real-time queue status & reorder from moderator/DB
+              if (
+                updated.ring_id &&
+                updated.status !== "completed"
+              ) {
+                setRingQueues((prev) => {
+                  const currentQueue = prev[updated.ring_id];
+                  if (!currentQueue) return prev;
+
+                  let catItem = currentQueue.find((c) => c.id === updated.category_id);
+                  if (!catItem) {
+                    for (const rId of Object.keys(prev)) {
+                      const found = prev[rId].find((c) => c.id === updated.category_id);
+                      if (found) { catItem = found; break; }
+                    }
+                    if (!catItem) {
+                      catItem = initialCategories.find((c) => c.id === updated.category_id);
+                    }
+                  }
+                  if (!catItem) return prev;
+
+                  const cleanQueue = currentQueue.filter((c) => c.id !== updated.category_id);
+
+                  if (updated.status === "running" || updated.status === "paused") {
+                    // Running or paused category MUST always stay at top of queue (index 0)
+                    return { ...prev, [updated.ring_id]: [catItem, ...cleanQueue] };
+                  } else if (updated.queue_order !== undefined) {
+                    const reQueue = [...cleanQueue];
+                    const insertIdx = Math.min(Math.max(0, updated.queue_order), reQueue.length);
+                    reQueue.splice(insertIdx, 0, catItem);
+                    return { ...prev, [updated.ring_id]: reQueue };
+                  }
+                  return prev;
+                });
+
+                // Clean from completed queues if it was reverted
+                setRingCompletedQueues((compPrev) => {
+                  let changed = false;
+                  const newComp = { ...compPrev };
+                  for (const rId of Object.keys(newComp)) {
+                    if (newComp[rId]?.some((c) => c.id === updated.category_id)) {
+                      newComp[rId] = newComp[rId].filter((c) => c.id !== updated.category_id);
+                      changed = true;
+                    }
+                  }
+                  return changed ? newComp : compPrev;
+                });
+              }
             }
           }
         }
@@ -240,8 +307,11 @@ export default function StagerBalancingClient({
   // ── Render category card (within a ring queue) ─────────────────────────────
   const renderCategoryCard = (cat: Category, ringId: string) => {
     const catAssignment = assignmentsMap[cat.id];
-    const isRunning =
-      catAssignment?.status === "running" || catAssignment?.status === "paused";
+    const status = catAssignment?.status;
+    const isRunning = status === "running";
+    const isPaused = status === "paused";
+    const isCompleted = status === "completed";
+    const hasLeftAccent = isRunning || isPaused || isCompleted;
     const matchesDone = catAssignment?.matches_completed || 0;
     const matchesTotal = cat.expected_matches || 0;
     const pct = matchesTotal > 0 ? (matchesDone / matchesTotal) * 100 : 0;
@@ -255,53 +325,80 @@ export default function StagerBalancingClient({
       <div
         key={cat.id}
         className={`p-3 border rounded-lg relative overflow-hidden ${
-          isRunning
-            ? "bg-secondary/5 border-secondary/40 shadow-md"
-            : "bg-surface-container-lowest border-outline-variant"
+          isPaused
+            ? "bg-amber-500/5 border-amber-400/50 shadow-md"
+            : isRunning
+              ? "bg-secondary/5 border-secondary/40 shadow-md"
+              : isCompleted
+                ? "bg-surface-container/60 border-outline-variant opacity-80"
+                : "bg-surface-container-lowest border-outline-variant"
         }`}
       >
+        {isPaused && (
+          <div className="absolute top-0 left-0 w-1 h-full bg-amber-500" />
+        )}
         {isRunning && (
           <div className="absolute top-0 left-0 w-1 h-full bg-secondary" />
         )}
-        <div className={`flex justify-between items-center mb-1 ${isRunning ? "ml-2" : ""}`}>
-          <span className="text-[9px] font-bold text-secondary uppercase tracking-wider">
+        {isCompleted && (
+          <div className="absolute top-0 left-0 w-1 h-full bg-blue-600" />
+        )}
+        <div className={`flex justify-between items-center mb-1 ${hasLeftAccent ? "ml-2" : ""}`}>
+          <span className={`text-[9px] font-bold uppercase tracking-wider ${
+            isPaused ? "text-amber-700" : isCompleted ? "text-blue-700" : "text-secondary"
+          }`}>
             {cat.age_bracket ||
               (cat.age_min !== null && cat.age_max !== null
                 ? `${cat.age_min}-${cat.age_max}`
                 : "")}{" "}
             | {cat.weight_class || cat.belt || "–"}
           </span>
-          {isRunning ? (
-            <span className="text-[9px] font-bold text-secondary bg-secondary/10 px-1.5 py-0.5 rounded uppercase tracking-wider animate-pulse">
-              Live
+          {isPaused ? (
+            <span className="inline-flex items-center gap-1 text-[9px] font-bold text-amber-800 bg-amber-50 border border-amber-200 px-1.5 py-0.5 rounded uppercase tracking-wider shadow-2xs">
+              <span className="w-1.5 h-1.5 rounded-full bg-amber-600 animate-pulse" />
+              PAUSED
+            </span>
+          ) : isRunning ? (
+            <span className="inline-flex items-center gap-1 text-[9px] font-bold text-emerald-800 bg-emerald-50 border border-emerald-200 px-1.5 py-0.5 rounded uppercase tracking-wider shadow-2xs">
+              <span className="w-1.5 h-1.5 rounded-full bg-emerald-600 animate-pulse" />
+              LIVE
+            </span>
+          ) : isCompleted ? (
+            <span className="inline-flex items-center gap-1 text-[9px] font-bold text-blue-800 bg-blue-50 border border-blue-200 px-1.5 py-0.5 rounded uppercase tracking-wider shadow-2xs">
+              <span className="material-symbols-outlined text-[11px] text-blue-600">done_all</span>
+              COMPLETED
             </span>
           ) : (
-            <span className="font-data-mono text-[10px] font-bold">
+            <span className="font-data-mono text-[10px] font-bold text-on-surface-variant">
               {Math.ceil((cat.expected_matches * 109) / 60)}m
             </span>
           )}
         </div>
 
-        <h5 className={`text-xs font-bold text-primary mb-1.5 ${isRunning ? "ml-2" : ""}`}>
+        <h5 className={`text-xs font-bold text-primary mb-1.5 ${hasLeftAccent ? "ml-2" : ""}`}>
           {cat.name}
         </h5>
 
-        <div className={`flex gap-4 text-[10px] font-data-mono text-outline ${isRunning ? "ml-2" : ""}`}>
+        <div className={`flex gap-4 text-[10px] font-data-mono text-outline ${hasLeftAccent ? "ml-2" : ""}`}>
           <span className="flex items-center gap-1">
             <span className="material-symbols-outlined text-[12px]">group</span>
             {cat.athletes_count}
           </span>
         </div>
 
-        {isRunning && (
+        {(isRunning || isPaused || isCompleted) && (
           <div className="mt-2 ml-2">
-            <div className="flex justify-between text-[9px] font-bold text-secondary mb-0.5">
+            <div className={`flex justify-between text-[9px] font-bold mb-0.5 ${
+              isPaused ? "text-amber-700" : isCompleted ? "text-blue-700" : "text-secondary"
+            }`}>
               <span>{matchesDone} / {matchesTotal} matches</span>
               <span>{pct.toFixed(0)}%</span>
             </div>
             <div className="w-full bg-surface-container-high h-1.5 rounded-full overflow-hidden">
               <div
-                className="bg-secondary h-full transition-all duration-500 ease-out"
+                className={`h-full transition-all duration-500 ease-out ${
+                  isPaused ? "bg-amber-500" : isCompleted ? "bg-blue-600" : "bg-secondary"
+                }`}
                 style={{ width: `${Math.min(100, pct)}%` }}
               />
             </div>
@@ -312,6 +409,8 @@ export default function StagerBalancingClient({
         {stagerStatus && (
           <div
             className={`mt-2 flex items-center gap-1.5 px-2 py-1 rounded text-[10px] font-bold ${
+              hasLeftAccent ? "ml-2" : ""
+            } ${
               stagerStatus === "calling"
                 ? "bg-amber-100 text-amber-800 border border-amber-300"
                 : "bg-green-100 text-green-800 border border-green-300"
@@ -327,9 +426,16 @@ export default function StagerBalancingClient({
         )}
 
         {/* Stager Action Buttons */}
-        <div className="mt-2.5 pt-2.5 border-t border-outline-variant/30 flex gap-2">
+        <div className={`mt-2.5 pt-2.5 border-t border-outline-variant/30 flex gap-2 ${hasLeftAccent ? "ml-2" : ""}`}>
           <button
-            onClick={() => handleStagerAction(cat.id, "calling")}
+            onClick={() => {
+              setConfirmModal({
+                categoryId: cat.id,
+                categoryName: cat.name,
+                requestedStatus: "calling",
+                isClearing: stagerStatus === "calling",
+              });
+            }}
             disabled={!!loadingAction}
             className={`flex-1 flex items-center justify-center gap-1.5 py-1.5 px-2 rounded text-[10px] font-bold transition-all border whitespace-nowrap select-none cursor-pointer ${
               stagerStatus === "calling"
@@ -347,7 +453,14 @@ export default function StagerBalancingClient({
           </button>
 
           <button
-            onClick={() => handleStagerAction(cat.id, "ready")}
+            onClick={() => {
+              setConfirmModal({
+                categoryId: cat.id,
+                categoryName: cat.name,
+                requestedStatus: "ready",
+                isClearing: stagerStatus === "ready",
+              });
+            }}
             disabled={!!loadingAction}
             className={`flex-1 flex items-center justify-center gap-1.5 py-1.5 px-2 rounded text-[10px] font-bold transition-all border whitespace-nowrap select-none cursor-pointer ${
               stagerStatus === "ready"
@@ -393,16 +506,21 @@ export default function StagerBalancingClient({
         </div>
       </header>
 
-      {/* Info Bar */}
-      <div className="bg-primary text-on-primary px-3 sm:px-6 py-2 sm:py-2.5 flex items-center gap-3 sm:gap-6 shrink-0 overflow-x-auto text-xs">
-        <div className="flex flex-col shrink-0">
-          <span className="text-[9px] sm:text-[10px] font-label-caps opacity-60">TOTAL TATAMIS</span>
-          <span className="font-data-mono text-xs sm:text-base font-bold">{initialRings.length} ACTIVE</span>
+      {/* Overview & Info Bar */}
+      <div className="bg-primary text-on-primary px-3 sm:px-6 py-2 sm:py-2.5 shrink-0 flex flex-col gap-1.5 shadow-sm z-10">
+        <div className="flex items-center justify-between">
+          <div className="flex flex-col shrink-0">
+            <span className="text-[9px] sm:text-[10px] font-label-caps opacity-60 tracking-wider">TOTAL TATAMIS</span>
+            <span className="font-data-mono text-xs sm:text-base font-bold">{initialRings.length} ACTIVE</span>
+          </div>
         </div>
-        <div className="h-4 sm:h-5 w-[1px] bg-white/20 shrink-0" />
-        <div className="flex items-center gap-1.5 text-[11px] sm:text-xs opacity-80 truncate">
-          <span className="material-symbols-outlined text-[15px] sm:text-[16px] shrink-0">info</span>
-          <span className="truncate">Use In Progress & Called buttons to alert admin & ring team</span>
+
+        {/* Dedicated Instruction Line on New Line */}
+        <div className="flex items-center gap-2 pt-1.5 border-t border-white/15 text-xs text-white/95">
+          <span className="material-symbols-outlined text-[17px] text-amber-300 shrink-0">info</span>
+          <p className="leading-snug text-[11px] sm:text-xs">
+            Use <span className="font-bold text-amber-300">&apos;In Progress&apos;</span> and <span className="font-bold text-emerald-300">&apos;Called&apos;</span> buttons to alert admin &amp; ring team
+          </p>
         </div>
       </div>
 
@@ -479,16 +597,94 @@ export default function StagerBalancingClient({
         )}
       </div>
 
-      {/* Footer */}
-      <footer className="h-9 bg-surface-container-highest border-t border-outline-variant px-6 flex items-center justify-between shrink-0">
-        <div className="flex items-center gap-2">
-          <span className="w-2 h-2 rounded-full bg-green-500 animate-pulse" />
-          <span className="font-label-caps text-[10px] text-on-surface-variant">System Live</span>
+      {/* Minimal Confirmation Modal */}
+      {confirmModal && (
+        <div
+          className="fixed inset-0 z-50 bg-black/60 backdrop-blur-[2px] flex items-center justify-center p-4 animate-in fade-in duration-150"
+          onClick={() => setConfirmModal(null)}
+        >
+          <div
+            className="bg-white border border-outline-variant/80 rounded-2xl p-5 w-full max-w-[320px] shadow-2xl space-y-3.5 animate-in zoom-in-95 duration-150 text-center"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Minimal Icon */}
+            <div
+              className={`w-11 h-11 rounded-full flex items-center justify-center mx-auto ${
+                confirmModal.isClearing
+                  ? "bg-surface-container-high text-on-surface-variant"
+                  : confirmModal.requestedStatus === "calling"
+                  ? "bg-amber-100 text-amber-700"
+                  : "bg-green-100 text-green-700"
+              }`}
+            >
+              <span className="material-symbols-outlined text-2xl">
+                {confirmModal.isClearing
+                  ? "restart_alt"
+                  : confirmModal.requestedStatus === "calling"
+                  ? "notifications_active"
+                  : "check_circle"}
+              </span>
+            </div>
+
+            {/* Title & Body */}
+            <div>
+              <h3 className="font-headline-sm text-base text-primary font-bold">
+                {confirmModal.isClearing
+                  ? `Clear ${confirmModal.requestedStatus === "calling" ? "In Progress" : "Called"}?`
+                  : `Mark as ${confirmModal.requestedStatus === "calling" ? "In Progress" : "Called"}?`}
+              </h3>
+              <p className="text-xs text-on-surface-variant mt-1.5 leading-relaxed">
+                {confirmModal.isClearing ? (
+                  <>
+                    Are you sure you want to clear this status for{" "}
+                    <span className="font-semibold text-primary">{confirmModal.categoryName}</span>?
+                  </>
+                ) : confirmModal.requestedStatus === "calling" ? (
+                  <>
+                    Are you sure you want to alert the team that{" "}
+                    <span className="font-semibold text-primary">{confirmModal.categoryName}</span> is{" "}
+                    <span className="text-amber-700 font-bold">In Progress</span>?
+                  </>
+                ) : (
+                  <>
+                    Are you sure you want to alert the team that{" "}
+                    <span className="font-semibold text-primary">{confirmModal.categoryName}</span> is{" "}
+                    <span className="text-green-700 font-bold">Called &amp; Ready</span>?
+                  </>
+                )}
+              </p>
+            </div>
+
+            {/* Actions */}
+            <div className="flex gap-2 pt-1">
+              <button
+                type="button"
+                onClick={() => setConfirmModal(null)}
+                className="flex-1 py-2 px-3 rounded-xl border border-outline-variant text-xs font-bold text-on-surface hover:bg-surface-container transition-colors cursor-pointer"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  const { categoryId, requestedStatus } = confirmModal;
+                  setConfirmModal(null);
+                  handleStagerAction(categoryId, requestedStatus);
+                }}
+                className={`flex-1 py-2 px-3 rounded-xl text-xs font-bold text-white shadow-sm transition-colors cursor-pointer ${
+                  confirmModal.isClearing
+                    ? "bg-neutral-800 hover:bg-neutral-900"
+                    : confirmModal.requestedStatus === "calling"
+                    ? "bg-amber-600 hover:bg-amber-700"
+                    : "bg-green-600 hover:bg-green-700"
+                }`}
+              >
+                Yes, Confirm
+              </button>
+            </div>
+          </div>
         </div>
-        <span className="text-[10px] text-on-surface-variant opacity-60">
-          Stager: {stagerName} · Read-only · Click buttons on assigned categories
-        </span>
-      </footer>
+      )}
     </div>
   );
 }

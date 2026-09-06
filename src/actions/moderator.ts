@@ -4,6 +4,7 @@ import { createClient } from "@/utils/supabase/server";
 import { revalidatePath } from "next/cache";
 import { cookies, headers } from "next/headers";
 import { ensureAdmin, ensureAdminOwnsTournament } from "./admin";
+import { normalizeAccessCode } from "@/lib/utils";
 
 export async function approveModeratorRequest(requestId: string, ringId: string, tournamentId: string) {
   await ensureAdminOwnsTournament(tournamentId);
@@ -14,7 +15,7 @@ export async function approveModeratorRequest(requestId: string, ringId: string,
   // 1. Revoke any previous approved session for this ring
   await supabase
     .from("moderator_requests")
-    .update({ status: "revoked" })
+    .update({ status: "revoked", session_token: null })
     .eq("ring_id", ringId)
     .eq("status", "approved");
 
@@ -120,23 +121,43 @@ export async function requestModeratorAccess(accessCode: string, moderatorName?:
     ip: deviceInfo?.ip && deviceInfo.ip !== "Unknown" ? deviceInfo.ip : ip
   };
 
-  // 1. Find the ring by access code
-  const { data: ring, error: ringError } = await supabase
-    .from("rings")
-    .select("id, name, tournament_id")
-    .eq("access_code", accessCode)
-    .single();
+  const cleanCode = (accessCode || "").trim().replace(/[\s\-_]/g, "").toUpperCase();
 
-  if (ringError || !ring) {
+  // 1. Find the ring by access code
+  let { data: ring } = await supabase
+    .from("rings")
+    .select("id, name, tournament_id, access_code")
+    .eq("access_code", cleanCode)
+    .maybeSingle();
+
+  // Fallback: match normalized code to prevent 0 vs O and 1 vs I/L confusion
+  if (!ring) {
+    const normInput = normalizeAccessCode(cleanCode);
+    const { data: candidateRings } = await supabase
+      .from("rings")
+      .select("id, name, tournament_id, access_code")
+      .not("access_code", "is", null);
+
+    if (candidateRings) {
+      ring =
+        candidateRings.find(
+          (r) => r.access_code && normalizeAccessCode(r.access_code) === normInput
+        ) || null;
+    }
+  }
+
+  if (!ring) {
     return { success: false, error: "Invalid access code." };
   }
+
+  const canonicalCode = ring.access_code || cleanCode;
 
   // 2. Create moderator_requests entry
   const { data: request, error: reqError } = await supabase
     .from("moderator_requests")
     .insert({
       ring_id: ring.id,
-      access_code_used: accessCode,
+      access_code_used: canonicalCode,
       status: "pending",
       moderator_name: moderatorName || "Unknown",
       device_info: finalDeviceInfo,

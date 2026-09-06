@@ -97,3 +97,31 @@ export function generateAccessCode(): string {
   return (100000 + (array[0] % 900000)).toString();
 }
 
+/**
+ * Normalizes user-entered access codes to eliminate visual ambiguities:
+ * - Upper cases and trims whitespace/dashes
+ * - Maps letter 'O' to digit '0'
+ * - Maps letters 'I' and 'L' to digit '1'
+ */
+export function normalizeAccessCode(code?: string | null): string {
+  if (!code) return "";
+  return code
+    .trim()
+    .toUpperCase()
+    .replace(/[\s\-_]/g, "")
+    .replace(/O/g, "0")
+    .replace(/[IL]/g, "1");
+}
+
+/**
+ * Generates an unambiguous 6-character alphanumeric code avoiding visually confusing characters (0, O, 1, I, L)
+ */
+export function generateUnambiguousCode(length = 6): string {
+  const chars = "23456789ABCDEFGHJKMNPQRSTUVWXYZ";
+  let result = "";
+  for (let i = 0; i < length; i++) {
+    result += chars.charAt(Math.floor(Math.random() * chars.length));
+  }
+  return result;
+}
+

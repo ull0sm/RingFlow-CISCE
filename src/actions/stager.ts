@@ -4,6 +4,7 @@ import { createClient } from "@/utils/supabase/server";
 import { revalidatePath } from "next/cache";
 import { cookies, headers } from "next/headers";
 import { ensureAdminOwnsTournament } from "./admin";
+import { normalizeAccessCode, generateUnambiguousCode } from "@/lib/utils";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -70,12 +71,17 @@ export async function requestStagerAccess(
     return { success: false, error: "Failed to validate access code. Please try again." };
   }
 
-  // Match code against each tournament's stager_codes array
+  // Match code against each tournament's stager_codes array (with normalization to prevent O/0 and I/1 confusion)
+  const normInput = normalizeAccessCode(cleanCode);
   let matchedTournament: { id: string; name: string } | null = null;
+  let canonicalCode = cleanCode;
+
   for (const t of tournaments) {
     const codes: StagerCode[] = Array.isArray(t.stager_codes) ? t.stager_codes : [];
-    if (codes.some((c) => c.code.toUpperCase() === cleanCode)) {
+    const matched = codes.find((c) => normalizeAccessCode(c.code) === normInput);
+    if (matched) {
       matchedTournament = { id: t.id, name: t.name };
+      canonicalCode = matched.code.toUpperCase();
       break;
     }
   }
@@ -84,28 +90,31 @@ export async function requestStagerAccess(
     return { success: false, error: "Invalid stager access code. Please check with the tournament director." };
   }
 
-  // Check if this code already has an active (approved/pending) session
-  const { data: existingActive } = await supabase
+  // Check if this code already has an active (approved) session
+  const { data: existingActiveList } = await supabase
     .from("stager_requests")
-    .select("id, status")
+    .select("id, status, access_code_used, expires_at")
     .eq("tournament_id", matchedTournament.id)
-    .eq("access_code_used", cleanCode)
-    .in("status", ["approved"])
-    .maybeSingle();
+    .eq("status", "approved");
 
-  if (existingActive) {
+  const hasActiveSession = (existingActiveList || []).some((r) => {
+    const isNotExpired = !r.expires_at || new Date(r.expires_at).getTime() > Date.now();
+    return isNotExpired && normalizeAccessCode(r.access_code_used) === normInput;
+  });
+
+  if (hasActiveSession) {
     return {
       success: false,
       error: "This stager code is already in use by an active session. Each code allows one user at a time.",
     };
   }
 
-  // Insert stager request
+  // Insert stager request using the tournament's canonical code format
   const { data: request, error: reqError } = await supabase
     .from("stager_requests")
     .insert({
       tournament_id: matchedTournament.id,
-      access_code_used: cleanCode,
+      access_code_used: canonicalCode,
       status: "pending",
       stager_name: cleanName,
       device_info: finalDeviceInfo,
@@ -151,6 +160,35 @@ export async function checkStagerStatus(requestId: string) {
 export async function approveStagerRequest(requestId: string, tournamentId: string) {
   await ensureAdminOwnsTournament(tournamentId);
   const supabase = await createClient();
+
+  // Find the request to get its access_code_used
+  const { data: targetReq } = await supabase
+    .from("stager_requests")
+    .select("access_code_used")
+    .eq("id", requestId)
+    .eq("tournament_id", tournamentId)
+    .single();
+
+  // Revoke any existing approved sessions using this code (or equivalent normalized code)
+  if (targetReq?.access_code_used) {
+    const { data: activeSessions } = await supabase
+      .from("stager_requests")
+      .select("id, access_code_used")
+      .eq("tournament_id", tournamentId)
+      .eq("status", "approved");
+
+    const targetNorm = normalizeAccessCode(targetReq.access_code_used);
+    const toRevokeIds = (activeSessions || [])
+      .filter((s) => normalizeAccessCode(s.access_code_used) === targetNorm && s.id !== requestId)
+      .map((s) => s.id);
+
+    if (toRevokeIds.length > 0) {
+      await supabase
+        .from("stager_requests")
+        .update({ status: "revoked", session_token: null })
+        .in("id", toRevokeIds);
+    }
+  }
 
   const sessionToken = crypto.randomUUID();
 
@@ -224,7 +262,7 @@ export async function generateStagerCodes(tournamentId: string, count: number) {
     ? tournament.stager_codes
     : [];
 
-  const usedCodes = new Set(existing.map((c) => c.code.toUpperCase()));
+  const usedCodes = new Set(existing.map((c) => normalizeAccessCode(c.code)));
 
   const newCodes: StagerCode[] = [];
   let attempts = 0;
@@ -232,9 +270,10 @@ export async function generateStagerCodes(tournamentId: string, count: number) {
 
   while (newCodes.length < count && attempts < 1000) {
     attempts++;
-    const candidate = Math.random().toString(36).substring(2, 8).toUpperCase();
-    if (!usedCodes.has(candidate)) {
-      usedCodes.add(candidate);
+    const candidate = generateUnambiguousCode(6);
+    const normCandidate = normalizeAccessCode(candidate);
+    if (!usedCodes.has(normCandidate)) {
+      usedCodes.add(normCandidate);
       newCodes.push({
         code: candidate,
         label: `Stager ${startIndex + newCodes.length}`,
