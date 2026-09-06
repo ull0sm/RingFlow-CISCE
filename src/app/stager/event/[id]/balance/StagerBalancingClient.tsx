@@ -474,16 +474,21 @@ export default function StagerBalancingClient({
         </div>
       </header>
 
-      {/* Info Bar */}
-      <div className="bg-primary text-on-primary px-3 sm:px-6 py-2 sm:py-2.5 flex items-center gap-3 sm:gap-6 shrink-0 overflow-x-auto text-xs">
-        <div className="flex flex-col shrink-0">
-          <span className="text-[9px] sm:text-[10px] font-label-caps opacity-60">TOTAL TATAMIS</span>
-          <span className="font-data-mono text-xs sm:text-base font-bold">{initialRings.length} ACTIVE</span>
+      {/* Overview & Info Bar */}
+      <div className="bg-primary text-on-primary px-3 sm:px-6 py-2 sm:py-2.5 shrink-0 flex flex-col gap-1.5 shadow-sm z-10">
+        <div className="flex items-center justify-between">
+          <div className="flex flex-col shrink-0">
+            <span className="text-[9px] sm:text-[10px] font-label-caps opacity-60 tracking-wider">TOTAL TATAMIS</span>
+            <span className="font-data-mono text-xs sm:text-base font-bold">{initialRings.length} ACTIVE</span>
+          </div>
         </div>
-        <div className="h-4 sm:h-5 w-[1px] bg-white/20 shrink-0" />
-        <div className="flex items-center gap-1.5 text-[11px] sm:text-xs opacity-80 truncate">
-          <span className="material-symbols-outlined text-[15px] sm:text-[16px] shrink-0">info</span>
-          <span className="truncate">Use In Progress & Called buttons to alert admin & ring team</span>
+
+        {/* Dedicated Instruction Line on New Line */}
+        <div className="flex items-center gap-2 pt-1.5 border-t border-white/15 text-xs text-white/95">
+          <span className="material-symbols-outlined text-[17px] text-amber-300 shrink-0">info</span>
+          <p className="leading-snug text-[11px] sm:text-xs">
+            Use <span className="font-bold text-amber-300">&apos;In Progress&apos;</span> and <span className="font-bold text-emerald-300">&apos;Called&apos;</span> buttons to alert admin &amp; ring team
+          </p>
         </div>
       </div>
 
