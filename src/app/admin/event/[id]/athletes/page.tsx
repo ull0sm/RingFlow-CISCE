@@ -2,10 +2,17 @@ import React from "react";
 import AdminHeader from "@/components/layout/AdminHeader";
 import { createClient } from "@/utils/supabase/server";
 import { redirect } from "next/navigation";
+import { ensureAdminOwnsTournament } from "@/actions/admin";
 import AthletesClient from "@/components/admin/AthletesClient";
 
 export default async function AdminAthletes({ params }: { params: Promise<{ id: string }> }) {
   const { id: tournamentId } = await params;
+  try {
+    await ensureAdminOwnsTournament(tournamentId);
+  } catch {
+    redirect("/admin");
+  }
+
   const supabase = await createClient();
 
   const [

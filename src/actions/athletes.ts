@@ -2,7 +2,7 @@
 
 import { createClient } from "@/utils/supabase/server";
 import { revalidatePath } from "next/cache";
-import { ensureAdmin } from "./admin";
+import { ensureAdminOwnsTournament } from "./admin";
 
 export type AthleteInput = {
   name: string;
@@ -14,51 +14,106 @@ export type AthleteInput = {
 };
 
 export async function addAthlete(tournamentId: string, input: AthleteInput) {
-  const adminId = await ensureAdmin();
+  await ensureAdminOwnsTournament(tournamentId);
   const supabase = await createClient();
+
+  // Verify category belongs to tournament
+  const { data: cat } = await supabase
+    .from("categories")
+    .select("id")
+    .eq("id", input.category_id)
+    .eq("tournament_id", tournamentId)
+    .single();
+
+  if (!cat) throw new Error("Invalid category for this tournament");
+
+  const name = (input.name || "").trim().slice(0, 200);
+  if (!name) throw new Error("Athlete name is required");
+
+  const chestNumber = (input.chest_number || "").trim().slice(0, 50);
 
   const { error } = await supabase.from("athletes").insert({
     category_id: input.category_id,
-    name: input.name,
-    chest_number: input.chest_number,
-    school: input.school || null,
-    school_code: input.school_code || null,
-    sports_id: input.sports_id || null,
-    dojo: input.school || null // Keep dojo column updated for compatibility
+    name,
+    chest_number: chestNumber,
+    school: input.school?.trim().slice(0, 200) || null,
+    school_code: input.school_code?.trim().slice(0, 50) || null,
+    sports_id: input.sports_id?.trim().slice(0, 50) || null,
+    dojo: input.school?.trim().slice(0, 200) || null
   });
 
-  if (error) throw new Error(error.message);
+  if (error) {
+    console.error("Failed to add athlete:", error);
+    throw new Error("Failed to add athlete");
+  }
 
   revalidatePath(`/admin/event/${tournamentId}/athletes`);
 }
 
 export async function deleteAthlete(athleteId: string, tournamentId: string) {
-  const adminId = await ensureAdmin();
+  await ensureAdminOwnsTournament(tournamentId);
   const supabase = await createClient();
 
+  const { data: athlete } = await supabase
+    .from("athletes")
+    .select("id, categories!inner(tournament_id)")
+    .eq("id", athleteId)
+    .single();
+
+  if (!athlete || (athlete.categories as any)?.tournament_id !== tournamentId) {
+    throw new Error("Athlete not found in this tournament");
+  }
+
   const { error } = await supabase.from("athletes").delete().eq("id", athleteId);
-  if (error) throw new Error(error.message);
+  if (error) {
+    console.error("Failed to delete athlete:", error);
+    throw new Error("Failed to delete athlete");
+  }
 
   revalidatePath(`/admin/event/${tournamentId}/athletes`);
 }
 
 export async function updateAthleteCategory(athleteId: string, categoryId: string | null, tournamentId: string) {
-  const adminId = await ensureAdmin();
+  await ensureAdminOwnsTournament(tournamentId);
   const supabase = await createClient();
+
+  const { data: athlete } = await supabase
+    .from("athletes")
+    .select("id, categories!inner(tournament_id)")
+    .eq("id", athleteId)
+    .single();
+
+  if (!athlete || (athlete.categories as any)?.tournament_id !== tournamentId) {
+    throw new Error("Athlete not found in this tournament");
+  }
+
+  if (categoryId) {
+    const { data: cat } = await supabase
+      .from("categories")
+      .select("id")
+      .eq("id", categoryId)
+      .eq("tournament_id", tournamentId)
+      .single();
+
+    if (!cat) throw new Error("Target category not found in this tournament");
+  }
 
   const { error } = await supabase
     .from("athletes")
     .update({ category_id: categoryId })
     .eq("id", athleteId);
 
-  if (error) throw new Error(error.message);
+  if (error) {
+    console.error("Failed to update athlete category:", error);
+    throw new Error("Failed to update athlete category");
+  }
 
   revalidatePath(`/admin/event/${tournamentId}/athletes`);
   revalidatePath(`/admin/event/${tournamentId}/rings/balance`);
 }
 
 export async function bulkAddAthletes(tournamentId: string, categoryName: string, athletes: { no: string, name: string }[]) {
-  const adminId = await ensureAdmin();
+  await ensureAdminOwnsTournament(tournamentId);
   const supabase = await createClient();
 
   // Find or create category
@@ -87,13 +142,10 @@ export async function bulkAddAthletes(tournamentId: string, categoryName: string
     if (catError || !newCat) throw new Error("Failed to auto-create category");
     cat = newCat;
   } else {
-    // Update athlete count
-    await supabase.rpc('increment_category_athletes', { category_id_param: cat.id, amount: athletes.length });
-    // Or just manually update:
-    // This is MVP, so a simple approach: fetch current, add, update.
+    // Update athlete count and expected matches
     const { data: currentCat } = await supabase.from("categories").select("athletes_count").eq("id", cat.id).single();
     if (currentCat) {
-      const newCount = currentCat.athletes_count + athletes.length;
+      const newCount = (currentCat.athletes_count || 0) + athletes.length;
       await supabase.from("categories").update({
         athletes_count: newCount,
         expected_matches: Math.max(0, newCount - 1)
@@ -111,7 +163,10 @@ export async function bulkAddAthletes(tournamentId: string, categoryName: string
 
   if (toInsert.length > 0) {
     const { error } = await supabase.from("athletes").insert(toInsert);
-    if (error) throw new Error(error.message);
+    if (error) {
+      console.error("Failed to bulk add athletes:", error);
+      throw new Error("Failed to bulk add athletes");
+    }
   }
 
   revalidatePath(`/admin/event/${tournamentId}/athletes`);
@@ -120,7 +175,7 @@ export async function bulkAddAthletes(tournamentId: string, categoryName: string
 }
 
 export async function bulkAddMasterAthletes(tournamentId: string, athletes: any[]) {
-  const adminId = await ensureAdmin();
+  await ensureAdminOwnsTournament(tournamentId);
   const supabase = await createClient();
 
   // 1. Fetch all categories for this tournament to map athletes
@@ -195,7 +250,10 @@ export async function bulkAddMasterAthletes(tournamentId: string, athletes: any[
 
   if (toInsert.length > 0) {
     const { error } = await supabase.from("athletes").insert(toInsert);
-    if (error) throw new Error(error.message);
+    if (error) {
+      console.error("Failed to bulk add master athletes:", error);
+      throw new Error("Failed to bulk add master athletes");
+    }
   }
 
   revalidatePath(`/admin/event/${tournamentId}/athletes`);

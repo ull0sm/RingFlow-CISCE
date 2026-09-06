@@ -218,12 +218,12 @@ export default function ModeratorCurrentClient({ ringId, initialAssignments, all
 
   return (
     <div className="space-y-0">
-      <div className="flex justify-between items-center mb-8">
-        <div>
-          <h1 className="font-headline-lg text-headline-lg text-primary tracking-tight">Tatami Controls</h1>
-          <p className="font-body-sm text-body-sm text-on-surface-variant">Moderator Dashboard</p>
+      <div className="flex justify-between items-center mb-6 sm:mb-8 gap-2">
+        <div className="min-w-0">
+          <h1 className="font-headline-lg text-2xl sm:text-headline-lg text-primary tracking-tight truncate">Tatami Controls</h1>
+          <p className="font-body-sm text-xs sm:text-body-sm text-on-surface-variant">Moderator Dashboard</p>
         </div>
-        <div className={`flex items-center gap-2 px-4 py-2 rounded-full shadow-sm ${isPaused ? 'bg-error-container text-on-error-container border-error/20 border' : 'bg-success/10 text-emerald-700 border border-emerald-500/20'}`}>
+        <div className={`flex items-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-1.5 sm:py-2 rounded-full shadow-sm shrink-0 ${isPaused ? 'bg-error-container text-on-error-container border-error/20 border' : 'bg-success/10 text-emerald-700 border border-emerald-500/20'}`}>
           {!isPaused && (
             <span className="flex h-2 w-2 relative">
               <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
@@ -235,18 +235,18 @@ export default function ModeratorCurrentClient({ ringId, initialAssignments, all
               <span className="relative inline-flex rounded-full h-2 w-2 bg-error"></span>
             </span>
           )}
-          <span className="font-label-caps text-label-caps">{isPaused ? 'PAUSED' : 'LIVE'}</span>
+          <span className="font-label-caps text-xs sm:text-label-caps">{isPaused ? 'PAUSED' : 'LIVE'}</span>
         </div>
       </div>
 
-      <div className="bg-surface-container-lowest border border-outline-variant rounded-xl p-card-padding shadow-sm relative overflow-hidden mb-10">
+      <div className="bg-surface-container-lowest border border-outline-variant rounded-xl p-4 sm:p-card-padding shadow-sm relative overflow-hidden mb-6 sm:mb-10">
         <div className={`absolute top-0 left-0 w-1 h-full ${isPaused ? 'bg-error' : 'bg-secondary'}`}></div>
-        <div className="flex justify-between items-start mb-4">
-          <div>
-            <span className="font-label-caps text-label-caps text-on-surface-variant block mb-1">CURRENT CATEGORY</span>
-            <h2 className="font-headline-sm text-headline-sm text-primary">{activeAssignment.categories?.name}</h2>
+        <div className="flex justify-between items-start mb-4 gap-2">
+          <div className="min-w-0">
+            <span className="font-label-caps text-[10px] sm:text-label-caps text-on-surface-variant block mb-1">CURRENT CATEGORY</span>
+            <h2 className="font-headline-sm text-lg sm:text-headline-sm text-primary truncate">{activeAssignment.categories?.name}</h2>
           </div>
-          <div className="relative">
+          <div className="relative shrink-0">
             <button onClick={() => setShowSettings(!showSettings)} className="w-10 h-10 rounded-full bg-surface-container hover:bg-surface-container-high flex items-center justify-center text-on-surface transition-colors">
               <span className="material-symbols-outlined">settings</span>
             </button>
@@ -368,7 +368,7 @@ export default function ModeratorCurrentClient({ ringId, initialAssignments, all
             </p>
           </div>
         </div>
-        <div className="flex justify-between items-center pt-2 border-t border-outline-variant">
+        <div className="flex flex-wrap justify-between items-center gap-2 pt-2 border-t border-outline-variant">
           <button
             onClick={() => setShowAssistanceModal(true)}
             className="flex items-center gap-2 text-primary font-bold font-label-caps text-xs hover:bg-primary/10 px-3 py-2 rounded transition-colors"
@@ -504,7 +504,7 @@ export default function ModeratorCurrentClient({ ringId, initialAssignments, all
                         } catch (err) {
                           console.error(err);
                         }
-                        router.push("/moderator/login");
+                        router.push("/login/mod");
                       }}
                       className="w-full py-2.5 bg-error/10 hover:bg-error/20 text-error font-semibold rounded-xl flex items-center justify-center gap-2 text-xs transition-colors border border-error/20"
                     >

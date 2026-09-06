@@ -16,6 +16,7 @@ export default async function EventSelectionPage() {
     const { data, error } = await supabase
       .from("tournaments")
       .select("*")
+      .eq("admin_id", adminId)
       .order("created_at", { ascending: false });
       
     if (error) {

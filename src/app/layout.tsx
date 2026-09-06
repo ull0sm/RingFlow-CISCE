@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { Inter, JetBrains_Mono, Plus_Jakarta_Sans } from "next/font/google";
 import "./globals.css";
-import { FooterDemo } from "@/components/footer-demo";
+import { ConditionalFooter } from "@/components/conditional-footer";
 
 const inter = Inter({
   variable: "--font-inter",
@@ -52,7 +52,7 @@ export default function RootLayout({
         <div className="flex-1 flex flex-col min-h-0 w-full">
           {children}
         </div>
-        <FooterDemo />
+        <ConditionalFooter />
       </body>
     </html>
   );

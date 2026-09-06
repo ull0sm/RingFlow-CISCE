@@ -8,6 +8,7 @@ import LiveActivityFeed from "@/components/admin/LiveActivityFeed";
 import ModeratorRequestsWidget from "@/components/admin/ModeratorRequestsWidget";
 import { createClient } from "@/utils/supabase/client";
 import { toggleRingTimer, setAllRingTimers, resetRingTimer } from "@/actions/rings";
+import OverviewSupportFooter from "@/components/support/OverviewSupportFooter";
 
 export default function AdminDashboardClient({ 
   tournament, 
@@ -400,7 +401,7 @@ export default function AdminDashboardClient({
       )}
       
       {activeAlert && (
-        <div className="fixed top-6 right-6 z-50 flex items-center justify-center p-4">
+        <div className="fixed top-4 sm:top-6 right-4 sm:right-6 left-4 sm:left-auto z-50 flex items-center justify-center">
           <div className={`${activeAlert.action === 'EMERGENCY_ALERT' ? 'bg-error-container text-on-error-container border-error' : 'bg-amber-100 text-amber-900 border-amber-500'} max-w-sm w-full p-4 rounded-xl shadow-2xl border-2 transform animate-bounce-short flex gap-4`}>
             <span className="material-symbols-outlined text-4xl mt-1" style={{fontVariationSettings: '"FILL" 1'}}>
               {activeAlert.action === 'EMERGENCY_ALERT' ? 'warning' : 'support_agent'}
@@ -426,10 +427,10 @@ export default function AdminDashboardClient({
         </div>
       )}
 
-      <div className="p-margin-desktop space-y-8 pb-24 w-full">
+      <div className="p-4 sm:p-6 md:p-margin-desktop space-y-6 sm:space-y-8 pb-24 w-full">
         {/* Global Tournament Stats */}
-        <section className="grid grid-cols-1 md:grid-cols-3 gap-gutter">
-          <div className="bg-surface-container-lowest p-card-padding border border-outline-variant rounded-lg flex flex-col justify-between shadow-sm hover:shadow transition-shadow">
+        <section className="grid grid-cols-1 md:grid-cols-3 gap-4 sm:gap-gutter">
+          <div className="bg-surface-container-lowest p-4 sm:p-card-padding border border-outline-variant rounded-lg flex flex-col justify-between shadow-sm hover:shadow transition-shadow">
             <div className="flex justify-between items-start">
               <span className="font-label-caps text-label-caps text-on-surface-variant">Completed Categories</span>
               <span className="material-symbols-outlined text-secondary">category</span>
@@ -446,7 +447,7 @@ export default function AdminDashboardClient({
             </div>
           </div>
           
-          <div className="bg-surface-container-lowest p-card-padding border border-outline-variant rounded-lg flex flex-col justify-between shadow-sm hover:shadow transition-shadow">
+          <div className="bg-surface-container-lowest p-4 sm:p-card-padding border border-outline-variant rounded-lg flex flex-col justify-between shadow-sm hover:shadow transition-shadow">
             <div className="flex justify-between items-start">
               <span className="font-label-caps text-label-caps text-on-surface-variant">Completed Matches</span>
               <span className="material-symbols-outlined text-on-secondary-fixed-variant" style={{fontVariationSettings: '"FILL" 1'}}>check_circle</span>
@@ -457,7 +458,7 @@ export default function AdminDashboardClient({
             </div>
           </div>
           
-          <div className="bg-surface-container-lowest p-card-padding border border-outline-variant rounded-lg shadow-sm hover:shadow transition-shadow">
+          <div className="bg-surface-container-lowest p-4 sm:p-card-padding border border-outline-variant rounded-lg shadow-sm hover:shadow transition-shadow">
             <div className="flex justify-between items-start">
               <span className="font-label-caps text-label-caps text-on-surface-variant">Overall Progress</span>
               <span className="material-symbols-outlined text-secondary">speed</span>
@@ -584,6 +585,9 @@ export default function AdminDashboardClient({
             </div>
           )}
         </div>
+
+        {/* Support & Crux Contact Desk - Admin only */}
+        {!readOnly && <OverviewSupportFooter />}
       </div>
     </>
   );

@@ -41,7 +41,7 @@ export default function ModeratorProfileMenu({ moderator }: { moderator: any }) 
   const handleLogout = () => {
     startTransition(async () => {
       await logoutModerator();
-      router.push("/moderator/login");
+      router.push("/login/mod");
     });
   };
 
