@@ -42,7 +42,8 @@ export default function OrganiserSidebar() {
   };
 
   return (
-    <aside
+    <>
+      <aside
       className={`hidden md:flex flex-col sticky top-0 h-screen py-6 space-y-2 bg-surface-container-low border-r border-outline-variant shrink-0 z-20 transition-[width] duration-300 relative ${
         isCollapsed ? "w-20 px-2" : "w-64 px-4"
       }`}
@@ -144,5 +145,27 @@ export default function OrganiserSidebar() {
         )}
       </div>
     </aside>
+
+    {/* Mobile Bottom Navigation Bar (md:hidden) */}
+    <nav className="md:hidden fixed bottom-0 left-0 w-full bg-surface-container-lowest border-t border-outline-variant z-50 flex items-center justify-around px-2 py-1.5 shadow-[0_-2px_10px_rgba(0,0,0,0.06)]">
+      {navItems.map((item) => {
+        const isActive = pathname === item.href;
+        return (
+          <Link
+            key={item.name}
+            href={item.href}
+            className={`flex flex-col items-center justify-center py-1 px-2.5 rounded-lg transition-colors ${
+              isActive
+                ? "text-secondary font-bold"
+                : "text-on-surface-variant hover:text-on-surface"
+            }`}
+          >
+            <span className="material-symbols-outlined text-[20px]">{item.icon}</span>
+            <span className="text-[10px] font-medium tracking-tight mt-0.5 whitespace-nowrap">{item.name}</span>
+          </Link>
+        );
+      })}
+    </nav>
+  </>
   );
 }

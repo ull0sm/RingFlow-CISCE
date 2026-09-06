@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import { DragDropContext, Droppable, Draggable, DropResult } from "@hello-pangea/dnd";
 import { saveAssignments } from "@/actions/balancing";
 import { createClient } from "@/utils/supabase/client";
@@ -32,6 +32,8 @@ type Assignment = {
   status?: string;
   created_at?: string;
   completed_at?: string | null;
+  stager_status?: string | null;
+  stager_name?: string | null;
 };
 
 interface Props {
@@ -73,6 +75,9 @@ export default function RingBalancingClient({
   // History popover state
   const [historyOpenForRing, setHistoryOpenForRing] = useState<string | null>(null);
 
+  // Revert category confirmation state
+  const [pendingRevertCategory, setPendingRevertCategory] = useState<{ ringId: string; ringName: string; category: Category } | null>(null);
+
   // Filter & Sort State
   const [search, setSearch] = useState("");
   const [beltFilter, setBeltFilter] = useState("");
@@ -81,18 +86,46 @@ export default function RingBalancingClient({
   const [sortBy, setSortBy] = useState<"name" | "athletes" | "weight">("athletes");
   const [sortOrder, setSortOrder] = useState<"asc" | "desc">("desc");
   const [statusFilter, setStatusFilter] = useState<"idle" | "queue" | "completed">("idle");
+  const [mobileShowPool, setMobileShowPool] = useState(false);
 
-  // Realtime assignments map for live match count, status, queue_order tracking
-  const [assignmentsMap, setAssignmentsMap] = useState<Record<string, { matches_completed: number; status: string; ring_id: string; queue_order: number }>>({});
+  // Toggle pool with mobile back button / history integration
+  const togglePool = useCallback(() => {
+    setMobileShowPool((prev) => {
+      const next = !prev;
+      if (typeof window !== "undefined") {
+        if (next) {
+          window.history.pushState({ poolOpen: true }, "");
+        } else if (window.history.state?.poolOpen) {
+          window.history.back();
+          return prev;
+        }
+      }
+      return next;
+    });
+  }, []);
+
+  // Shrink unassigned pool when mobile back button is pressed
+  useEffect(() => {
+    const handlePopState = () => {
+      setMobileShowPool(false);
+    };
+    window.addEventListener("popstate", handlePopState);
+    return () => window.removeEventListener("popstate", handlePopState);
+  }, []);
+
+  // Realtime assignments map for live match count, status, queue_order and stager status tracking
+  const [assignmentsMap, setAssignmentsMap] = useState<Record<string, { matches_completed: number; status: string; ring_id: string; queue_order: number; stager_status: string | null; stager_name: string | null }>>({}); 
 
   useEffect(() => {
-    const map: Record<string, { matches_completed: number; status: string; ring_id: string; queue_order: number }> = {};
+    const map: Record<string, { matches_completed: number; status: string; ring_id: string; queue_order: number; stager_status: string | null; stager_name: string | null }> = {};
     initialAssignments.forEach(a => {
       map[a.category_id] = {
         matches_completed: (a as any).matches_completed || 0,
         status: a.status || "pending",
         ring_id: a.ring_id,
         queue_order: a.queue_order ?? 0,
+        stager_status: (a as any).stager_status ?? null,
+        stager_name: (a as any).stager_name ?? null,
       };
     });
     setAssignmentsMap(map);
@@ -119,6 +152,8 @@ export default function RingBalancingClient({
                 status: updated.status || "pending",
                 ring_id: updated.ring_id,
                 queue_order: updated.queue_order ?? prev[updated.category_id]?.queue_order ?? 0,
+                stager_status: updated.stager_status ?? null,
+                stager_name: updated.stager_name ?? null,
               }
             }));
 
@@ -168,6 +203,9 @@ export default function RingBalancingClient({
                   if (!catItem) {
                     catItem = unassigned.find(c => c.id === updated.category_id);
                   }
+                  if (!catItem) {
+                    catItem = initialCategories.find(c => c.id === updated.category_id);
+                  }
                 }
                 if (!catItem) return prev;
 
@@ -183,6 +221,19 @@ export default function RingBalancingClient({
                   return { ...prev, [updated.ring_id]: reQueue };
                 }
                 return prev;
+              });
+
+              // Clean from completed queues if it was completed earlier
+              setRingCompletedQueues(compPrev => {
+                let changed = false;
+                const newComp = { ...compPrev };
+                for (const rId of Object.keys(newComp)) {
+                  if (newComp[rId]?.some(c => c.id === updated.category_id)) {
+                    newComp[rId] = newComp[rId].filter(c => c.id !== updated.category_id);
+                    changed = true;
+                  }
+                }
+                return changed ? newComp : compPrev;
               });
             }
           }
@@ -254,31 +305,34 @@ export default function RingBalancingClient({
     if (sourceDroppableId === destDroppableId && source.index === destination.index && !destination.droppableId.startsWith("header_")) return;
 
     // 1. Create shallow copies of active queues
-    const nextUnassigned = [...unassigned];
-    const nextRingQueues = { ...ringQueues };
+    let nextUnassigned = [...unassigned];
+    const nextRingQueues: Record<string, Category[]> = {};
     Object.keys(ringQueues).forEach(key => {
       nextRingQueues[key] = [...ringQueues[key]];
     });
 
-    // 2. Find and extract the category from source
-    let movedItem: Category | undefined;
-    if (sourceDroppableId === "unassigned") {
-      const realIndex = nextUnassigned.findIndex(c => c.id === draggableId);
-      if (realIndex === -1) return;
-      movedItem = nextUnassigned[realIndex];
-      nextUnassigned.splice(realIndex, 1);
-    } else {
-      const sourceQueue = nextRingQueues[sourceDroppableId];
-      if (sourceQueue) {
-        const itemIdx = sourceQueue.findIndex(c => c.id === draggableId);
-        if (itemIdx > -1) {
-          movedItem = sourceQueue[itemIdx];
-          sourceQueue.splice(itemIdx, 1);
+    // 2. Find and extract the category from wherever it currently resides
+    let movedItem: Category | undefined = nextUnassigned.find(c => c.id === draggableId);
+    if (!movedItem) {
+      for (const rId of Object.keys(nextRingQueues)) {
+        const found = nextRingQueues[rId].find(c => c.id === draggableId);
+        if (found) {
+          movedItem = found;
+          break;
         }
       }
     }
+    if (!movedItem) {
+      movedItem = initialCategories.find(c => c.id === draggableId);
+    }
 
     if (!movedItem) return;
+
+    // Purge moved category completely from all queues to guarantee zero duplicates
+    nextUnassigned = nextUnassigned.filter(c => c.id !== draggableId);
+    Object.keys(nextRingQueues).forEach(key => {
+      nextRingQueues[key] = nextRingQueues[key].filter(c => c.id !== draggableId);
+    });
 
     // Frontend Safety Guard: Check if destination or source displacement interrupts an active running/paused category
     const prevUnassigned = [...unassigned];
@@ -314,7 +368,7 @@ export default function RingBalancingClient({
 
     // 3. Insert category into destination position
     if (destDroppableId === "unassigned") {
-      const visibleAtDest = unassigned
+      const visibleAtDest = nextUnassigned
         .filter(cat => {
           if (search && !cat.name.toLowerCase().includes(search.toLowerCase())) return false;
           if (beltFilter && cat.belt !== beltFilter) return false;
@@ -340,6 +394,21 @@ export default function RingBalancingClient({
       nextRingQueues[destDroppableId] = destQueue;
     }
 
+    // Deduplicate queues to safeguard against any stray duplicate keys
+    const seenCatIds = new Set<string>();
+    nextUnassigned = nextUnassigned.filter(c => {
+      if (seenCatIds.has(c.id)) return false;
+      seenCatIds.add(c.id);
+      return true;
+    });
+    Object.keys(nextRingQueues).forEach(key => {
+      nextRingQueues[key] = nextRingQueues[key].filter(c => {
+        if (seenCatIds.has(c.id)) return false;
+        seenCatIds.add(c.id);
+        return true;
+      });
+    });
+
     // 4. Update state atomically
     setUnassigned(nextUnassigned);
     setRingQueues(nextRingQueues);
@@ -354,6 +423,8 @@ export default function RingBalancingClient({
             queue_order: idx,
             status: nextMap[cat.id]?.status || "pending",
             matches_completed: nextMap[cat.id]?.matches_completed || 0,
+            stager_status: nextMap[cat.id]?.stager_status ?? null,
+            stager_name: nextMap[cat.id]?.stager_name ?? null,
           };
         });
       });
@@ -411,39 +482,45 @@ export default function RingBalancingClient({
 
   const handleSave = async () => {
     setIsSaving(true);
-    const payload: { category_id: string; ring_id: string | null; queue_order: number; status?: string; completed_at?: string | null }[] = [];
+    const payloadMap = new Map<string, { category_id: string; ring_id: string | null; queue_order: number; status?: string; completed_at?: string | null }>();
 
     // Process unassigned
     unassigned.forEach((cat, idx) => {
-      payload.push({ category_id: cat.id, ring_id: null, queue_order: idx });
+      payloadMap.set(cat.id, { category_id: cat.id, ring_id: null, queue_order: idx });
     });
 
-    // Process rings — carry current status from assignmentsMap so server can validate
+    // Process rings — active ring assignments take precedence
     Object.keys(ringQueues).forEach(ringId => {
       ringQueues[ringId].forEach((cat, idx) => {
         const liveStatus = assignmentsMap[cat.id]?.status;
-        payload.push({ 
+        const effectiveStatus = (liveStatus === "running" || liveStatus === "paused") ? liveStatus : "pending";
+        payloadMap.set(cat.id, { 
           category_id: cat.id, 
           ring_id: ringId, 
           queue_order: idx, 
-          status: liveStatus || "pending"
+          status: effectiveStatus,
+          completed_at: null,
         });
       });
     });
 
-    // Process completed categories (keep them assigned and completed)
+    // Process completed categories (keep them assigned and completed if not currently in active queue)
     Object.keys(ringCompletedQueues).forEach(ringId => {
       ringCompletedQueues[ringId].forEach((cat, idx) => {
-        const originalAssignment = initialAssignments.find(a => a.category_id === cat.id);
-        payload.push({ 
-          category_id: cat.id, 
-          ring_id: ringId, 
-          queue_order: (ringQueues[ringId]?.length || 0) + idx, 
-          status: "completed",
-          completed_at: originalAssignment?.completed_at || new Date().toISOString()
-        });
+        if (!ringQueues[ringId]?.some(c => c.id === cat.id)) {
+          const originalAssignment = initialAssignments.find(a => a.category_id === cat.id);
+          payloadMap.set(cat.id, { 
+            category_id: cat.id, 
+            ring_id: ringId, 
+            queue_order: (ringQueues[ringId]?.length || 0) + idx, 
+            status: "completed",
+            completed_at: originalAssignment?.completed_at || new Date().toISOString()
+          });
+        }
       });
     });
+
+    const payload = Array.from(payloadMap.values());
 
     try {
       await saveAssignments(tournamentId, payload);
@@ -469,49 +546,62 @@ export default function RingBalancingClient({
     updatedUnassigned?: Category[], 
     updatedRingQueues?: Record<string, Category[]>,
     prevUnassigned?: Category[],
-    prevRingQueues?: Record<string, Category[]>
+    prevRingQueues?: Record<string, Category[]>,
+    updatedCompletedQueues?: Record<string, Category[]>,
+    prevCompletedQueues?: Record<string, Category[]>,
+    updatedAssignmentsMap?: Record<string, { matches_completed: number; status: string; ring_id: string; queue_order: number; stager_status: string | null; stager_name: string | null }>,
+    prevAssignmentsMap?: Record<string, { matches_completed: number; status: string; ring_id: string; queue_order: number; stager_status: string | null; stager_name: string | null }>
   ) => {
     if (!autoSave) return;
     
     // Perform save with latest state snapshot
     const targetUnassigned = updatedUnassigned || unassigned;
     const targetRingQueues = updatedRingQueues || ringQueues;
+    const targetCompletedQueues = updatedCompletedQueues || ringCompletedQueues;
+    const targetAssignmentsMap = updatedAssignmentsMap || assignmentsMap;
 
     setIsSaving(true);
     setSaveStatusText("Auto-saving...");
-    const payload: { category_id: string; ring_id: string | null; queue_order: number; status?: string; completed_at?: string | null }[] = [];
+    const payloadMap = new Map<string, { category_id: string; ring_id: string | null; queue_order: number; status?: string; completed_at?: string | null }>();
 
     // Process unassigned
     targetUnassigned.forEach((cat, idx) => {
-      payload.push({ category_id: cat.id, ring_id: null, queue_order: idx });
+      payloadMap.set(cat.id, { category_id: cat.id, ring_id: null, queue_order: idx });
     });
 
     // Process rings
     Object.keys(targetRingQueues).forEach(ringId => {
       targetRingQueues[ringId].forEach((cat, idx) => {
-        const liveStatus = assignmentsMap[cat.id]?.status;
-        payload.push({ 
+        const liveInfo = targetAssignmentsMap[cat.id];
+        const rawStatus = liveInfo?.status;
+        const effectiveStatus = (rawStatus === "running" || rawStatus === "paused") ? rawStatus : "pending";
+        payloadMap.set(cat.id, { 
           category_id: cat.id, 
           ring_id: ringId, 
           queue_order: idx, 
-          status: liveStatus || "pending"
+          status: effectiveStatus,
+          completed_at: null,
         });
       });
     });
 
     // Process completed categories
-    Object.keys(ringCompletedQueues).forEach(ringId => {
-      ringCompletedQueues[ringId].forEach((cat, idx) => {
-        const originalAssignment = initialAssignments.find(a => a.category_id === cat.id);
-        payload.push({ 
-          category_id: cat.id, 
-          ring_id: ringId, 
-          queue_order: (targetRingQueues[ringId]?.length || 0) + idx, 
-          status: "completed",
-          completed_at: originalAssignment?.completed_at || new Date().toISOString()
-        });
+    Object.keys(targetCompletedQueues).forEach(ringId => {
+      targetCompletedQueues[ringId].forEach((cat, idx) => {
+        if (!targetRingQueues[ringId]?.some(c => c.id === cat.id)) {
+          const originalAssignment = initialAssignments.find(a => a.category_id === cat.id);
+          payloadMap.set(cat.id, { 
+            category_id: cat.id, 
+            ring_id: ringId, 
+            queue_order: (targetRingQueues[ringId]?.length || 0) + idx, 
+            status: "completed",
+            completed_at: originalAssignment?.completed_at || new Date().toISOString()
+          });
+        }
       });
     });
+
+    const payload = Array.from(payloadMap.values());
 
     saveAssignments(tournamentId, payload)
       .then(() => {
@@ -525,6 +615,12 @@ export default function RingBalancingClient({
           setUnassigned(prevUnassigned);
           setRingQueues(prevRingQueues);
         }
+        if (prevCompletedQueues) {
+          setRingCompletedQueues(prevCompletedQueues);
+        }
+        if (prevAssignmentsMap) {
+          setAssignmentsMap(prevAssignmentsMap);
+        }
         setSaveStatusText(null);
 
         const msg: string = err?.message || "";
@@ -533,13 +629,72 @@ export default function RingBalancingClient({
           const catName = initialCategories.find(c => c.id === catId)?.name || "A category";
           alert(`Auto-save blocked & reverted: "${catName}" is currently running on a Tatami.\n\nA running category must stay at the top of its queue.`);
         } else {
-          alert("Auto-save failed. UI reverted to previous state.");
+          alert(`Failed to save: ${msg || "Unknown error"}`);
           console.error("Auto-save error:", err);
         }
       })
       .finally(() => {
         setIsSaving(false);
       });
+  };
+
+  const handleConfirmRevert = () => {
+    if (!pendingRevertCategory || readOnly) return;
+    const { ringId, category } = pendingRevertCategory;
+
+    const prevUnassigned = unassigned;
+    const prevRingQueues = ringQueues;
+    const prevCompletedQueues = ringCompletedQueues;
+    const prevAssignmentsMap = assignmentsMap;
+
+    // 1. Remove from completed queue
+    const updatedCompletedList = (ringCompletedQueues[ringId] || []).filter(c => c.id !== category.id);
+    const nextCompletedQueues = {
+      ...ringCompletedQueues,
+      [ringId]: updatedCompletedList,
+    };
+
+    // 2. Append to active tatami queue (restored to bottom of queue)
+    const currentActiveQueue = ringQueues[ringId] || [];
+    const isAlreadyInActive = currentActiveQueue.some(c => c.id === category.id);
+    const nextActiveQueue = isAlreadyInActive ? currentActiveQueue : [...currentActiveQueue, category];
+    const nextRingQueues = {
+      ...ringQueues,
+      [ringId]: nextActiveQueue,
+    };
+
+    // 3. New assignments map with status explicitly 'pending'
+    const nextAssignmentsMap = {
+      ...assignmentsMap,
+      [category.id]: {
+        matches_completed: 0,
+        status: "pending",
+        ring_id: ringId,
+        queue_order: nextActiveQueue.length - 1,
+        stager_status: null,
+        stager_name: null,
+      },
+    };
+
+    // 4. Update component state
+    setAssignmentsMap(nextAssignmentsMap);
+    setRingCompletedQueues(nextCompletedQueues);
+    setRingQueues(nextRingQueues);
+    setPendingRevertCategory(null);
+    // Close the history view so user is back on active Tatami queue view!
+    setHistoryOpenForRing(null);
+
+    // 5. Trigger auto-save with nextAssignmentsMap
+    triggerAutoSaveIfNeeded(
+      unassigned,
+      nextRingQueues,
+      prevUnassigned,
+      prevRingQueues,
+      nextCompletedQueues,
+      prevCompletedQueues,
+      nextAssignmentsMap,
+      prevAssignmentsMap
+    );
   };
 
   const calculateRingWorkload = (ringId: string) => {
@@ -620,36 +775,47 @@ export default function RingBalancingClient({
   const uniqueSexes = Array.from(new Set(initialCategories.map(c => c.sex).filter(Boolean)));
 
   return (
-    <div className="flex flex-col h-full overflow-hidden w-full">
+    <div className="flex flex-col overflow-hidden w-full h-[calc(100dvh-4rem)] md:h-screen">
       {/* TopNavBar */}
-      <header className="flex justify-between items-center w-full px-8 h-16 bg-surface-container-lowest border-b border-outline-variant shrink-0 z-10">
-        <div className="flex items-center gap-6">
-          <span className="font-headline-lg text-headline-lg font-black text-primary tracking-tighter">Ring Flow</span>
-          <div className="h-8 w-[1px] bg-outline-variant"></div>
-          <div className="flex items-center gap-2">
-            <h2 className="font-headline-sm text-headline-sm text-primary">Tatami Balancing</h2>
-            <span className="text-outline-variant">/</span>
-            <span className="text-on-surface-variant font-label-caps text-label-caps opacity-70">{tournamentName}</span>
+      <header className="flex justify-between items-center w-full px-4 sm:px-8 h-14 sm:h-16 bg-surface-container-lowest border-b border-outline-variant shrink-0 z-10">
+        <div className="flex items-center gap-3 sm:gap-6 min-w-0 pr-2">
+          <span className="text-base sm:text-headline-lg font-black text-primary tracking-tighter shrink-0 whitespace-nowrap">Ring Flow</span>
+          <div className="h-6 sm:h-8 w-[1px] bg-outline-variant hidden xs:block shrink-0"></div>
+          <div className="flex items-center gap-1.5 sm:gap-2 min-w-0">
+            <h2 className="font-headline-sm text-xs sm:text-headline-sm text-primary whitespace-nowrap">Tatami Balancing</h2>
+            <span className="text-outline-variant shrink-0">/</span>
+            <span className="text-on-surface-variant font-label-caps text-label-caps opacity-70 truncate max-w-[100px] sm:max-w-[220px] whitespace-nowrap">{tournamentName}</span>
           </div>
         </div>
       </header>
 
       {/* Tournament Overview Bar */}
-      <div className="bg-primary text-on-primary px-8 py-3 flex items-center justify-between shrink-0 shadow-lg z-10 w-full">
-        <div className="flex items-center gap-10">
+      <div className="bg-primary text-on-primary px-4 sm:px-8 py-2.5 sm:py-3 flex items-center justify-between shrink-0 shadow-lg z-10 w-full overflow-x-auto gap-4">
+        <div className="flex items-center gap-4 sm:gap-10 shrink-0">
           <div className="flex flex-col">
-            <span className="text-[10px] font-label-caps opacity-60">TOTAL TATAMIS</span>
-            <span className="font-data-mono text-lg font-bold">{initialRings.length} ACTIVE</span>
+            <span className="text-[9px] sm:text-[10px] font-label-caps opacity-60">TOTAL TATAMIS</span>
+            <span className="font-data-mono text-sm sm:text-lg font-bold">{initialRings.length} ACTIVE</span>
           </div>
           <div className="h-6 w-[1px] bg-white/20"></div>
+
+          {/* Mobile Pool vs Board toggle */}
+          <button
+            onClick={togglePool}
+            className="md:hidden flex items-center gap-1.5 px-3 py-1.5 bg-white/15 hover:bg-white/25 border border-white/20 rounded-lg text-xs font-bold text-white transition-all cursor-pointer shrink-0"
+          >
+            <span>{mobileShowPool ? "Show Tatamis" : "Show unassigned categories"}</span>
+            <span className="material-symbols-outlined text-[16px] leading-none">
+              {mobileShowPool ? "chevron_left" : "chevron_right"}
+            </span>
+          </button>
           
           {!readOnly && (
-            <div className="flex items-center gap-6">
+            <div className="flex items-center gap-4 sm:gap-6 flex-wrap">
               <div className="flex flex-col">
-                <span className="text-[10px] font-label-caps opacity-60">SYNC MODE</span>
+                <span className="text-[9px] sm:text-[10px] font-label-caps opacity-60">SYNC MODE</span>
                 <button 
                   onClick={() => setAutoSave(!autoSave)}
-                  className={`flex items-center gap-2 px-3 py-1 rounded-md text-xs font-bold transition-all border ${
+                  className={`flex items-center gap-2 px-2.5 sm:px-3 py-1 rounded-md text-xs font-bold transition-all border ${
                     autoSave 
                       ? 'bg-secondary/20 border-secondary text-white' 
                       : 'bg-white/5 border-outline-variant/40 text-on-primary/70 hover:bg-white/10'
@@ -657,18 +823,18 @@ export default function RingBalancingClient({
                   title="Toggle Auto Sync after drag and drop"
                 >
                   <span className={`w-2 h-2 rounded-full ${autoSave ? 'bg-secondary animate-pulse' : 'bg-outline-variant'}`}></span>
-                  <span className="font-label-caps">{autoSave ? "AUTO SYNC ON" : "MANUAL SYNC"}</span>
+                  <span className="font-label-caps text-[10px] sm:text-xs">{autoSave ? "AUTO SYNC ON" : "MANUAL SYNC"}</span>
                 </button>
               </div>
 
               {/* Show Save button only when Auto-Save is OFF */}
               {!autoSave && (
                 <div className="flex flex-col">
-                  <span className="text-[10px] font-label-caps opacity-60">ACTIONS</span>
+                  <span className="text-[9px] sm:text-[10px] font-label-caps opacity-60">ACTIONS</span>
                   <button 
                     onClick={handleSave} 
                     disabled={isSaving}
-                    className="bg-secondary text-white px-4 py-1 rounded-md text-xs font-bold hover:opacity-90 disabled:opacity-50 flex items-center gap-1.5 shadow-sm"
+                    className="bg-secondary text-white px-3 sm:px-4 py-1 rounded-md text-xs font-bold hover:opacity-90 disabled:opacity-50 flex items-center gap-1.5 shadow-sm cursor-pointer"
                   >
                     {isSaving && <span className="w-3 h-3 border-2 border-white border-t-transparent rounded-full animate-spin"></span>}
                     {isSaving ? "SAVING..." : "SAVE BALANCING"}
@@ -678,13 +844,13 @@ export default function RingBalancingClient({
 
               {/* Design-System Aligned Status Cue */}
               {saveStatusText && (
-                <div className="flex items-center gap-1.5 px-3 py-1 bg-secondary text-white text-xs font-bold rounded-md shadow-md">
+                <div className="flex items-center gap-1.5 px-2.5 sm:px-3 py-1 bg-secondary text-white text-xs font-bold rounded-md shadow-md">
                   <span className="material-symbols-outlined text-sm">sync</span>
-                  <span className="font-label-caps tracking-wider">{saveStatusText}</span>
+                  <span className="font-label-caps text-[10px] sm:text-xs tracking-wider">{saveStatusText}</span>
                 </div>
               )}
               {!saveStatusText && lastSaved && (
-                <span className="text-[11px] opacity-70 font-data-mono">
+                <span className="text-[10px] sm:text-[11px] opacity-70 font-data-mono hidden sm:inline">
                   Synced {lastSaved.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })}
                 </span>
               )}
@@ -695,22 +861,65 @@ export default function RingBalancingClient({
 
       <DragDropContext onDragEnd={onDragEnd}>
         {/* Main Content Area */}
-        <div className="flex-1 flex overflow-hidden w-full">
-          
-          {/* Persistent Left Sidebar: Category Pool */}
-          <section className="w-80 flex flex-col bg-surface-container-lowest border-r border-outline-variant shrink-0 z-10 relative">
-            <div className="p-4 border-b border-outline-variant bg-surface-container-low flex flex-col gap-3">
-              <div className="flex justify-between items-center">
-                <h3 className="font-label-caps text-label-caps text-primary">
-                  {statusFilter === "idle" ? `Unassigned (${visibleUnassigned.length})` : statusFilter === "queue" ? `In Queue (${queuedCategories.length})` : `Completed (${allCompletedCategories.length})`}
-                </h3>
-                <button 
-                  onClick={() => {
-                    setSearch(""); setBeltFilter(""); setAgeFilter(""); setSexFilter("");
-                  }}
-                  className="text-[10px] text-secondary hover:underline"
-                >Clear Filters</button>
-              </div>
+        <div className="flex-1 flex overflow-hidden w-full relative">
+
+          {/* Left Sidebar: Category Pool (expands inline; shrinks to 10% peek on mobile with > arrow) */}
+          <section
+            className={`h-full flex flex-col bg-surface-container-lowest border-r border-outline-variant shrink-0 relative transition-[width] duration-300 ease-in-out z-20 ${
+              mobileShowPool
+                ? "w-[85vw] max-w-[340px] md:w-80 shadow-lg md:shadow-none"
+                : "w-[10vw] min-w-[36px] md:w-80 overflow-visible bg-surface-container-low/70 hover:bg-surface-container-low cursor-pointer select-none"
+            }`}
+            onClick={!mobileShowPool ? togglePool : undefined}
+            title={!mobileShowPool ? "Expand unassigned categories" : undefined}
+          >
+            {/* Pop-out black button with white arrow */}
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                togglePool();
+              }}
+              type="button"
+              title={mobileShowPool ? "Shrink sidebar" : "Expand unassigned categories"}
+              className="md:hidden absolute top-1/2 left-full -translate-x-1/2 -translate-y-1/2 w-9 h-9 bg-black text-white rounded-full shadow-xl hover:scale-110 active:scale-95 transition-all cursor-pointer z-50 flex items-center justify-center border-2 border-white/80"
+            >
+              <span className="material-symbols-outlined text-[22px] select-none leading-none text-white">
+                {mobileShowPool ? "chevron_left" : "chevron_right"}
+              </span>
+            </button>
+
+            {/* Inner Content Container */}
+            <div
+              className={`w-80 max-w-[85vw] md:max-w-none flex flex-col h-full transition-opacity duration-200 ${
+                mobileShowPool
+                  ? "opacity-100 overflow-y-auto"
+                  : "opacity-0 md:opacity-100 pointer-events-none md:pointer-events-auto overflow-hidden"
+              }`}
+            >
+              <div className="p-4 border-b border-outline-variant bg-surface-container-low flex flex-col gap-3 shrink-0">
+                <div className="flex justify-between items-center">
+                  <h3 className="font-label-caps text-label-caps text-primary">
+                    {statusFilter === "idle" ? `Unassigned (${visibleUnassigned.length})` : statusFilter === "queue" ? `In Queue (${queuedCategories.length})` : `Completed (${allCompletedCategories.length})`}
+                  </h3>
+                  <div className="flex items-center gap-2">
+                    <button 
+                      onClick={() => {
+                        setSearch(""); setBeltFilter(""); setAgeFilter(""); setSexFilter("");
+                      }}
+                      className="text-[10px] text-secondary hover:underline"
+                    >Clear Filters</button>
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        togglePool();
+                      }}
+                      className="md:hidden p-1 rounded-md text-on-surface-variant hover:bg-surface-container-high transition-colors"
+                      title="Shrink sidebar"
+                    >
+                      <span className="material-symbols-outlined text-[18px] leading-none">chevron_left</span>
+                    </button>
+                  </div>
+                </div>
 
               {/* Status Filter Tabs */}
               <div className="flex rounded-lg overflow-hidden border border-outline-variant bg-surface-container-high">
@@ -854,8 +1063,11 @@ export default function RingBalancingClient({
                 {sidebarCategoriesToShow.map(cat => {
                   const assignment = assignmentsMap[cat.id];
                   const ringName = initialRings.find(r => r.id === assignment?.ring_id)?.name?.replace(/Ring/i, 'Tatami') || "";
-                  const isCompleted = assignment?.status === 'completed';
-                  const isRunning = assignment?.status === 'running' || assignment?.status === 'paused';
+                  const status = assignment?.status;
+                  const isCompleted = status === 'completed';
+                  const isRunning = status === 'running';
+                  const isPaused = status === 'paused';
+                  const hasLeftAccent = isRunning || isPaused || isCompleted;
                   const matchesDone = assignment?.matches_completed || 0;
                   const matchesTotal = cat.expected_matches || 0;
                   const pct = matchesTotal > 0 ? (matchesDone / matchesTotal) * 100 : 0;
@@ -864,38 +1076,63 @@ export default function RingBalancingClient({
                     <div
                       key={cat.id}
                       className={`p-3 border rounded-xl relative overflow-hidden ${
-                        isCompleted
-                          ? 'bg-surface-container border-outline-variant/50 opacity-60'
-                          : 'bg-surface-container border-outline-variant/50 opacity-70'
+                        isPaused
+                          ? 'bg-amber-500/5 border-amber-300 shadow-2xs'
+                          : isRunning
+                            ? 'bg-secondary/5 border-secondary/30 shadow-2xs'
+                            : isCompleted
+                              ? 'bg-surface-container border-outline-variant/50 opacity-60'
+                              : 'bg-surface-container border-outline-variant/50 opacity-70'
                       }`}
                     >
-                      <div className="flex gap-1 flex-wrap mb-1.5">
+                      {isPaused && (
+                        <div className="absolute top-0 left-0 w-1 h-full bg-amber-500"></div>
+                      )}
+                      {isRunning && (
+                        <div className="absolute top-0 left-0 w-1 h-full bg-secondary"></div>
+                      )}
+                      {isCompleted && (
+                        <div className="absolute top-0 left-0 w-1 h-full bg-blue-600"></div>
+                      )}
+                      <div className={`flex gap-1 flex-wrap mb-1.5 ${hasLeftAccent ? 'ml-1.5' : ''}`}>
                         {cat.belt && <span className="px-1.5 py-0.5 bg-surface-container-high text-on-surface rounded text-[9px] font-bold uppercase">{cat.belt}</span>}
                         {cat.sex && <span className="px-1.5 py-0.5 bg-surface-container-high text-on-surface rounded text-[9px] font-bold uppercase">{cat.sex}</span>}
                         {cat.age_bracket && <span className="px-1.5 py-0.5 bg-surface-container-high text-on-surface rounded text-[9px] font-bold uppercase">{cat.age_bracket}</span>}
                         {cat.weight_class && <span className="px-1.5 py-0.5 bg-surface-container-high text-on-surface rounded text-[9px] font-bold uppercase">{cat.weight_class}</span>}
                       </div>
-                      <h4 className="text-xs font-bold text-on-surface mb-1.5">{cat.name}</h4>
-                      <div className="flex justify-between items-center text-[10px] text-on-surface-variant mb-1">
+                      <h4 className={`text-xs font-bold text-on-surface mb-1.5 ${hasLeftAccent ? 'ml-1.5' : ''}`}>{cat.name}</h4>
+                      <div className={`flex justify-between items-center text-[10px] text-on-surface-variant mb-1 ${hasLeftAccent ? 'ml-1.5' : ''}`}>
                         <span className="flex items-center gap-1 font-bold">
-                          <span className="material-symbols-outlined text-[12px]">{isCompleted ? 'done_all' : 'schedule'}</span>
+                          <span className="material-symbols-outlined text-[12px]">{isCompleted ? 'done_all' : isPaused ? 'pause_circle' : 'schedule'}</span>
                           {ringName}
                         </span>
+                        {isPaused && (
+                          <span className="inline-flex items-center gap-1 text-[9px] font-bold text-amber-800 bg-amber-50 border border-amber-200 px-1.5 py-0.5 rounded uppercase tracking-wider shadow-2xs">
+                            <span className="w-1.5 h-1.5 rounded-full bg-amber-600 animate-pulse" />
+                            PAUSED
+                          </span>
+                        )}
                         {isRunning && (
-                          <span className="text-[9px] font-bold text-secondary bg-secondary/10 px-1.5 py-0.5 rounded uppercase tracking-wider">Live</span>
+                          <span className="inline-flex items-center gap-1 text-[9px] font-bold text-emerald-800 bg-emerald-50 border border-emerald-200 px-1.5 py-0.5 rounded uppercase tracking-wider shadow-2xs">
+                            <span className="w-1.5 h-1.5 rounded-full bg-emerald-600 animate-pulse" />
+                            LIVE
+                          </span>
                         )}
                         {isCompleted && (
-                          <span className="text-[9px] font-bold text-green-600 bg-green-500/10 px-1.5 py-0.5 rounded uppercase tracking-wider">Done</span>
+                          <span className="inline-flex items-center gap-1 text-[9px] font-bold text-blue-800 bg-blue-50 border border-blue-200 px-1.5 py-0.5 rounded uppercase tracking-wider shadow-2xs">
+                            <span className="material-symbols-outlined text-[10px] text-blue-600">done_all</span>
+                            DONE
+                          </span>
                         )}
                       </div>
-                      {(isRunning || isCompleted) && (
-                        <div className="mt-1.5">
+                      {(isRunning || isPaused || isCompleted) && (
+                        <div className={`mt-1.5 ${hasLeftAccent ? 'ml-1.5' : ''}`}>
                           <div className="flex justify-between text-[9px] font-bold text-on-surface-variant mb-0.5">
                             <span>{matchesDone} / {matchesTotal} matches</span>
                             <span>{pct.toFixed(0)}%</span>
                           </div>
                           <div className="w-full bg-surface-container-high h-1 rounded-full overflow-hidden">
-                            <div className={`h-full transition-all duration-500 ${isCompleted ? 'bg-green-500' : 'bg-secondary'}`} style={{ width: `${Math.min(100, pct)}%` }}></div>
+                            <div className={`h-full transition-all duration-500 ${isCompleted ? 'bg-blue-600' : isPaused ? 'bg-amber-500' : 'bg-secondary'}`} style={{ width: `${Math.min(100, pct)}%` }}></div>
                           </div>
                         </div>
                       )}
@@ -904,17 +1141,18 @@ export default function RingBalancingClient({
                 })}
               </div>
             )}
+            </div>
           </section>
 
           {/* Horizontal Scrollable Ring Grid */}
-          <section className="flex-1 overflow-x-auto bg-surface-container-low flex p-6 gap-6 items-start">
+          <section className="flex-1 overflow-x-auto bg-surface-container-low flex p-3 sm:p-6 gap-3 sm:gap-6 items-start">
             {initialRings.map(ring => {
               const overloaded = isOverloaded(ring.id);
               const isHistoryView = historyOpenForRing === ring.id;
               
               if (isHistoryView) {
                 return (
-                  <div key={ring.id} className="w-72 shrink-0 flex flex-col bg-surface-container-lowest border border-outline-variant rounded-xl overflow-hidden shadow-sm h-full">
+                  <div key={ring.id} className="w-[85vw] max-w-[340px] md:w-72 shrink-0 flex flex-col bg-surface-container-lowest border border-outline-variant rounded-xl overflow-hidden shadow-sm h-full">
                     <div className="sticky top-0 z-10 p-4 flex justify-between items-start shrink-0 bg-surface-container-highest text-on-surface">
                       <div className="flex items-start gap-2">
                         <span className="material-symbols-outlined text-[20px] text-primary mt-1">history</span>
@@ -965,6 +1203,20 @@ export default function RingBalancingClient({
                                   <span className="material-symbols-outlined text-[12px]">group</span> {cat.athletes_count}
                                 </span>
                               </div>
+                              {!readOnly && (
+                                <div className="flex justify-between items-center ml-2 mt-2 pt-2 border-t border-outline-variant/40">
+                                  <button
+                                    type="button"
+                                    onClick={() => setPendingRevertCategory({ ringId: ring.id, ringName: ring.name, category: cat })}
+                                    className="inline-flex items-center gap-1.5 px-2.5 py-1 text-xs font-semibold text-amber-800 bg-amber-100/80 hover:bg-amber-200 active:bg-amber-300 border border-amber-300 rounded transition-colors shadow-xs cursor-pointer"
+                                    title="Revert category back to active tatami queue"
+                                  >
+                                    <span className="material-symbols-outlined text-[15px]">undo</span>
+                                    Revert to Queue
+                                  </button>
+                                  <span className="text-[10px] text-on-surface-variant/60 font-medium">Put back to stack</span>
+                                </div>
+                              )}
                             </div>
                           );
                         })
@@ -976,7 +1228,7 @@ export default function RingBalancingClient({
 
 
               return (
-                <div key={ring.id} className="w-72 shrink-0 flex flex-col bg-white border border-outline-variant rounded-xl overflow-hidden shadow-sm h-full">
+                <div key={ring.id} className="w-[85vw] max-w-[340px] md:w-72 shrink-0 flex flex-col bg-white border border-outline-variant rounded-xl overflow-hidden shadow-sm h-full">
                   {/* Header Droppable Shortcut Target */}
                   <Droppable droppableId={`header_${ring.id}`}>
                     {(providedHeader, snapshotHeader) => (
@@ -1044,10 +1296,16 @@ export default function RingBalancingClient({
                           <Draggable key={cat.id} draggableId={cat.id} index={index} isDragDisabled={readOnly}>
                             {(provided, snapshot) => {
                               const catAssignment = assignmentsMap[cat.id];
-                              const isRunning = catAssignment?.status === 'running' || catAssignment?.status === 'paused';
+                              const status = catAssignment?.status;
+                              const isRunning = status === 'running';
+                              const isPaused = status === 'paused';
+                              const isCompleted = status === 'completed';
+                              const hasLeftAccent = isRunning || isPaused || isCompleted;
                               const matchesDone = catAssignment?.matches_completed || 0;
                               const matchesTotal = cat.expected_matches || 0;
                               const pct = matchesTotal > 0 ? (matchesDone / matchesTotal) * 100 : 0;
+                              const stagerStatus = catAssignment?.stager_status ?? null;
+                              const stagerActorName = catAssignment?.stager_name ?? null;
 
                               return (
                               <div 
@@ -1055,40 +1313,85 @@ export default function RingBalancingClient({
                                 {...provided.draggableProps}
                                 {...provided.dragHandleProps}
                                 className={`p-3 border rounded-lg relative overflow-hidden ${
-                                  isRunning
-                                    ? 'bg-secondary/5 border-secondary/40 shadow-md'
-                                    : `bg-surface-container-lowest border-outline-variant ${snapshot.isDragging ? 'border-secondary shadow-lg' : ''}`
+                                  isPaused
+                                    ? 'bg-amber-500/5 border-amber-400/50 shadow-md'
+                                    : isRunning
+                                      ? 'bg-secondary/5 border-secondary/40 shadow-md'
+                                      : isCompleted
+                                        ? 'bg-surface-container/60 border-outline-variant opacity-80'
+                                        : `bg-surface-container-lowest border-outline-variant ${snapshot.isDragging ? 'border-secondary shadow-lg' : ''}`
                                 } ${!readOnly ? 'cursor-grab active:cursor-grabbing' : ''}`}
                               >
+                                {isPaused && (
+                                  <div className="absolute top-0 left-0 w-1 h-full bg-amber-500"></div>
+                                )}
                                 {isRunning && (
                                   <div className="absolute top-0 left-0 w-1 h-full bg-secondary"></div>
                                 )}
-                                <div className={`flex justify-between items-center mb-1 ${isRunning ? 'ml-2' : ''}`}>
-                                  <span className="text-[9px] font-bold text-secondary uppercase tracking-wider">
+                                {isCompleted && (
+                                  <div className="absolute top-0 left-0 w-1 h-full bg-blue-600"></div>
+                                )}
+                                <div className={`flex justify-between items-center mb-1 ${hasLeftAccent ? 'ml-2' : ''}`}>
+                                  <span className={`text-[9px] font-bold uppercase tracking-wider ${
+                                    isPaused ? 'text-amber-700' : isCompleted ? 'text-blue-700' : 'text-secondary'
+                                  }`}>
                                     {(cat.age_bracket || (cat.age_min !== null && cat.age_max !== null ? `${cat.age_min}-${cat.age_max}` : ""))} | {cat.weight_class || cat.belt || "-"}
                                   </span>
-                                  {isRunning ? (
-                                    <span className="text-[9px] font-bold text-secondary bg-secondary/10 px-1.5 py-0.5 rounded uppercase tracking-wider animate-pulse">Live</span>
+                                  {isPaused ? (
+                                    <span className="inline-flex items-center gap-1 text-[9px] font-bold text-amber-800 bg-amber-50 border border-amber-200 px-1.5 py-0.5 rounded uppercase tracking-wider shadow-2xs">
+                                      <span className="w-1.5 h-1.5 rounded-full bg-amber-600 animate-pulse" />
+                                      PAUSED
+                                    </span>
+                                  ) : isRunning ? (
+                                    <span className="inline-flex items-center gap-1 text-[9px] font-bold text-emerald-800 bg-emerald-50 border border-emerald-200 px-1.5 py-0.5 rounded uppercase tracking-wider shadow-2xs">
+                                      <span className="w-1.5 h-1.5 rounded-full bg-emerald-600 animate-pulse" />
+                                      LIVE
+                                    </span>
+                                  ) : isCompleted ? (
+                                    <span className="inline-flex items-center gap-1 text-[9px] font-bold text-blue-800 bg-blue-50 border border-blue-200 px-1.5 py-0.5 rounded uppercase tracking-wider shadow-2xs">
+                                      <span className="material-symbols-outlined text-[11px] text-blue-600">done_all</span>
+                                      COMPLETED
+                                    </span>
                                   ) : (
-                                    <span className="font-data-mono text-[10px] font-bold">{Math.ceil((cat.expected_matches * 109) / 60)}m</span>
+                                    <span className="font-data-mono text-[10px] font-bold text-on-surface-variant">{Math.ceil((cat.expected_matches * 109) / 60)}m</span>
                                   )}
                                 </div>
-                                <h5 className={`text-xs font-bold text-primary mb-2 ${isRunning ? 'ml-2' : ''}`}>{cat.name}</h5>
-                                <div className={`flex gap-4 text-[10px] font-data-mono text-outline ${isRunning ? 'ml-2' : ''}`}>
+                                <h5 className={`text-xs font-bold text-primary mb-2 ${hasLeftAccent ? 'ml-2' : ''}`}>{cat.name}</h5>
+                                <div className={`flex gap-4 text-[10px] font-data-mono text-outline ${hasLeftAccent ? 'ml-2' : ''}`}>
                                   <span className="flex items-center gap-1"><span className="material-symbols-outlined text-[12px]">group</span> {cat.athletes_count}</span>
                                 </div>
-                                {isRunning && (
+                                {(isRunning || isPaused || isCompleted) && (
                                   <div className="mt-2 ml-2">
-                                    <div className="flex justify-between text-[9px] font-bold text-secondary mb-0.5">
+                                    <div className={`flex justify-between text-[9px] font-bold mb-0.5 ${
+                                      isPaused ? 'text-amber-700' : isCompleted ? 'text-blue-700' : 'text-secondary'
+                                    }`}>
                                       <span>{matchesDone} / {matchesTotal} matches</span>
                                       <span>{pct.toFixed(0)}%</span>
                                     </div>
                                     <div className="w-full bg-surface-container-high h-1.5 rounded-full overflow-hidden">
                                       <div
-                                        className="bg-secondary h-full transition-all duration-500 ease-out"
+                                        className={`h-full transition-all duration-500 ease-out ${
+                                          isPaused ? 'bg-amber-500' : isCompleted ? 'bg-blue-600' : 'bg-secondary'
+                                        }`}
                                         style={{ width: `${Math.min(100, pct)}%` }}
                                       ></div>
                                     </div>
+                                  </div>
+                                )}
+                                {/* Stager Status Badge */}
+                                {stagerStatus && (
+                                  <div className={`mt-2 flex items-center gap-1.5 px-2 py-1 rounded text-[10px] font-bold ${hasLeftAccent ? 'ml-2' : ''} ${
+                                    stagerStatus === 'calling'
+                                      ? 'bg-amber-100 text-amber-800 border border-amber-300'
+                                      : 'bg-green-100 text-green-800 border border-green-300'
+                                  }`}>
+                                    <span className="material-symbols-outlined text-[13px]">
+                                      {stagerStatus === 'calling' ? 'notifications_active' : 'check_circle'}
+                                    </span>
+                                    {stagerStatus === 'calling'
+                                      ? `Calling in progress by ${stagerActorName}`
+                                      : `Ready — called by ${stagerActorName}`
+                                    }
                                   </div>
                                 )}
                               </div>
@@ -1108,25 +1411,65 @@ export default function RingBalancingClient({
       </DragDropContext>
 
       {/* Bottom Status Bar */}
-      <footer className="h-10 bg-surface-container-highest border-t border-outline-variant px-8 flex items-center justify-between shrink-0 z-10 w-full">
-        <div className="flex gap-6 items-center">
-          <div className="flex items-center gap-2">
+      <footer className="h-10 bg-surface-container-highest border-t border-outline-variant px-4 sm:px-8 flex items-center justify-between shrink-0 z-10 w-full gap-2">
+        <div className="flex gap-4 sm:gap-6 items-center min-w-0">
+          <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
             <span className="w-2 h-2 rounded-full bg-green-500 animate-pulse"></span>
-            <span className="font-label-caps text-[10px] text-on-surface-variant">System Live</span>
+            <span className="font-label-caps text-[10px] text-on-surface-variant whitespace-nowrap">System Live</span>
           </div>
-          <div className="flex items-center gap-2">
-            <span className="material-symbols-outlined text-[14px] text-outline">sync</span>
-            <span className="font-label-caps text-[10px] text-on-surface-variant">
+          <div className="flex items-center gap-1.5 sm:gap-2 min-w-0">
+            <span className="material-symbols-outlined text-[14px] text-outline shrink-0">sync</span>
+            <span className="font-label-caps text-[10px] text-on-surface-variant truncate whitespace-nowrap">
               {isMounted && lastSaved ? `Last saved at ${lastSaved.toLocaleTimeString()}` : "Not saved yet"}
             </span>
           </div>
         </div>
+
+        {/* CruxStudios Footer Badge - only when not readOnly (Organiser has full FooterDemo at the end) */}
+        {!readOnly && (
+          <a
+            href="https://cruxstudios.dev"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="group inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-[#1B1815] hover:bg-black text-[#F5F3EC] border border-[#E1DDCF]/40 hover:border-cyan-400/60 shadow-[0_2px_8px_rgba(27,24,21,0.12)] hover:shadow-[0_0_15px_rgba(0,229,255,0.25)] transition-all duration-300 shrink-0"
+          >
+            <span className="font-['Inter',sans-serif] font-medium text-[9px] text-[#F5F3EC]/90 group-hover:text-white transition-colors hidden xs:inline whitespace-nowrap">
+              Developed by
+            </span>
+            <div className="flex items-center gap-1">
+              <img
+                src="https://cruxstudios.dev/favicon.svg"
+                alt="CruxStudios"
+                className="h-3.5 w-3.5 drop-shadow-[0_0_6px_rgba(0,229,255,0.7)] group-hover:scale-110 transition-all duration-300"
+              />
+              <span className="font-['Plus_Jakarta_Sans',sans-serif] font-black text-[11px] text-white tracking-tight group-hover:text-[#00E5FF] transition-colors whitespace-nowrap">
+                CruxStudios
+              </span>
+            </div>
+          </a>
+        )}
       </footer>
 
       {/* Confirmation Modal */}
       {pendingDragResult && (
-        <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4">
-          <div className="bg-surface-container-lowest rounded-xl max-w-md w-full shadow-2xl overflow-hidden flex flex-col border border-outline-variant">
+        <div 
+          className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4"
+          onKeyDown={(e) => {
+            if (e.key === "Escape") {
+              setPendingDragResult(null);
+            }
+          }}
+        >
+          <form 
+            onSubmit={(e) => {
+              e.preventDefault();
+              if (confirmText.trim().toLowerCase() === "confirm" && pendingDragResult) {
+                executeDrag(pendingDragResult);
+                setPendingDragResult(null);
+              }
+            }}
+            className="bg-surface-container-lowest rounded-xl max-w-md w-full shadow-2xl overflow-hidden flex flex-col border border-outline-variant"
+          >
             <div className="p-6 bg-surface-container-low border-b border-outline-variant">
               <h3 className="font-headline-sm text-xl font-bold text-error flex items-center gap-2">
                 <span className="material-symbols-outlined">warning</span>
@@ -1141,34 +1484,99 @@ export default function RingBalancingClient({
                 <label className="text-xs font-bold text-error block mb-2">Type "confirm" to proceed</label>
                 <input 
                   type="text" 
+                  autoFocus
                   value={confirmText}
                   onChange={(e) => setConfirmText(e.target.value)}
                   placeholder="confirm"
-                  className="w-full bg-white border border-error/30 rounded p-2 text-sm outline-none focus:border-error focus:ring-1 focus:ring-error"
+                  className="w-full bg-white border border-error/30 rounded p-2 text-sm outline-none focus:border-error focus:ring-1 focus:ring-error text-slate-900"
                 />
               </div>
             </div>
             <div className="p-4 bg-surface-container flex justify-end gap-3 border-t border-outline-variant">
               <button 
+                type="button"
                 onClick={() => setPendingDragResult(null)}
                 className="px-4 py-2 text-sm font-bold text-on-surface-variant hover:bg-surface-container-high rounded transition-colors"
               >
                 Cancel
               </button>
               <button 
-                onClick={() => {
-                  if (pendingDragResult) {
-                    executeDrag(pendingDragResult);
-                    setPendingDragResult(null);
-                  }
-                }}
-                disabled={confirmText.toLowerCase() !== "confirm"}
+                type="submit"
+                disabled={confirmText.trim().toLowerCase() !== "confirm"}
                 className="px-4 py-2 bg-error text-white text-sm font-bold rounded hover:opacity-90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 Proceed with Move
               </button>
             </div>
-          </div>
+          </form>
+        </div>
+      )}
+
+      {/* Revert Category Confirmation Modal */}
+      {pendingRevertCategory && (
+        <div 
+          className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4 animate-in fade-in duration-150"
+          onKeyDown={(e) => {
+            if (e.key === "Escape") {
+              setPendingRevertCategory(null);
+            }
+          }}
+        >
+          <form 
+            onSubmit={(e) => {
+              e.preventDefault();
+              handleConfirmRevert();
+            }}
+            className="bg-surface-container-lowest rounded-xl max-w-md w-full shadow-2xl overflow-hidden flex flex-col border border-outline-variant"
+          >
+            <div className="p-6 bg-surface-container-low border-b border-outline-variant flex items-center justify-between">
+              <h3 className="font-headline-sm text-xl font-bold text-amber-700 flex items-center gap-2">
+                <span className="material-symbols-outlined text-amber-600">undo</span>
+                Confirm Revert to Queue
+              </h3>
+              <button
+                type="button"
+                onClick={() => setPendingRevertCategory(null)}
+                className="p-1 rounded text-outline hover:text-on-surface hover:bg-surface-container-high transition-colors"
+                title="Cancel (Esc)"
+              >
+                <span className="material-symbols-outlined text-[20px]">close</span>
+              </button>
+            </div>
+            <div className="p-6 flex flex-col gap-4">
+              <p className="text-sm text-on-surface leading-relaxed">
+                Are you sure you want to pull <strong className="text-primary font-bold">{pendingRevertCategory.category.name}</strong> back to <strong className="text-primary font-bold">{pendingRevertCategory.ringName.replace(/Ring/i, "Tatami")}</strong>'s active queue?
+              </p>
+              <div className="bg-amber-500/10 p-3.5 rounded-lg border border-amber-500/20 text-xs text-amber-900 space-y-1.5">
+                <div className="font-bold flex items-center gap-1 text-amber-800">
+                  <span className="material-symbols-outlined text-[16px]">info</span>
+                  What will happen:
+                </div>
+                <ul className="list-disc list-inside text-[11px] text-amber-900/80 space-y-0.5 ml-1">
+                  <li>Completion status will be cleared and reset back to <strong>pending</strong>.</li>
+                  <li>Category will be restored to the bottom of the active tatami stack.</li>
+                  <li>Tatami moderator will see it back in their active queue.</li>
+                </ul>
+              </div>
+            </div>
+            <div className="p-4 bg-surface-container flex justify-end items-center gap-3 border-t border-outline-variant">
+              <button 
+                type="button"
+                onClick={() => setPendingRevertCategory(null)}
+                className="px-4 py-2 text-sm font-bold text-on-surface-variant hover:bg-surface-container-high rounded transition-colors"
+              >
+                Cancel <span className="text-xs opacity-60">(Esc)</span>
+              </button>
+              <button 
+                type="submit"
+                autoFocus
+                className="px-4 py-2 bg-amber-600 hover:bg-amber-700 active:bg-amber-800 text-white text-sm font-bold rounded shadow transition-colors flex items-center gap-1.5 focus:ring-2 focus:ring-amber-500 focus:outline-none cursor-pointer"
+              >
+                <span className="material-symbols-outlined text-[16px]">undo</span>
+                Revert to Queue <span className="text-xs opacity-80">(Enter)</span>
+              </button>
+            </div>
+          </form>
         </div>
       )}
     </div>

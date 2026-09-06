@@ -1,34 +1,57 @@
 "use client";
 
-import React, { useState, useEffect, Suspense } from "react";
-import { useSearchParams } from "next/navigation";
-import { createClient } from "@/utils/supabase/client";
+import React, { useState, Suspense } from "react";
+import { useRouter } from "next/navigation";
+import { requestOrganiserAccess } from "@/actions/organiser";
 import { Turnstile } from "@marsidev/react-turnstile";
-import { verifyTurnstileToken } from "@/actions/turnstile";
 import { RingFlowLogo } from "@/components/ui/ringflow-logo";
+import { v4 as uuidv4 } from "uuid";
+
+// Simple user-agent parser
+function parseUserAgent(ua: string) {
+  let browser = "Unknown";
+  let os = "Unknown";
+  let deviceType = /Mobile|Android|iP(ad|hone)/.test(ua) ? "Mobile" : "Desktop";
+
+  if (ua.includes("Chrome")) browser = "Chrome";
+  else if (ua.includes("Firefox")) browser = "Firefox";
+  else if (ua.includes("Safari") && !ua.includes("Chrome")) browser = "Safari";
+  else if (ua.includes("Edge")) browser = "Edge";
+
+  if (ua.includes("Win")) os = "Windows";
+  else if (ua.includes("Mac")) os = "MacOS";
+  else if (ua.includes("Android")) os = "Android";
+  else if (ua.includes("iOS") || ua.includes("iPhone") || ua.includes("iPad")) os = "iOS";
+  else if (ua.includes("Linux")) os = "Linux";
+
+  return { browser, os, deviceType };
+}
 
 function OrganiserLoginContent() {
-  const searchParams = useSearchParams();
+  const [accessCode, setAccessCode] = useState("");
+  const [organiserName, setOrganiserName] = useState("");
   const [turnstileToken, setTurnstileToken] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState("");
+  const router = useRouter();
 
-  useEffect(() => {
-    const err = searchParams.get("error");
-    if (err === "Unauthorized") {
-      setError("Your Google account email is not registered as an authorized organizer.");
-    } else if (err === "AuthFailed") {
-      setError("Authentication failed. Please try again.");
-    } else if (err) {
-      if (err.toLowerCase().includes("rate limit") || err.toLowerCase().includes("over_request_rate_limit")) {
-        setError("Auth rate limit reached. Please wait 60 seconds before trying again.");
-      } else {
-        setError(decodeURIComponent(err));
-      }
+  const handleInput = (e: React.ChangeEvent<HTMLInputElement>) => {
+    let val = e.target.value.replace(/[^a-zA-Z0-9]/g, "").toUpperCase();
+    if (val.length > 6) val = val.slice(0, 6);
+    setAccessCode(val);
+    setError("");
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!organiserName.trim()) {
+      setError("Please enter your name.");
+      return;
     }
-  }, [searchParams]);
-
-  const handleGoogleLogin = async () => {
+    if (accessCode.length < 6) {
+      setError("Please enter a 6-character access code.");
+      return;
+    }
     if (!turnstileToken) {
       setError("Please complete the security check.");
       return;
@@ -37,43 +60,71 @@ function OrganiserLoginContent() {
     setIsLoading(true);
     setError("");
 
-    const verification = await verifyTurnstileToken(turnstileToken);
-    
-    if (!verification.success) {
-      setError(verification.error || "Security check failed.");
-      setIsLoading(false);
-      return;
-    }
-
-    const supabase = createClient();
-    const { error: oauthError } = await supabase.auth.signInWithOAuth({
-      provider: "google",
-      options: {
-        redirectTo: `${window.location.origin}/auth/callback?next=/organiser`,
-      },
-    });
-
-    if (oauthError) {
-      console.error("OAuth sign in error:", oauthError);
-      if (oauthError.message?.toLowerCase().includes("rate limit") || (oauthError as any).code === "over_request_rate_limit") {
-        setError("Auth rate limit reached. Please wait 60 seconds before trying again.");
-      } else {
-        setError(oauthError.message || "Failed to initiate sign in.");
+    try {
+      // 1. Persistent device ID
+      let deviceId = localStorage.getItem("ringflow_org_device_id");
+      if (!deviceId) {
+        deviceId = uuidv4();
+        localStorage.setItem("ringflow_org_device_id", deviceId);
       }
+
+      // 2. Parse User Agent
+      const { browser, os, deviceType } = parseUserAgent(navigator.userAgent);
+
+      // 3. Approximate location & IP
+      let ip = "Unknown";
+      let location = "Unknown";
+      try {
+        const res = await fetch("https://ipapi.co/json/");
+        if (res.ok) {
+          const data = await res.json();
+          ip = data.ip;
+          location = `${data.city}, ${data.region}`;
+        }
+      } catch (e) {
+        // Fallback silently if blocked
+      }
+
+      const deviceInfo = {
+        deviceId,
+        browser,
+        os,
+        deviceType,
+        ip,
+        location,
+      };
+
+      const result = await requestOrganiserAccess(
+        accessCode,
+        organiserName,
+        deviceInfo,
+        turnstileToken
+      );
+
+      if (result.success && result.requestId) {
+        router.push(`/organiser/waiting/${result.requestId}`);
+      } else {
+        setError(result.error || "Failed to submit access request.");
+      }
+    } catch (err: any) {
+      setError(err.message || "An unexpected error occurred.");
+    } finally {
       setIsLoading(false);
     }
   };
 
+  const percentage = (accessCode.length / 6) * 100;
+
   return (
-    <div className="flex h-screen w-full items-center justify-center bg-background p-4">
-      <div className="w-full max-w-sm bg-surface-container-lowest p-card-padding border border-outline-variant rounded-xl shadow-sm text-center">
+    <div className="flex min-h-screen w-full items-center justify-center bg-background p-4 font-body-md">
+      <div className="w-full max-w-md bg-surface-container-lowest p-5 sm:p-card-padding border border-outline-variant rounded-xl shadow-lg text-center">
         <div className="flex items-center justify-center gap-2 mb-3">
           <RingFlowLogo className="h-8 w-8 text-primary shrink-0" />
           <span className="font-headline-sm text-headline-sm font-black text-primary tracking-tight">RingFlow</span>
         </div>
         <h1 className="font-headline-md text-headline-md font-bold text-primary mb-1">Organiser Portal</h1>
         <p className="font-body-sm text-on-surface-variant mb-6">
-          Tournament Overseer Terminal
+          Enter your Tournament Organiser Access Code to request entry
         </p>
 
         {error && (
@@ -82,40 +133,97 @@ function OrganiserLoginContent() {
           </div>
         )}
 
-        <div className="flex justify-center mb-6 min-h-[65px]">
-          <Turnstile 
-            siteKey={process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY || ""} 
-            onSuccess={(token) => {
-              setTurnstileToken(token);
-              setError("");
-            }}
-            options={{
-              theme: "light",
-            }}
-          />
+        <form onSubmit={handleSubmit} className="space-y-5 text-left">
+          <div>
+            <label className="font-label-caps text-label-caps text-on-surface-variant mb-1.5 block">
+              YOUR NAME (REQUIRED)
+            </label>
+            <input
+              type="text"
+              required
+              value={organiserName}
+              onChange={(e) => {
+                setOrganiserName(e.target.value);
+                setError("");
+              }}
+              placeholder="E.g., Priya Mehta"
+              className="w-full bg-surface-container border border-outline-variant text-on-surface px-4 py-3 rounded-lg focus:outline-none focus:border-secondary transition-all font-body-md"
+            />
+          </div>
+
+          <div className="relative group">
+            <label className="font-label-caps text-label-caps text-on-surface-variant mb-1.5 block">
+              6-CHARACTER ORGANISER CODE
+            </label>
+            <input
+              autoComplete="off"
+              className="w-full bg-surface-container-lowest border border-outline-variant text-center font-data-mono tracking-[0.4em] px-4 rounded-lg focus:outline-none focus:border-secondary transition-all uppercase placeholder:opacity-20 text-headline-md py-4"
+              id="access-code"
+              maxLength={6}
+              placeholder="••••••"
+              type="text"
+              value={accessCode}
+              onChange={handleInput}
+            />
+            <div
+              className="absolute bottom-0 left-0 h-0.5 bg-secondary transition-all duration-500 rounded-b"
+              style={{ width: `${percentage}%` }}
+            ></div>
+          </div>
+
+          <div className="flex justify-between items-center px-1 text-xs text-on-surface-variant">
+            <span>{accessCode.length} / 6 Characters</span>
+            <span className="text-[11px] opacity-80">Obtain code from tournament director</span>
+          </div>
+
+          <div className="flex justify-center min-h-[65px] pt-1">
+            <Turnstile
+              siteKey={process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY || ""}
+              onSuccess={(token) => {
+                setTurnstileToken(token);
+                setError("");
+              }}
+              options={{
+                theme: "light",
+              }}
+            />
+          </div>
+
+          <button
+            type="submit"
+            disabled={!turnstileToken || isLoading || accessCode.length < 6 || !organiserName.trim()}
+            className="w-full bg-primary hover:bg-black text-white font-headline-sm py-4 rounded-lg transition-all flex items-center justify-center gap-2 group disabled:opacity-50 mt-2 shadow-xs"
+          >
+            {isLoading ? (
+              <>
+                <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                VERIFYING CODE...
+              </>
+            ) : (
+              <>
+                REQUEST ACCESS
+                <span className="material-symbols-outlined text-[18px] group-hover:translate-x-1 transition-transform">
+                  arrow_forward
+                </span>
+              </>
+            )}
+          </button>
+        </form>
+
+        <div className="mt-8 pt-4 border-t border-outline-variant/40 flex flex-wrap justify-center sm:justify-between items-center gap-2.5 text-xs text-on-surface-variant">
+          <a href="/login/admin" className="hover:underline flex items-center gap-1">
+            <span className="material-symbols-outlined text-[14px]">shield</span>
+            Admin Sign-in
+          </a>
+          <a href="/login/mod" className="hover:underline flex items-center gap-1">
+            <span className="material-symbols-outlined text-[14px]">lock</span>
+            Tatami Moderator
+          </a>
+          <a href="/login/stager" className="hover:underline flex items-center gap-1">
+            <span className="material-symbols-outlined text-[14px]">sports_kabaddi</span>
+            Stager
+          </a>
         </div>
-
-        <button 
-          onClick={handleGoogleLogin}
-          disabled={!turnstileToken || isLoading}
-          className="w-full flex items-center justify-center gap-3 px-6 py-3.5 bg-white border border-outline-variant rounded-lg text-primary font-bold hover:bg-surface-container-lowest transition-all hover:shadow-md hover:-translate-y-0.5 disabled:opacity-50 disabled:hover:translate-y-0 disabled:hover:shadow-none cursor-pointer"
-        >
-          {isLoading ? (
-            <span className="material-symbols-outlined animate-spin text-xl">progress_activity</span>
-          ) : (
-            <svg className="w-5 h-5" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-              <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4"/>
-              <path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/>
-              <path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" fill="#FBBC05"/>
-              <path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335"/>
-            </svg>
-          )}
-          {isLoading ? "Verifying..." : "Sign in with Google"}
-        </button>
-
-        <p className="text-[11px] text-on-surface-variant/70 mt-6">
-          Access requires prior registration by tournament administrators.
-        </p>
       </div>
     </div>
   );
@@ -123,11 +231,7 @@ function OrganiserLoginContent() {
 
 export default function OrganiserLoginPage() {
   return (
-    <Suspense fallback={
-      <div className="flex h-screen w-full items-center justify-center bg-background">
-        <span className="material-symbols-outlined animate-spin text-2xl text-primary">progress_activity</span>
-      </div>
-    }>
+    <Suspense fallback={<div className="flex h-screen w-full items-center justify-center bg-background">Loading...</div>}>
       <OrganiserLoginContent />
     </Suspense>
   );

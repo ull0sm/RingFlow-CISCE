@@ -15,21 +15,28 @@ export default async function OrganiserTournamentSelectionPage() {
 
   try {
     organiser = await ensureOrganiser();
+    if (organiser?.tournamentId) {
+      redirect(`/organiser/event/${organiser.tournamentId}/dashboard`);
+    }
+
     const supabase = await createClient();
-    const { data, error } = await supabase
-      .from("tournaments")
-      .select("*")
-      .order("created_at", { ascending: false });
-      
+    let query = supabase.from("tournaments").select("*").order("created_at", { ascending: false });
+
+    if (organiser.role === "admin" && organiser.id) {
+      query = query.eq("admin_id", organiser.id);
+    }
+
+    const { data, error } = await query;
     if (error) {
       console.error("Error fetching tournaments for organiser:", error);
     } else if (data) {
       tournaments = data;
     }
   } catch (err: any) {
+    if (err.digest?.includes("NEXT_REDIRECT")) throw err;
     console.error("Organiser auth verification error:", err.message);
     organiserErrorStr = err.message;
-    // If not authenticated at all, redirect to organiser login
+    // If not authenticated, redirect to organiser code login
     if (err.message.includes("Not authenticated")) {
       redirect("/login/organiser");
     }

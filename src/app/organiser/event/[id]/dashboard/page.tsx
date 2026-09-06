@@ -2,15 +2,18 @@ import React from "react";
 import AdminDashboardClient from "@/components/admin/AdminDashboardClient";
 import { createClient } from "@/utils/supabase/server";
 import { redirect } from "next/navigation";
-import { ensureOrganiser } from "@/actions/organiser";
+import { ensureOrganiserHasAccessToTournament } from "@/actions/organiser";
 
 export default async function OrganiserDashboard({ params }: { params: Promise<{ id: string }> }) {
   const { id: tournamentId } = await params;
   
   try {
-    await ensureOrganiser();
-  } catch (err) {
-    redirect("/login/organiser");
+    await ensureOrganiserHasAccessToTournament(tournamentId);
+  } catch (err: any) {
+    if (err.message?.includes("Not authenticated")) {
+      redirect("/login/organiser");
+    }
+    redirect("/organiser");
   }
 
   const supabase = await createClient();

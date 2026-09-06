@@ -20,12 +20,12 @@ export default async function ModeratorRingLayout({
   const token = cookieStore.get("mod_token")?.value;
   
   if (!token) {
-    redirect("/moderator/login");
+    redirect("/login/mod");
   }
 
   const moderatorSession = await validateModeratorSession(ringId, token);
   if (!moderatorSession) {
-    redirect("/moderator/login");
+    redirect("/login/mod");
   }
 
   // Fetch Ring Info
@@ -43,13 +43,13 @@ export default async function ModeratorRingLayout({
   return (
     <div className="bg-background text-on-background min-h-screen font-body-md flex flex-col pb-24">
       {/* Top Navigation Bar */}
-      <header className="bg-surface-container-lowest text-primary full-width top-0 border-b border-outline-variant flex justify-between items-center w-full px-4 md:px-margin-desktop h-16 z-40 sticky">
-        <div className="flex items-center gap-6">
-          <span className="font-headline-sm text-headline-sm font-black text-primary tracking-tighter hidden md:inline">Ring Flow</span>
-          <div className="h-6 w-[1px] bg-outline-variant hidden md:block"></div>
-          <h1 className="font-body-md font-bold text-on-surface uppercase">{ring.name.replace(/Ring/i, "Tatami")}</h1>
+      <header className="bg-surface-container-lowest text-primary full-width top-0 border-b border-outline-variant flex justify-between items-center w-full px-4 md:px-margin-desktop h-16 z-40 sticky gap-2">
+        <div className="flex items-center gap-2 sm:gap-6 min-w-0">
+          <span className="font-headline-sm text-headline-sm font-black text-primary tracking-tighter shrink-0 whitespace-nowrap">Ring Flow</span>
+          <div className="h-5 sm:h-6 w-[1px] bg-outline-variant shrink-0"></div>
+          <h1 className="font-body-md font-bold text-on-surface uppercase truncate whitespace-nowrap">{ring.name.replace(/Ring/i, "Tatami")}</h1>
         </div>
-        <div className="flex items-center gap-4">
+        <div className="flex items-center gap-2 sm:gap-4 shrink-0">
           <ModeratorProfileMenu moderator={moderatorSession} />
         </div>
       </header>
