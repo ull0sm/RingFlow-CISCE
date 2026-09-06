@@ -12,6 +12,7 @@ import {
   removeStagerCode,
 } from "@/actions/stager";
 import { createClient } from "@/utils/supabase/client";
+import { normalizeAccessCode } from "@/lib/utils";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -504,7 +505,7 @@ export default function RingsClient({
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
                 {stagerCodes.map((sc) => {
                   const associatedReq = stagerRequests.find(
-                    (r) => r.access_code_used === sc.code && r.status === "approved"
+                    (r) => r.status === "approved" && normalizeAccessCode(r.access_code_used) === normalizeAccessCode(sc.code)
                   );
                   return (
                     <div
