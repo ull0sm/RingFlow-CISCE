@@ -119,6 +119,7 @@ export async function uploadCategoryPDFs(
         .upload(storagePath, bytes, {
           contentType: "application/pdf",
           upsert: true, // Replace if exists
+          cacheControl: "0",
         });
 
       if (uploadError) {
@@ -126,12 +127,12 @@ export async function uploadCategoryPDFs(
         continue;
       }
 
-      // Get stable public URL
+      // Get stable public URL with cache-busting timestamp
       const { data: urlData } = supabase.storage
         .from("category-docs")
         .getPublicUrl(storagePath);
 
-      const docUrl = urlData?.publicUrl ?? null;
+      const docUrl = urlData?.publicUrl ? `${urlData.publicUrl}?t=${Date.now()}` : null;
 
       // Save URL back to categories row
       const { error: updateError } = await supabase

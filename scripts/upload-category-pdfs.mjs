@@ -348,24 +348,25 @@ async function main() {
     try {
       const fileBuffer = fs.readFileSync(filePath);
 
-      // 1. Upload to Supabase Storage
+      // 1. Upload to Supabase Storage with cacheControl=0 to prevent CDN caching
       const { error: uploadError } = await supabase.storage
         .from("category-docs")
         .upload(storagePath, fileBuffer, {
           contentType: "application/pdf",
           upsert: true,
+          cacheControl: "0",
         });
 
       if (uploadError) {
         throw new Error(uploadError.message);
       }
 
-      // 2. Get public URL
+      // 2. Get public URL with cache-busting timestamp
       const { data: urlData } = supabase.storage
         .from("category-docs")
         .getPublicUrl(storagePath);
 
-      const docUrl = urlData?.publicUrl ?? null;
+      const docUrl = urlData?.publicUrl ? `${urlData.publicUrl}?t=${Date.now()}` : null;
 
       // 3. Update category doc_url in DB
       const { error: updateError } = await supabase
