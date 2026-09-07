@@ -62,10 +62,15 @@ export async function requestStagerAccess(
     ip: deviceInfo?.ip && deviceInfo.ip !== "Unknown" ? deviceInfo.ip : ip,
   };
 
-  // Find a tournament that has this code in its stager_codes JSONB array
+  // Find a tournament that has this code in its stager_codes JSONB array.
+  // Filter to non-completed tournaments — stager codes are only valid during
+  // active/draft events. Excluding completed tournaments reduces the dataset
+  // scanned and the amount of JSONB data returned.
   const { data: tournaments, error: tournamentError } = await supabase
     .from("tournaments")
-    .select("id, name, stager_codes");
+    .select("id, name, stager_codes")
+    .in("status", ["draft", "active"]);
+
 
   if (tournamentError || !tournaments) {
     return { success: false, error: "Failed to validate access code. Please try again." };
