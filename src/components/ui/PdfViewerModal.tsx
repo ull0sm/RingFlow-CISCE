@@ -64,7 +64,9 @@ export function PdfViewerModal({ url, title, onClose }: PdfViewerModalProps) {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [rotation, setRotation] = useState<number>(0);
+  const [zoomLevel, setZoomLevel] = useState<number>(1.0);
 
+  const scrollAreaRef = useRef<HTMLDivElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const pdfDocRef = useRef<any>(null);
 
@@ -109,16 +111,19 @@ export function PdfViewerModal({ url, title, onClose }: PdfViewerModalProps) {
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, []);
 
-  // Render all pages onto HTML5 canvas elements with native rotation & readable scale
-  const renderPdf = useCallback(async (pdf: any, rot: number = 0) => {
+  // Render all pages onto HTML5 canvas elements: Fits vertically, scrolls horizontally
+  const renderPdf = useCallback(async (pdf: any, rot: number = 0, zoom: number = 1.0) => {
     if (!containerRef.current || !pdf) return;
 
     const container = containerRef.current;
     container.innerHTML = ""; // Clear existing canvases
 
     try {
-      const containerWidth = container.clientWidth > 0 ? container.clientWidth - 24 : 500;
-      const isMobile = typeof window !== "undefined" && window.innerWidth < 768;
+      // Calculate available height so the page fits vertically without vertical scrolling
+      const availableHeight = scrollAreaRef.current
+        ? scrollAreaRef.current.clientHeight - 36
+        : 460;
+      const targetHeight = Math.max(260, availableHeight);
 
       for (let pageNum = 1; pageNum <= pdf.numPages; pageNum++) {
         const page = await pdf.getPage(pageNum);
@@ -126,19 +131,14 @@ export function PdfViewerModal({ url, title, onClose }: PdfViewerModalProps) {
         // Native PDF.js rotation (0, 90, 180, 270)
         const totalRotation = ((page.rotate || 0) + rot) % 360;
         const unscaledViewport = page.getViewport({ scale: 1.0, rotation: totalRotation });
-        const isLandscape = unscaledViewport.width > unscaledViewport.height;
 
-        // Solution 2: On mobile, maintain readable width (~760px) for landscape pages so text is never crushed
-        let targetWidth = containerWidth;
-        if (isMobile && isLandscape) {
-          targetWidth = Math.max(containerWidth, 760);
-        }
-
-        const scale = targetWidth / unscaledViewport.width;
-        const viewport = page.getViewport({ scale: Math.max(0.75, scale), rotation: totalRotation });
+        // Fit height to available container height, multiplied by user zoom level
+        const baseScale = targetHeight / unscaledViewport.height;
+        const finalScale = Math.max(0.4, baseScale * zoom);
+        const viewport = page.getViewport({ scale: finalScale, rotation: totalRotation });
 
         const pageWrapper = document.createElement("div");
-        pageWrapper.className = "flex flex-col items-center mb-4 min-w-full select-none";
+        pageWrapper.className = "flex flex-col items-center shrink-0 select-none";
 
         const canvas = document.createElement("canvas");
         const context = canvas.getContext("2d");
@@ -194,26 +194,44 @@ export function PdfViewerModal({ url, title, onClose }: PdfViewerModalProps) {
 
       const pdf = await loadingTask.promise;
       pdfDocRef.current = pdf;
-      await renderPdf(pdf, rotation);
+      await renderPdf(pdf, rotation, zoomLevel);
     } catch (err: any) {
       console.error("Failed to load PDF:", err);
       setError(err?.message || "Unable to display document in browser.");
       setIsLoading(false);
     }
-  }, [url, rotation, renderPdf]);
+  }, [url, rotation, zoomLevel, renderPdf]);
 
   // Initial load
   useEffect(() => {
     loadDocument();
   }, [loadDocument]);
 
-  // Solution 1: Rotate 90° clockwise on tap
+  // Zoom In
+  const handleZoomIn = () => {
+    setZoomLevel((prev) => {
+      const next = Math.min(2.5, +(prev + 0.25).toFixed(2));
+      if (pdfDocRef.current) renderPdf(pdfDocRef.current, rotation, next);
+      return next;
+    });
+  };
+
+  // Zoom Out
+  const handleZoomOut = () => {
+    setZoomLevel((prev) => {
+      const next = Math.max(0.5, +(prev - 0.25).toFixed(2));
+      if (pdfDocRef.current) renderPdf(pdfDocRef.current, rotation, next);
+      return next;
+    });
+  };
+
+  // Rotate 90° clockwise on tap
   const handleRotate = () => {
     setRotation((prev) => {
       const next = (prev + 90) % 360;
       if (pdfDocRef.current) {
         setIsLoading(true);
-        renderPdf(pdfDocRef.current, next);
+        renderPdf(pdfDocRef.current, next, zoomLevel);
       }
       return next;
     });
@@ -233,7 +251,7 @@ export function PdfViewerModal({ url, title, onClose }: PdfViewerModalProps) {
         className="relative w-[88vw] sm:w-[82vw] max-w-3xl h-[80vh] flex flex-col bg-zinc-900 border border-zinc-800 rounded-2xl shadow-2xl overflow-hidden ring-1 ring-white/10 animate-in zoom-in-95 duration-200"
         onClick={(e) => e.stopPropagation()}
       >
-        {/* Minimalist Header: Title on Left, Rotate + Close on Right */}
+        {/* Minimalist Header: Title on Left, Sleek Zoom/Rotate/Close Icons on Right */}
         <div className="flex items-center justify-between px-4 py-3 bg-zinc-900 border-b border-zinc-800 shrink-0 gap-2">
           <div className="flex items-center gap-2 min-w-0 pr-2">
             <span className="material-symbols-outlined text-red-400 text-[20px] shrink-0 select-none">
@@ -245,12 +263,40 @@ export function PdfViewerModal({ url, title, onClose }: PdfViewerModalProps) {
           </div>
 
           <div className="flex items-center gap-1 shrink-0">
-            {/* Rotate 90° button (aligns landscape PDF with portrait mobile screens) */}
+            {/* Zoom Out */}
+            <button
+              type="button"
+              onClick={handleZoomOut}
+              disabled={isLoading || zoomLevel <= 0.5}
+              className="p-1.5 text-zinc-400 hover:text-white hover:bg-zinc-800 rounded-full transition-colors cursor-pointer disabled:opacity-30"
+              title="Zoom out"
+              aria-label="Zoom out"
+            >
+              <span className="material-symbols-outlined text-[20px] leading-none select-none">
+                zoom_out
+              </span>
+            </button>
+
+            {/* Zoom In */}
+            <button
+              type="button"
+              onClick={handleZoomIn}
+              disabled={isLoading || zoomLevel >= 2.5}
+              className="p-1.5 text-zinc-400 hover:text-white hover:bg-zinc-800 rounded-full transition-colors cursor-pointer disabled:opacity-30"
+              title="Zoom in"
+              aria-label="Zoom in"
+            >
+              <span className="material-symbols-outlined text-[20px] leading-none select-none">
+                zoom_in
+              </span>
+            </button>
+
+            {/* Rotate 90° */}
             <button
               type="button"
               onClick={handleRotate}
               disabled={isLoading}
-              className="p-1.5 text-zinc-400 hover:text-white hover:bg-zinc-800 rounded-full transition-colors cursor-pointer disabled:opacity-40"
+              className="p-1.5 text-zinc-400 hover:text-white hover:bg-zinc-800 rounded-full transition-colors cursor-pointer disabled:opacity-30"
               title="Rotate 90°"
               aria-label="Rotate document 90 degrees"
             >
@@ -259,11 +305,11 @@ export function PdfViewerModal({ url, title, onClose }: PdfViewerModalProps) {
               </span>
             </button>
 
-            {/* Close button */}
+            {/* Close */}
             <button
               type="button"
               onClick={handleClose}
-              className="p-1.5 text-zinc-400 hover:text-white hover:bg-zinc-800 rounded-full transition-colors cursor-pointer"
+              className="p-1.5 text-zinc-400 hover:text-white hover:bg-zinc-800 rounded-full transition-colors cursor-pointer ml-0.5"
               title="Close"
               aria-label="Close"
             >
@@ -274,8 +320,11 @@ export function PdfViewerModal({ url, title, onClose }: PdfViewerModalProps) {
           </div>
         </div>
 
-        {/* PDF Document Canvas View with Smooth 2D Touch Panning */}
-        <div className="relative flex-1 w-full h-full bg-zinc-950 overflow-y-auto overflow-x-auto min-h-0 p-3 sm:p-4 touch-pan-x touch-pan-y">
+        {/* PDF Document Canvas View: Fits vertically, horizontally scrollable */}
+        <div
+          ref={scrollAreaRef}
+          className="relative flex-1 w-full h-full bg-zinc-950 overflow-x-auto overflow-y-auto min-h-0 p-3 sm:p-4 touch-pan-x touch-pan-y"
+        >
           {isLoading && (
             <div className="absolute inset-0 flex flex-col items-center justify-center gap-2.5 bg-zinc-950/90 z-10 p-4 text-center">
               <span className="material-symbols-outlined text-3xl animate-spin text-red-500">
@@ -302,10 +351,10 @@ export function PdfViewerModal({ url, title, onClose }: PdfViewerModalProps) {
             </div>
           )}
 
-          {/* Dedicated Canvas Container: w-max mx-auto allows full readable width on mobile without crushing */}
+          {/* Dedicated Canvas Container: horizontally scrollable with w-max */}
           <div
             ref={containerRef}
-            className="flex flex-col items-center justify-start min-h-full min-w-full w-max mx-auto"
+            className="flex flex-row items-center justify-start min-h-full w-max mx-auto gap-6"
           />
         </div>
       </div>
