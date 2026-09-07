@@ -35,7 +35,84 @@ export default function OrganiserSidebar() {
     { name: "Students", href: `/organiser/event/${id}/athletes`, icon: "groups" },
   ];
 
+  // Active session watcher: kicks out the organiser if an admin revokes their session
+  useEffect(() => {
+    let isCleanedUp = false;
+    const supabase = createClient();
+
+    const handleRevoked = () => {
+      document.cookie = "org_token=; path=/; max-age=0; SameSite=Strict";
+      router.push("/login/organiser?reason=revoked");
+    };
+
+    const checkSession = async (token: string) => {
+      const { data: request, error } = await supabase
+        .from("organiser_requests")
+        .select("status, expires_at")
+        .eq("session_token", token)
+        .maybeSingle();
+
+      if (isCleanedUp) return;
+
+      if (error || !request || request.status !== "approved" || (request.expires_at && new Date(request.expires_at).getTime() < Date.now())) {
+        handleRevoked();
+      }
+    };
+
+    let interval: NodeJS.Timeout | null = null;
+    let channel: any = null;
+
+    const init = async () => {
+      // If user is an authenticated admin, do not kick out or poll
+      const { data: { user } } = await supabase.auth.getUser();
+      if (user || isCleanedUp) return;
+
+      const match = typeof document !== "undefined" ? document.cookie.match(/(?:^|; )org_token=([^;]*)/) : null;
+      const token = match ? decodeURIComponent(match[1]) : null;
+
+      if (!token) {
+        router.push("/login/organiser");
+        return;
+      }
+
+      // Check immediately on mount
+      await checkSession(token);
+      if (isCleanedUp) return;
+
+      // Realtime listener: instant kick-out when admin updates the request status
+      channel = supabase
+        .channel(`org_session_${token.slice(0, 8)}`)
+        .on(
+          "postgres_changes",
+          {
+            event: "UPDATE",
+            schema: "public",
+            table: "organiser_requests",
+            filter: `session_token=eq.${token}`,
+          },
+          (payload: any) => {
+            if (payload?.new?.status !== "approved") {
+              handleRevoked();
+            }
+          }
+        )
+        .subscribe();
+
+      // Relaxed fallback poll every 30s (down from 4s) in case WebSocket disconnected
+      interval = setInterval(() => checkSession(token), 30000);
+    };
+
+    init();
+
+    return () => {
+      isCleanedUp = true;
+      if (interval) clearInterval(interval);
+      if (channel) supabase.removeChannel(channel);
+    };
+  }, [router]);
+
   const handleLogout = async () => {
+    document.cookie = "org_token=; path=/; max-age=0; SameSite=Strict";
     const supabase = createClient();
     await supabase.auth.signOut();
     router.push("/login/organiser");
