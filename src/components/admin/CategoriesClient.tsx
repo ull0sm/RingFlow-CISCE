@@ -5,6 +5,7 @@ import { addCategory, updateCategory, deleteCategory, bulkAddCategories } from "
 import { uploadCategoryPDFs, PDFUploadResult } from "@/actions/categoryDocs";
 import { CategoryInput } from "@/actions/tournament";
 import * as XLSX from "xlsx";
+import { PdfViewerModal } from "@/components/ui/PdfViewerModal";
 
 type Category = {
   id: string;
@@ -41,6 +42,7 @@ export default function CategoriesClient({
   const [isPdfUploading, setIsPdfUploading] = useState(false);
   const [pdfResult, setPdfResult] = useState<PDFUploadResult | null>(null);
   const [showPdfModal, setShowPdfModal] = useState(false);
+  const [viewingPdf, setViewingPdf] = useState<{ url: string; title: string } | null>(null);
 
   // Preview State
   const [previewCategories, setPreviewCategories] = useState<any[]>([]);
@@ -365,17 +367,18 @@ export default function CategoriesClient({
                     <span className="flex items-center gap-1.5 flex-wrap">
                       {cat.name}
                       {cat.doc_url && (
-                        <a
-                          href={cat.doc_url}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          onClick={(e) => e.stopPropagation()}
-                          title="Open student list PDF"
-                          className="material-symbols-outlined text-[15px] text-outline hover:text-primary transition-colors shrink-0"
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setViewingPdf({ url: cat.doc_url!, title: cat.name });
+                          }}
+                          title="View student list PDF"
+                          className="material-symbols-outlined text-[15px] text-outline hover:text-primary transition-colors shrink-0 cursor-pointer"
                           style={{ fontVariationSettings: "'FILL' 0" }}
                         >
                           article
-                        </a>
+                        </button>
                       )}
                     </span>
                   </td>
@@ -672,6 +675,13 @@ export default function CategoriesClient({
           </div>
         </div>
       )}
+
+      {/* 80% Floating PDF Viewer Modal with blurred background */}
+      <PdfViewerModal
+        url={viewingPdf?.url || null}
+        title={viewingPdf?.title}
+        onClose={() => setViewingPdf(null)}
+      />
     </div>
   );
 }

@@ -5,6 +5,7 @@ import { DragDropContext, Droppable, Draggable, DropResult } from "@hello-pangea
 import { saveAssignments } from "@/actions/balancing";
 import { createClient } from "@/utils/supabase/client";
 import StagerStatusIndicator from "@/components/ui/StagerStatusIndicator";
+import { PdfViewerModal } from "@/components/ui/PdfViewerModal";
 
 type Category = {
   id: string;
@@ -73,6 +74,7 @@ export default function RingBalancingClient({
   // Drag confirmation state
   const [pendingDragResult, setPendingDragResult] = useState<DropResult | null>(null);
   const [confirmText, setConfirmText] = useState("");
+  const [viewingPdf, setViewingPdf] = useState<{ url: string; title: string } | null>(null);
 
   // History popover state
   const [historyOpenForRing, setHistoryOpenForRing] = useState<string | null>(null);
@@ -1037,17 +1039,18 @@ export default function RingBalancingClient({
                                 <span className="flex items-center gap-1.5 flex-wrap">
                                   {cat.name}
                                   {cat.doc_url && (
-                                    <a
-                                      href={cat.doc_url}
-                                      target="_blank"
-                                      rel="noopener noreferrer"
-                                      onClick={(e) => e.stopPropagation()}
-                                      title="Open student list PDF"
-                                      className="material-symbols-outlined text-[14px] text-outline hover:text-primary transition-colors shrink-0"
+                                    <button
+                                      type="button"
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        setViewingPdf({ url: cat.doc_url!, title: cat.name });
+                                      }}
+                                      title="View student list PDF"
+                                      className="material-symbols-outlined text-[14px] text-outline hover:text-primary transition-colors shrink-0 cursor-pointer"
                                       style={{ fontVariationSettings: "'FILL' 0" }}
                                     >
                                       article
-                                    </a>
+                                    </button>
                                   )}
                                 </span>
                               </h4>
@@ -1121,17 +1124,18 @@ export default function RingBalancingClient({
                           </span>
                           <div className="flex items-center gap-1.5">
                             {cat.doc_url && (
-                              <a
-                                href={cat.doc_url}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                onClick={(e) => e.stopPropagation()}
-                                title="Open student list PDF"
-                                className="material-symbols-outlined text-[12px] text-outline hover:text-primary transition-colors shrink-0"
+                              <button
+                                type="button"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setViewingPdf({ url: cat.doc_url!, title: cat.name });
+                                }}
+                                title="View student list PDF"
+                                className="material-symbols-outlined text-[12px] text-outline hover:text-primary transition-colors shrink-0 cursor-pointer"
                                 style={{ fontVariationSettings: "'FILL' 0" }}
                               >
                                 article
-                              </a>
+                              </button>
                             )}
                             {assignment?.stager_status && (
                               <StagerStatusIndicator stagerStatus={assignment.stager_status} stagerActorName={assignment.stager_name} />
@@ -1232,17 +1236,18 @@ export default function RingBalancingClient({
                                 <h5 className="text-xs font-bold text-primary flex items-center gap-1">
                                   {cat.name}
                                   {cat.doc_url && (
-                                    <a
-                                      href={cat.doc_url}
-                                      target="_blank"
-                                      rel="noopener noreferrer"
-                                      onClick={(e) => e.stopPropagation()}
-                                      title="Open student list PDF"
-                                      className="material-symbols-outlined text-[13px] text-outline hover:text-primary transition-colors shrink-0"
+                                    <button
+                                      type="button"
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        setViewingPdf({ url: cat.doc_url!, title: cat.name });
+                                      }}
+                                      title="View student list PDF"
+                                      className="material-symbols-outlined text-[13px] text-outline hover:text-primary transition-colors shrink-0 cursor-pointer"
                                       style={{ fontVariationSettings: "'FILL' 0" }}
                                     >
                                       article
-                                    </a>
+                                    </button>
                                   )}
                                 </h5>
                                 <span className="flex items-center gap-1 text-[10px] font-data-mono font-bold text-outline">
@@ -1382,17 +1387,18 @@ export default function RingBalancingClient({
                                     </span>
                                     <div className="flex items-center gap-1.5 shrink-0">
                                       {cat.doc_url && (
-                                        <a
-                                          href={cat.doc_url}
-                                          target="_blank"
-                                          rel="noopener noreferrer"
-                                          onClick={(e) => e.stopPropagation()}
-                                          title="Open student list PDF"
-                                          className="material-symbols-outlined text-[13px] text-outline hover:text-primary transition-colors shrink-0"
+                                        <button
+                                          type="button"
+                                          onClick={(e) => {
+                                            e.stopPropagation();
+                                            setViewingPdf({ url: cat.doc_url!, title: cat.name });
+                                          }}
+                                          title="View student list PDF"
+                                          className="material-symbols-outlined text-[13px] text-outline hover:text-primary transition-colors shrink-0 cursor-pointer"
                                           style={{ fontVariationSettings: "'FILL' 0" }}
                                         >
                                           article
-                                        </a>
+                                        </button>
                                       )}
                                       {stagerStatus && (
                                         <StagerStatusIndicator stagerStatus={stagerStatus} stagerActorName={stagerActorName} />
@@ -1622,6 +1628,13 @@ export default function RingBalancingClient({
           </form>
         </div>
       )}
+
+      {/* 80% Floating PDF Viewer Modal with blurred background */}
+      <PdfViewerModal
+        url={viewingPdf?.url || null}
+        title={viewingPdf?.title}
+        onClose={() => setViewingPdf(null)}
+      />
     </div>
   );
 }
