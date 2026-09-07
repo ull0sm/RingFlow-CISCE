@@ -240,7 +240,7 @@ export async function revokeStagerSession(requestId: string, tournamentId: strin
 
 /**
  * Generates N new unique 6-char stager codes and APPENDS them to stager_codes.
- * Existing codes are never overwritten — codes accumulate so stagers can be
+ * Existing codes are never overwritten - codes accumulate so stagers can be
  * added at any point during the tournament.
  */
 export async function generateStagerCodes(tournamentId: string, count: number) {

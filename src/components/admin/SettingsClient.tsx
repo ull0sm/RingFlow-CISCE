@@ -447,12 +447,14 @@ export default function SettingsClient({ tournament, initialOrganiserRequests = 
                   {approvedOrganisers.map((org) => {
                     const dev = org.device_info || {};
                     const devString = [dev.browser, dev.os, dev.ip && `IP: ${dev.ip}`].filter(Boolean).join(" • ");
-                    const approvedDate = new Date(org.created_at).toLocaleDateString(undefined, {
-                      month: "short",
-                      day: "numeric",
-                      hour: "2-digit",
-                      minute: "2-digit",
-                    });
+                    const approvedDate = org.created_at
+                      ? new Date(org.created_at).toLocaleDateString(undefined, {
+                          month: "short",
+                          day: "numeric",
+                          hour: "2-digit",
+                          minute: "2-digit",
+                        })
+                      : "";
 
                     return (
                       <div
@@ -473,8 +475,9 @@ export default function SettingsClient({ tournament, initialOrganiserRequests = 
                                 ACTIVE
                               </span>
                             </div>
-                            <div className="text-[11px] text-on-surface-variant mt-0.5">
-                              {devString || "Web Client"} • Approved {approvedDate}
+                            <div suppressHydrationWarning className="text-[11px] text-on-surface-variant mt-0.5">
+                              {devString || "Web Client"} • Approved{" "}
+                              <span suppressHydrationWarning>{approvedDate}</span>
                             </div>
                           </div>
                         </div>
