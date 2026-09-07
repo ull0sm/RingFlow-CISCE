@@ -16,7 +16,7 @@ export async function ensureAdmin() {
     throw new Error("Not authenticated");
   }
 
-  // Check if admin record exists — admin must be pre-registered
+  // Check if admin record exists - admin must be pre-registered
   const { data: admin } = await supabase
     .from("admins")
     .select("id")

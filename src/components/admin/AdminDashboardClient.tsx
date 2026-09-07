@@ -52,6 +52,7 @@ export default function AdminDashboardClient({
             return prev;
           });
         } else if (payload.eventType === 'INSERT') {
+          if (!rings.some(r => r.id === payload.new.ring_id)) return;
           // Fetch joined category data if missing so division name and match count are populated
           const { data: cat } = await supabase
             .from("categories")
@@ -93,8 +94,8 @@ export default function AdminDashboardClient({
       })
       .subscribe();
 
-    // Secondary reconciliation interval (every 5 seconds) to ensure zero desync across all devices
-    const syncInterval = setInterval(async () => {
+    // Secondary reconciliation function as fallback to Realtime
+    const syncData = async () => {
       const ringIds = rings.map(r => r.id);
       if (ringIds.length === 0) return;
       
@@ -128,11 +129,23 @@ export default function AdminDashboardClient({
       if (latestRings && latestRings.length > 0) {
         setRings(latestRings);
       }
-    }, 5000);
+    };
+
+    // Reconcile every 45s in background instead of hammering DB every 5s
+    const syncInterval = setInterval(syncData, 45000);
+
+    // Also reconcile immediately whenever user switches back to this tab
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === "visible") {
+        syncData();
+      }
+    };
+    document.addEventListener("visibilitychange", handleVisibilityChange);
 
     return () => {
       supabase.removeChannel(channel);
       clearInterval(syncInterval);
+      document.removeEventListener("visibilitychange", handleVisibilityChange);
     };
   }, [tournament.id, rings, supabase]);
 

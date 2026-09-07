@@ -4,6 +4,11 @@ import { createClient } from "@/utils/supabase/server";
 import { ensureStagerHasAccessToTournament } from "@/actions/stager";
 import StagerBalancingClient from "./StagerBalancingClient";
 
+// Cache this page for 10s on Vercel's CDN / edge.
+// The client-side Realtime subscription delivers live updates after hydration,
+// so stagers always see current data — this just speeds up the initial server render.
+export const revalidate = 10;
+
 export default async function StagerBalancePage({
   params,
 }: {
@@ -22,7 +27,7 @@ export default async function StagerBalancePage({
 
   const [
     { data: tournament, error: tournamentError },
-    { data: categories },
+    catRes,
     { data: rings },
   ] = await Promise.all([
     supabase
@@ -32,7 +37,7 @@ export default async function StagerBalancePage({
       .single(),
     supabase
       .from("categories")
-      .select("id, name, age_bracket, weight_class, athletes_count, expected_matches, belt, age_min, age_max, sex, day")
+      .select("id, name, age_bracket, weight_class, athletes_count, expected_matches, belt, age_min, age_max, sex, day, doc_url")
       .eq("tournament_id", tournamentId)
       .order("created_at", { ascending: false }),
     supabase
@@ -41,6 +46,16 @@ export default async function StagerBalancePage({
       .eq("tournament_id", tournamentId)
       .order("ring_order", { ascending: true }),
   ]);
+
+  let categories = catRes.data;
+  if (catRes.error || !categories) {
+    const { data: catFallback } = await supabase
+      .from("categories")
+      .select("id, name, age_bracket, weight_class, athletes_count, expected_matches, belt, age_min, age_max, sex, day")
+      .eq("tournament_id", tournamentId)
+      .order("created_at", { ascending: false });
+    categories = (catFallback || []).map((c: any) => ({ ...c, doc_url: null }));
+  }
 
   if (tournamentError || !tournament) {
     redirect("/login/stager");

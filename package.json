@@ -4,13 +4,14 @@
   "type": "module",
   "private": true,
   "engines": {
-    "node": ">=20.0.0"
+    "node": ">=22.0.0"
   },
   "scripts": {
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "upload:pdfs": "node scripts/upload-category-pdfs.mjs"
   },
   "dependencies": {
     "@hello-pangea/dnd": "^18.0.1",

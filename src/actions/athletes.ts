@@ -32,19 +32,27 @@ export async function addAthlete(tournamentId: string, input: AthleteInput) {
 
   const chestNumber = (input.chest_number || "").trim().slice(0, 50);
 
-  const { error } = await supabase.from("athletes").insert({
+  const athleteData = {
     category_id: input.category_id,
     name,
     chest_number: chestNumber,
     school: input.school?.trim().slice(0, 200) || null,
     school_code: input.school_code?.trim().slice(0, 50) || null,
     sports_id: input.sports_id?.trim().slice(0, 50) || null,
-    dojo: input.school?.trim().slice(0, 200) || null
-  });
+    dojo: input.school?.trim().slice(0, 200) || null,
+  };
+
+  let { error } = await supabase.from("athletes").insert(athleteData);
+  // Fallback if migration4 hasn't been applied yet (PGRST204 column missing)
+  if (error && (error.code === "PGRST204" || error.message?.includes("column"))) {
+    const { school, school_code, sports_id, ...fallbackData } = athleteData;
+    const fallbackRes = await supabase.from("athletes").insert(fallbackData);
+    error = fallbackRes.error;
+  }
 
   if (error) {
     console.error("Failed to add athlete:", error);
-    throw new Error("Failed to add athlete");
+    throw new Error(error.message || "Failed to add athlete");
   }
 
   revalidatePath(`/admin/event/${tournamentId}/athletes`);
@@ -249,10 +257,21 @@ export async function bulkAddMasterAthletes(tournamentId: string, athletes: any[
   });
 
   if (toInsert.length > 0) {
-    const { error } = await supabase.from("athletes").insert(toInsert);
+    let { error } = await supabase.from("athletes").insert(toInsert);
+    
+    // Fallback if migration4 hasn't been applied yet in Supabase (PGRST204 column missing)
+    if (error && (error.code === "PGRST204" || error.message?.includes("column"))) {
+      const fallbackToInsert = toInsert.map(({ school, school_code, sports_id, ...rest }) => ({
+        ...rest,
+        dojo: rest.dojo || school || null,
+      }));
+      const fallbackRes = await supabase.from("athletes").insert(fallbackToInsert);
+      error = fallbackRes.error;
+    }
+
     if (error) {
       console.error("Failed to bulk add master athletes:", error);
-      throw new Error("Failed to bulk add master athletes");
+      throw new Error(error.message || "Failed to bulk add master athletes");
     }
   }
 

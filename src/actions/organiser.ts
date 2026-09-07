@@ -60,13 +60,15 @@ export async function requestOrganiserAccess(
     .ilike("organiser_code", cleanCode)
     .maybeSingle();
 
-  // Fallback: match normalized code to prevent 0 vs O and 1 vs I/L confusion
+  // Fallback: match normalized code to prevent 0 vs O and 1 vs I/L confusion.
+  // Only scan active/draft tournaments — completed ones won't have valid organiser sessions.
   if (!tournament) {
     const normInput = normalizeAccessCode(cleanCode);
     const { data: candidates } = await supabase
       .from("tournaments")
       .select("id, name, organiser_code")
-      .not("organiser_code", "is", null);
+      .not("organiser_code", "is", null)
+      .in("status", ["draft", "active"]);
 
     if (candidates) {
       tournament =
@@ -75,6 +77,7 @@ export async function requestOrganiserAccess(
         ) || null;
     }
   }
+
 
   if (!tournament) {
     return { success: false, error: "Invalid organiser access code. Please check with the administrator." };
@@ -255,15 +258,15 @@ export async function ensureOrganiserHasAccessToTournament(tournamentId: string)
     .single();
 
   if (error || !request) {
-    throw new Error("Unauthorized: Invalid or revoked organiser session");
+    throw new Error("Not authenticated: Invalid or revoked organiser session");
   }
 
   if (request.expires_at && new Date(request.expires_at).getTime() < Date.now()) {
-    throw new Error("Unauthorized: Organiser session expired");
+    throw new Error("Not authenticated: Organiser session expired");
   }
 
   if (request.tournament_id !== tournamentId) {
-    throw new Error("Unauthorized: Not authorized for this tournament");
+    throw new Error("Not authenticated: Not authorized for this tournament");
   }
 
   return {

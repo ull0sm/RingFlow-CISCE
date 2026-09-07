@@ -2,8 +2,10 @@
 
 import React, { useState, useRef } from "react";
 import { addCategory, updateCategory, deleteCategory, bulkAddCategories } from "@/actions/categories";
+import { uploadCategoryPDFs, PDFUploadResult } from "@/actions/categoryDocs";
 import { CategoryInput } from "@/actions/tournament";
 import * as XLSX from "xlsx";
+import { PdfViewerModal } from "@/components/ui/PdfViewerModal";
 
 type Category = {
   id: string;
@@ -12,6 +14,7 @@ type Category = {
   weight_class: string | null;
   athletes_count: number;
   expected_matches: number;
+  doc_url?: string | null;
 };
 
 interface Props {
@@ -20,18 +23,26 @@ interface Props {
   readOnly?: boolean;
 }
 
-export default function CategoriesClient({ 
-  tournamentId, 
+export default function CategoriesClient({
+  tournamentId,
   initialCategories,
   readOnly = false,
 }: Props) {
   const [categories, setCategories] = useState<Category[]>(initialCategories);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editForm, setEditForm] = useState<Partial<Category>>({});
-  
+
   const [isAdding, setIsAdding] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // PDF upload state
+  const pdfInputRef = useRef<HTMLInputElement>(null);
+  const [pdfFiles, setPdfFiles] = useState<File[]>([]);
+  const [isPdfUploading, setIsPdfUploading] = useState(false);
+  const [pdfResult, setPdfResult] = useState<PDFUploadResult | null>(null);
+  const [showPdfModal, setShowPdfModal] = useState(false);
+  const [viewingPdf, setViewingPdf] = useState<{ url: string; title: string } | null>(null);
 
   // Preview State
   const [previewCategories, setPreviewCategories] = useState<any[]>([]);
@@ -112,7 +123,7 @@ export default function CategoriesClient({
       if (file.name.endsWith(".json")) {
         const text = await file.text();
         const data = JSON.parse(text);
-        
+
         let categoriesArray = [];
         if (Array.isArray(data)) {
           categoriesArray = data;
@@ -156,7 +167,7 @@ export default function CategoriesClient({
       }
 
       setPreviewCategories(parsedCategories);
-      
+
     } catch (err) {
       console.error(err);
       alert("Error parsing file.");
@@ -179,6 +190,76 @@ export default function CategoriesClient({
     }
   };
 
+  // ── PDF Upload Handlers ──────────────────────────────────────────────────
+  const handlePdfFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = Array.from(e.target.files ?? []).filter((f) =>
+      f.name.toLowerCase().endsWith(".pdf")
+    );
+    setPdfFiles(files);
+    setShowPdfModal(true);
+    setPdfResult(null);
+    // Reset input so same files can be re-selected
+    if (pdfInputRef.current) pdfInputRef.current.value = "";
+  };
+
+  // PDF staged preview with overwrite detection
+  const stagedPDFs = React.useMemo(() => {
+    return pdfFiles.map((file) => {
+      const candidateName = file.name.replace(/\.pdf$/i, "").trim();
+      const norm = candidateName.toLowerCase().trim().replace(/\s+/g, " ").replace(/\./g, "");
+
+      const exact = categories.find(
+        (c) => c.name.toLowerCase().trim().replace(/\s+/g, " ").replace(/\./g, "") === norm
+      );
+      const matched =
+        exact ||
+        categories.find((c) => {
+          const catNorm = c.name.toLowerCase().trim().replace(/\s+/g, " ").replace(/\./g, "");
+          return catNorm.includes(norm) || norm.includes(catNorm);
+        }) ||
+        null;
+
+      return {
+        file,
+        matchedCategory: matched,
+        isOverwrite: Boolean(matched?.doc_url),
+      };
+    });
+  }, [pdfFiles, categories]);
+
+  const overwrites = stagedPDFs.filter((s) => s.isOverwrite);
+  const newUploads = stagedPDFs.filter((s) => s.matchedCategory && !s.isOverwrite);
+  const unmatches = stagedPDFs.filter((s) => !s.matchedCategory);
+
+  const handlePdfSubmit = async () => {
+    if (pdfFiles.length === 0) return;
+    setIsPdfUploading(true);
+    try {
+      const formData = new FormData();
+      pdfFiles.forEach((f) => formData.append("pdfs", f));
+      const result = await uploadCategoryPDFs(tournamentId, formData);
+      setPdfResult(result);
+      if (result.matched.length > 0) {
+        setCategories((prev) =>
+          prev.map((c) => {
+            const match = result.matched.find((m) => m.categoryId === c.id);
+            return match && match.docUrl ? { ...c, doc_url: match.docUrl } : c;
+          })
+        );
+      }
+    } catch (err: any) {
+      alert(err?.message ?? "Failed to upload PDFs.");
+    } finally {
+      setIsPdfUploading(false);
+    }
+  };
+
+  const closePdfModal = () => {
+    setShowPdfModal(false);
+    setPdfFiles([]);
+    setPdfResult(null);
+  };
+
   return (
     <div className="p-4 sm:p-6 md:p-margin-desktop space-y-6 sm:space-y-8 bg-surface pb-24 w-full">
       <div className="flex flex-wrap justify-between items-center gap-4">
@@ -187,22 +268,42 @@ export default function CategoriesClient({
           <p className="text-body-sm text-on-surface-variant">View and manage categories for this tournament.</p>
         </div>
         {!readOnly && (
-          <div className="flex gap-4">
-            <input 
-              type="file" 
-              accept=".xlsx, .xls, .csv, .json" 
-              className="hidden" 
-              ref={fileInputRef} 
-              onChange={handleFileUpload} 
+          <div className="flex flex-wrap gap-2 sm:gap-4">
+            {/* Hidden file inputs */}
+            <input
+              type="file"
+              accept=".xlsx, .xls, .csv, .json"
+              className="hidden"
+              ref={fileInputRef}
+              onChange={handleFileUpload}
             />
-            <button 
+            <input
+              type="file"
+              accept=".pdf"
+              multiple
+              className="hidden"
+              ref={pdfInputRef}
+              onChange={handlePdfFileChange}
+            />
+            {/* JSON/Excel upload */}
+            <button
               onClick={() => fileInputRef.current?.click()}
               disabled={isUploading || isAdding}
               className="px-4 py-2 border border-outline text-primary font-label-caps text-label-caps rounded flex items-center gap-2 hover:bg-surface-container-low disabled:opacity-50"
             >
               <span className="material-symbols-outlined text-[18px]">upload</span> {isUploading ? "UPLOADING..." : "UPLOAD JSON/EXCEL"}
             </button>
-            <button 
+            {/* Bulk PDF upload */}
+            <button
+              onClick={() => pdfInputRef.current?.click()}
+              disabled={isPdfUploading || isAdding}
+              className="px-4 py-2 border border-outline text-primary font-label-caps text-label-caps rounded flex items-center gap-2 hover:bg-surface-container-low disabled:opacity-50"
+            >
+              <span className="material-symbols-outlined text-[18px]">picture_as_pdf</span>
+              {isPdfUploading ? "UPLOADING..." : "UPLOAD PDFs"}
+            </button>
+            {/* Add category */}
+            <button
               onClick={handleStartAdd}
               disabled={isAdding || isUploading}
               className="px-4 py-2 bg-primary text-white font-label-caps text-label-caps rounded flex items-center gap-2 hover:opacity-90 disabled:opacity-50"
@@ -231,10 +332,10 @@ export default function CategoriesClient({
             {/* Add Row */}
             {isAdding && (
               <tr className="bg-surface-container-low">
-                <td className="px-2.5 sm:px-4 md:px-6 py-2"><input value={addForm.name} onChange={e => setAddForm({...addForm, name: e.target.value})} placeholder="Name" className="w-full p-1.5 sm:p-2 text-xs sm:text-sm border rounded" /></td>
-                <td className="px-1.5 sm:px-3 md:px-4 py-2"><input value={addForm.age_bracket} onChange={e => setAddForm({...addForm, age_bracket: e.target.value})} placeholder="Age" className="w-full p-1.5 sm:p-2 text-xs sm:text-sm border rounded" /></td>
-                <td className="px-1.5 sm:px-3 md:px-4 py-2"><input value={addForm.weight_class} onChange={e => setAddForm({...addForm, weight_class: e.target.value})} placeholder="Weight" className="w-full p-1.5 sm:p-2 text-xs sm:text-sm border rounded" /></td>
-                <td className="px-1 sm:px-2 md:px-4 py-2"><input type="number" value={addForm.athletes_count} onChange={e => setAddForm({...addForm, athletes_count: parseInt(e.target.value)||0})} className="w-full p-1.5 sm:p-2 text-xs sm:text-sm border rounded text-center font-data-mono" /></td>
+                <td className="px-2.5 sm:px-4 md:px-6 py-2"><input value={addForm.name} onChange={e => setAddForm({ ...addForm, name: e.target.value })} placeholder="Name" className="w-full p-1.5 sm:p-2 text-xs sm:text-sm border rounded" /></td>
+                <td className="px-1.5 sm:px-3 md:px-4 py-2"><input value={addForm.age_bracket} onChange={e => setAddForm({ ...addForm, age_bracket: e.target.value })} placeholder="Age" className="w-full p-1.5 sm:p-2 text-xs sm:text-sm border rounded" /></td>
+                <td className="px-1.5 sm:px-3 md:px-4 py-2"><input value={addForm.weight_class} onChange={e => setAddForm({ ...addForm, weight_class: e.target.value })} placeholder="Weight" className="w-full p-1.5 sm:p-2 text-xs sm:text-sm border rounded" /></td>
+                <td className="px-1 sm:px-2 md:px-4 py-2"><input type="number" value={addForm.athletes_count} onChange={e => setAddForm({ ...addForm, athletes_count: parseInt(e.target.value) || 0 })} className="w-full p-1.5 sm:p-2 text-xs sm:text-sm border rounded text-center font-data-mono" /></td>
                 <td className="hidden md:table-cell px-2 md:px-4 py-2 text-center text-on-surface-variant text-xs font-data-mono">Auto</td>
                 <td className="px-2 sm:px-4 md:px-6 py-2 text-right">
                   <div className="flex gap-1.5 sm:gap-2 justify-end">
@@ -248,11 +349,11 @@ export default function CategoriesClient({
             {categories.map((cat) => (
               editingId === cat.id ? (
                 <tr key={cat.id} className="bg-surface-container-low">
-                  <td className="px-2.5 sm:px-4 md:px-6 py-2"><input value={editForm.name} onChange={e => setEditForm({...editForm, name: e.target.value})} className="w-full p-1.5 sm:p-2 text-xs sm:text-sm border rounded" /></td>
-                  <td className="px-1.5 sm:px-3 md:px-4 py-2"><input value={editForm.age_bracket || ""} onChange={e => setEditForm({...editForm, age_bracket: e.target.value})} className="w-full p-1.5 sm:p-2 text-xs sm:text-sm border rounded" /></td>
-                  <td className="px-1.5 sm:px-3 md:px-4 py-2"><input value={editForm.weight_class || ""} onChange={e => setEditForm({...editForm, weight_class: e.target.value})} className="w-full p-1.5 sm:p-2 text-xs sm:text-sm border rounded" /></td>
-                  <td className="px-1 sm:px-2 md:px-4 py-2"><input type="number" value={editForm.athletes_count} onChange={e => setEditForm({...editForm, athletes_count: parseInt(e.target.value)||0})} className="w-full p-1.5 sm:p-2 text-xs sm:text-sm border rounded text-center font-data-mono" /></td>
-                  <td className="hidden md:table-cell px-2 md:px-4 py-2"><input type="number" value={editForm.expected_matches} onChange={e => setEditForm({...editForm, expected_matches: parseInt(e.target.value)||0})} className="w-full p-1.5 sm:p-2 text-xs sm:text-sm border rounded text-center font-data-mono" /></td>
+                  <td className="px-2.5 sm:px-4 md:px-6 py-2"><input value={editForm.name} onChange={e => setEditForm({ ...editForm, name: e.target.value })} className="w-full p-1.5 sm:p-2 text-xs sm:text-sm border rounded" /></td>
+                  <td className="px-1.5 sm:px-3 md:px-4 py-2"><input value={editForm.age_bracket || ""} onChange={e => setEditForm({ ...editForm, age_bracket: e.target.value })} className="w-full p-1.5 sm:p-2 text-xs sm:text-sm border rounded" /></td>
+                  <td className="px-1.5 sm:px-3 md:px-4 py-2"><input value={editForm.weight_class || ""} onChange={e => setEditForm({ ...editForm, weight_class: e.target.value })} className="w-full p-1.5 sm:p-2 text-xs sm:text-sm border rounded" /></td>
+                  <td className="px-1 sm:px-2 md:px-4 py-2"><input type="number" value={editForm.athletes_count} onChange={e => setEditForm({ ...editForm, athletes_count: parseInt(e.target.value) || 0 })} className="w-full p-1.5 sm:p-2 text-xs sm:text-sm border rounded text-center font-data-mono" /></td>
+                  <td className="hidden md:table-cell px-2 md:px-4 py-2"><input type="number" value={editForm.expected_matches} onChange={e => setEditForm({ ...editForm, expected_matches: parseInt(e.target.value) || 0 })} className="w-full p-1.5 sm:p-2 text-xs sm:text-sm border rounded text-center font-data-mono" /></td>
                   <td className="px-2 sm:px-4 md:px-6 py-2 text-right">
                     <div className="flex gap-1.5 sm:gap-2 justify-end">
                       <button onClick={handleSaveEdit} className="px-2.5 sm:px-3 py-1 bg-secondary text-white rounded font-label-caps text-[10px]">SAVE</button>
@@ -262,7 +363,25 @@ export default function CategoriesClient({
                 </tr>
               ) : (
                 <tr key={cat.id} className="hover:bg-surface-container-low transition-colors">
-                  <td className="px-2.5 sm:px-4 md:px-6 py-3 sm:py-4 font-bold text-primary break-words">{cat.name}</td>
+                  <td className="px-2.5 sm:px-4 md:px-6 py-3 sm:py-4 font-bold text-primary break-words">
+                    <span className="flex items-center gap-1.5 flex-wrap">
+                      {cat.name}
+                      {cat.doc_url && (
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setViewingPdf({ url: cat.doc_url!, title: cat.name });
+                          }}
+                          title="View student list PDF"
+                          className="material-symbols-outlined text-[15px] text-outline hover:text-primary transition-colors shrink-0 cursor-pointer"
+                          style={{ fontVariationSettings: "'FILL' 0" }}
+                        >
+                          article
+                        </button>
+                      )}
+                    </span>
+                  </td>
                   <td className="px-1.5 sm:px-3 md:px-4 py-3 sm:py-4 break-words text-on-surface">{cat.age_bracket || "-"}</td>
                   <td className="px-1.5 sm:px-3 md:px-4 py-3 sm:py-4 break-words text-on-surface">{cat.weight_class || "-"}</td>
                   <td className="px-1 sm:px-2 md:px-4 py-3 sm:py-4 text-center font-data-mono text-on-surface text-sm sm:text-base font-medium">
@@ -280,7 +399,7 @@ export default function CategoriesClient({
                 </tr>
               )
             ))}
-            
+
             {!categories || (categories.length === 0 && !isAdding) && (
               <tr>
                 <td colSpan={readOnly ? 5 : 6} className="px-6 py-8 text-center text-on-surface-variant italic">
@@ -303,7 +422,7 @@ export default function CategoriesClient({
               </div>
               <button onClick={() => setPreviewCategories([])} className="material-symbols-outlined text-outline hover:text-error transition-colors">close</button>
             </div>
-            
+
             <div className="flex-1 overflow-auto p-6 bg-surface-container-lowest">
               <table className="w-full text-left border-collapse">
                 <thead>
@@ -334,14 +453,14 @@ export default function CategoriesClient({
             </div>
 
             <div className="p-6 border-t border-outline-variant bg-surface-container-low flex justify-between items-center shrink-0">
-              <button 
+              <button
                 onClick={() => setPreviewCategories([])}
                 className="px-6 py-2 rounded font-bold text-primary hover:bg-surface-container transition-colors disabled:opacity-50"
                 disabled={isUploading}
               >
                 CANCEL
               </button>
-              <button 
+              <button
                 onClick={handleApproveUpload}
                 disabled={isUploading}
                 className="px-6 py-2 rounded font-bold bg-secondary text-on-secondary hover:opacity-90 transition-opacity flex items-center gap-2 disabled:opacity-50"
@@ -352,6 +471,217 @@ export default function CategoriesClient({
           </div>
         </div>
       )}
+
+      {/* ── PDF Upload Modal ─────────────────────────────────────────── */}
+      {showPdfModal && (
+        <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4">
+          <div className="bg-surface-container-lowest w-full max-w-2xl max-h-[85vh] flex flex-col rounded-2xl shadow-2xl overflow-hidden">
+            {/* Header */}
+            <div className="p-6 border-b border-outline-variant flex justify-between items-center bg-surface-container-low shrink-0">
+              <div>
+                <h2 className="text-xl font-bold text-primary mb-1">Upload Student List PDFs</h2>
+                <p className="text-xs text-on-surface-variant">
+                  {pdfResult
+                    ? `Completed - ${pdfResult.matched.length} uploaded, ${pdfResult.unmatched.length} unmatched${pdfResult.errors.length > 0 ? `, ${pdfResult.errors.length} errors` : ""
+                    }`
+                    : overwrites.length > 0
+                      ? `⚠️ ${overwrites.length} existing PDF${overwrites.length > 1 ? "s" : ""} will be overwritten upon confirmation.`
+                      : `${pdfFiles.length} PDF${pdfFiles.length !== 1 ? "s" : ""} selected. Matched by filename → category.`}
+                </p>
+              </div>
+              <button onClick={closePdfModal} className="material-symbols-outlined text-outline hover:text-error transition-colors">close</button>
+            </div>
+
+            {/* Body */}
+            <div className="flex-1 overflow-auto p-6 bg-surface-container-lowest space-y-4">
+              {!pdfResult ? (
+                pdfFiles.length === 0 ? (
+                  <p className="text-on-surface-variant text-sm italic">No PDFs selected.</p>
+                ) : (
+                  <div className="space-y-4">
+                    {/* Overwrite Warning Section */}
+                    {overwrites.length > 0 && (
+                      <div className="rounded-xl border border-amber-500/40 bg-amber-500/10 p-4 space-y-3">
+                        <div className="flex items-start gap-2.5">
+                          <span className="material-symbols-outlined text-amber-500 text-xl shrink-0 mt-0.5">warning</span>
+                          <div>
+                            <h4 className="text-sm font-bold text-amber-900 dark:text-amber-200">
+                              {overwrites.length} {overwrites.length === 1 ? "Category Already Has a PDF" : "Categories Already Have PDFs"}
+                            </h4>
+                            <p className="text-xs text-amber-800/80 dark:text-amber-300/80 mt-0.5">
+                              The following categories already have a student list attached. Uploading will <strong>overwrite</strong> them. You can preview the existing PDF before confirming:
+                            </p>
+                          </div>
+                        </div>
+                        <div className="space-y-1.5 pt-1 max-h-48 overflow-y-auto pr-1">
+                          {overwrites.map((item, idx) => (
+                            <div
+                              key={idx}
+                              className="flex items-center justify-between gap-3 bg-surface-container-lowest/90 border border-amber-500/25 rounded-lg px-3 py-2 text-xs"
+                            >
+                              <div className="flex items-center gap-2 min-w-0">
+                                <span className="material-symbols-outlined text-[16px] text-amber-500 shrink-0">picture_as_pdf</span>
+                                <span className="font-semibold text-on-surface truncate">{item.file.name}</span>
+                                <span className="text-on-surface-variant text-[11px] shrink-0">→ {item.matchedCategory?.name}</span>
+                              </div>
+                              {item.matchedCategory?.doc_url && (
+                                <a
+                                  href={item.matchedCategory.doc_url}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="shrink-0 inline-flex items-center gap-1 px-2.5 py-1 rounded bg-surface-container-high hover:bg-surface-container-highest text-[11px] font-semibold text-primary transition-colors border border-outline-variant/40"
+                                  title="Open the existing PDF in a new tab"
+                                >
+                                  <span>View Existing PDF</span>
+                                  <span className="material-symbols-outlined text-[13px]">open_in_new</span>
+                                </a>
+                              )}
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* New Attachments Section */}
+                    {newUploads.length > 0 && (
+                      <div className="space-y-2">
+                        <p className="text-xs font-label-caps text-on-surface-variant">
+                          NEW ATTACHMENTS ({newUploads.length})
+                        </p>
+                        <div className="space-y-1.5 max-h-44 overflow-y-auto pr-1">
+                          {newUploads.map((item, idx) => (
+                            <div key={idx} className="flex items-center gap-2 text-xs bg-surface-container-low px-3 py-2 rounded-lg">
+                              <span className="material-symbols-outlined text-[16px] text-primary shrink-0">picture_as_pdf</span>
+                              <span className="text-on-surface font-medium truncate">{item.file.name}</span>
+                              <span className="text-on-surface-variant text-[11px] shrink-0">→ {item.matchedCategory?.name}</span>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Unmatched Files Section */}
+                    {unmatches.length > 0 && (
+                      <div className="space-y-2">
+                        <p className="text-xs font-label-caps text-error">
+                          NO CATEGORY MATCH ({unmatches.length})
+                        </p>
+                        <div className="space-y-1.5 max-h-32 overflow-y-auto pr-1">
+                          {unmatches.map((item, idx) => (
+                            <div key={idx} className="flex items-center gap-2 text-xs bg-error/5 border border-error/20 px-3 py-2 rounded-lg text-error">
+                              <span className="material-symbols-outlined text-[16px] shrink-0">help</span>
+                              <span className="truncate">{item.file.name}</span>
+                              <span className="text-[11px] opacity-75 shrink-0">(no category match found)</span>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                )
+              ) : (
+                // Results View
+                <div className="space-y-4">
+                  {pdfResult.matched.length > 0 && (
+                    <div>
+                      <p className="text-xs font-label-caps text-on-surface-variant mb-1.5">UPLOADED & ATTACHED ({pdfResult.matched.length})</p>
+                      <ul className="space-y-1.5 max-h-56 overflow-y-auto pr-1">
+                        {pdfResult.matched.map((m, i) => (
+                          <li key={i} className="flex items-center justify-between gap-3 text-xs bg-surface-container-low px-3 py-2 rounded-lg">
+                            <div className="flex items-center gap-2 truncate">
+                              <span className="material-symbols-outlined text-[16px] text-green-600 shrink-0">check_circle</span>
+                              <span className="text-on-surface font-medium truncate">{m.filename}</span>
+                              <span className="text-on-surface-variant text-[11px] shrink-0">→ {m.categoryName}</span>
+                            </div>
+                            {m.docUrl && (
+                              <a
+                                href={m.docUrl}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="shrink-0 inline-flex items-center gap-1 text-[11px] font-semibold text-primary hover:underline"
+                              >
+                                <span>View</span>
+                                <span className="material-symbols-outlined text-[13px]">open_in_new</span>
+                              </a>
+                            )}
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
+                  {pdfResult.unmatched.length > 0 && (
+                    <div>
+                      <p className="text-xs font-label-caps text-on-surface-variant mb-1">SKIPPED - NO MATCH ({pdfResult.unmatched.length})</p>
+                      <ul className="space-y-1 max-h-32 overflow-y-auto pr-1">
+                        {pdfResult.unmatched.map((name, i) => (
+                          <li key={i} className="flex items-center gap-2 text-xs text-on-surface bg-surface-container-low px-3 py-2 rounded-lg">
+                            <span className="material-symbols-outlined text-[16px] text-amber-500 shrink-0">warning</span>
+                            <span className="truncate">{name}</span>
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
+                  {pdfResult.errors.length > 0 && (
+                    <div>
+                      <p className="text-xs font-label-caps text-error mb-1">ERRORS ({pdfResult.errors.length})</p>
+                      <ul className="space-y-1 max-h-32 overflow-y-auto pr-1">
+                        {pdfResult.errors.map((e, i) => (
+                          <li key={i} className="flex items-start gap-2 text-xs bg-error/5 border border-error/20 p-2.5 rounded-lg text-error">
+                            <span className="material-symbols-outlined text-[16px] text-error shrink-0">error</span>
+                            <span className="truncate">{e.filename}: {e.error}</span>
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+
+            {/* Footer */}
+            <div className="p-6 border-t border-outline-variant bg-surface-container-low flex justify-between items-center shrink-0">
+              <button
+                onClick={closePdfModal}
+                className="px-6 py-2 rounded font-bold text-primary hover:bg-surface-container transition-colors"
+              >
+                {pdfResult ? "CLOSE" : "CANCEL"}
+              </button>
+              {!pdfResult && (
+                <button
+                  onClick={handlePdfSubmit}
+                  disabled={isPdfUploading || stagedPDFs.filter((s) => s.matchedCategory).length === 0}
+                  className={`px-6 py-2 rounded font-bold transition-opacity flex items-center gap-2 disabled:opacity-50 ${overwrites.length > 0
+                      ? "bg-amber-600 hover:bg-amber-700 text-white shadow-sm"
+                      : "bg-secondary text-on-secondary hover:opacity-90"
+                    }`}
+                >
+                  {isPdfUploading ? (
+                    <>
+                      <span className="material-symbols-outlined animate-spin text-[18px]">sync</span>
+                      {overwrites.length > 0 ? "OVERWRITING..." : "UPLOADING..."}
+                    </>
+                  ) : overwrites.length > 0 ? (
+                    <>
+                      <span className="material-symbols-outlined text-[18px]">warning</span>
+                      CONFIRM & OVERWRITE ({stagedPDFs.filter((s) => s.matchedCategory).length})
+                    </>
+                  ) : (
+                    <>UPLOAD {newUploads.length} PDF{newUploads.length !== 1 ? "S" : ""}</>
+                  )}
+                </button>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 80% Floating PDF Viewer Modal with blurred background */}
+      <PdfViewerModal
+        url={viewingPdf?.url || null}
+        title={viewingPdf?.title}
+        onClose={() => setViewingPdf(null)}
+      />
     </div>
   );
 }

@@ -2,7 +2,7 @@ import { redirect } from "next/navigation";
 import { cookies } from "next/headers";
 
 /**
- * /stager root — redirects to login if no stager_token cookie.
+ * /stager root - redirects to login if no stager_token cookie.
  * The middleware handles this too but this server page is a fallback.
  */
 export default async function StagerRootPage() {
@@ -13,7 +13,7 @@ export default async function StagerRootPage() {
     redirect("/login/stager");
   }
 
-  // If they have a token, we don't know which tournament — send them to login
+  // If they have a token, we don't know which tournament - send them to login
   // so they can re-enter their code.
   redirect("/login/stager");
 }

@@ -3,6 +3,8 @@
 import React, { useState, useEffect, useCallback } from "react";
 import { createClient } from "@/utils/supabase/client";
 import { updateCategoryStagerStatus } from "@/actions/stager";
+import StagerStatusIndicator from "@/components/ui/StagerStatusIndicator";
+import { PdfViewerModal } from "@/components/ui/PdfViewerModal";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -18,6 +20,7 @@ type Category = {
   age_max?: number | null;
   sex?: string | null;
   day?: string | null;
+  doc_url?: string | null;
 };
 
 type Ring = {
@@ -58,6 +61,7 @@ export default function StagerBalancingClient({
   completedTimes,
 }: Props) {
   const [currentStagerName, setCurrentStagerName] = useState(stagerName);
+  const [viewingPdf, setViewingPdf] = useState<{ url: string; title: string } | null>(null);
 
   useEffect(() => {
     if ((!currentStagerName || currentStagerName === "Stager") && typeof window !== "undefined") {
@@ -168,11 +172,15 @@ export default function StagerBalancingClient({
       .channel(`stager_balancing_${tournamentId}`)
       .on(
         "postgres_changes",
-        { event: "*", schema: "public", table: "category_assignments" },
+        {
+          event: "*",
+          schema: "public",
+          table: "category_assignments",
+        },
         (payload) => {
           if (payload.eventType === "UPDATE" || payload.eventType === "INSERT") {
             const updated = payload.new as any;
-            if (updated?.category_id) {
+            if (updated?.category_id && ringIds.includes(updated.ring_id)) {
               setAssignmentsMap((prev) => ({
                 ...prev,
                 [updated.category_id]: {
@@ -324,15 +332,14 @@ export default function StagerBalancingClient({
     return (
       <div
         key={cat.id}
-        className={`p-3 border rounded-lg relative overflow-hidden ${
-          isPaused
+        className={`p-3 border rounded-lg relative overflow-hidden ${isPaused
             ? "bg-amber-500/5 border-amber-400/50 shadow-md"
             : isRunning
               ? "bg-secondary/5 border-secondary/40 shadow-md"
               : isCompleted
                 ? "bg-surface-container/60 border-outline-variant opacity-80"
                 : "bg-surface-container-lowest border-outline-variant"
-        }`}
+          }`}
       >
         {isPaused && (
           <div className="absolute top-0 left-0 w-1 h-full bg-amber-500" />
@@ -344,38 +351,56 @@ export default function StagerBalancingClient({
           <div className="absolute top-0 left-0 w-1 h-full bg-blue-600" />
         )}
         <div className={`flex justify-between items-center mb-1 ${hasLeftAccent ? "ml-2" : ""}`}>
-          <span className={`text-[9px] font-bold uppercase tracking-wider ${
-            isPaused ? "text-amber-700" : isCompleted ? "text-blue-700" : "text-secondary"
-          }`}>
+          <span className={`text-[9px] font-bold uppercase tracking-wider ${isPaused ? "text-amber-700" : isCompleted ? "text-blue-700" : "text-secondary"
+            }`}>
             {cat.age_bracket ||
               (cat.age_min !== null && cat.age_max !== null
                 ? `${cat.age_min}-${cat.age_max}`
                 : "")}{" "}
             | {cat.weight_class || cat.belt || "–"}
           </span>
-          {isPaused ? (
-            <span className="inline-flex items-center gap-1 text-[9px] font-bold text-amber-800 bg-amber-50 border border-amber-200 px-1.5 py-0.5 rounded uppercase tracking-wider shadow-2xs">
-              <span className="w-1.5 h-1.5 rounded-full bg-amber-600 animate-pulse" />
-              PAUSED
-            </span>
-          ) : isRunning ? (
-            <span className="inline-flex items-center gap-1 text-[9px] font-bold text-emerald-800 bg-emerald-50 border border-emerald-200 px-1.5 py-0.5 rounded uppercase tracking-wider shadow-2xs">
-              <span className="w-1.5 h-1.5 rounded-full bg-emerald-600 animate-pulse" />
-              LIVE
-            </span>
-          ) : isCompleted ? (
-            <span className="inline-flex items-center gap-1 text-[9px] font-bold text-blue-800 bg-blue-50 border border-blue-200 px-1.5 py-0.5 rounded uppercase tracking-wider shadow-2xs">
-              <span className="material-symbols-outlined text-[11px] text-blue-600">done_all</span>
-              COMPLETED
-            </span>
-          ) : (
-            <span className="font-data-mono text-[10px] font-bold text-on-surface-variant">
-              {Math.ceil((cat.expected_matches * 109) / 60)}m
-            </span>
-          )}
+          <div className="flex items-center gap-1.5 shrink-0">
+            {cat.doc_url && (
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setViewingPdf({ url: cat.doc_url!, title: cat.name });
+                }}
+                title="View student list PDF"
+                className="material-symbols-outlined text-[13px] text-outline hover:text-primary transition-colors shrink-0 cursor-pointer"
+                style={{ fontVariationSettings: "'FILL' 0" }}
+              >
+                article
+              </button>
+            )}
+            {stagerStatus && (
+              <StagerStatusIndicator stagerStatus={stagerStatus} stagerActorName={stagerActorName} />
+            )}
+            {isPaused ? (
+              <span className="inline-flex items-center gap-1 text-[9px] font-bold text-amber-800 bg-amber-50 border border-amber-200 px-1.5 py-0.5 rounded uppercase tracking-wider shadow-2xs">
+                <span className="w-1.5 h-1.5 rounded-full bg-amber-600 animate-pulse" />
+                PAUSED
+              </span>
+            ) : isRunning ? (
+              <span className="inline-flex items-center gap-1 text-[9px] font-bold text-emerald-800 bg-emerald-50 border border-emerald-200 px-1.5 py-0.5 rounded uppercase tracking-wider shadow-2xs">
+                <span className="w-1.5 h-1.5 rounded-full bg-emerald-600 animate-pulse" />
+                LIVE
+              </span>
+            ) : isCompleted ? (
+              <span className="inline-flex items-center gap-1 text-[9px] font-bold text-blue-800 bg-blue-50 border border-blue-200 px-1.5 py-0.5 rounded uppercase tracking-wider shadow-2xs">
+                <span className="material-symbols-outlined text-[11px] text-blue-600">done_all</span>
+                COMPLETED
+              </span>
+            ) : (
+              <span className="font-data-mono text-[10px] font-bold text-on-surface-variant">
+                {Math.ceil((cat.expected_matches * 109) / 60)}m
+              </span>
+            )}
+          </div>
         </div>
 
-        <h5 className={`text-xs font-bold text-primary mb-1.5 ${hasLeftAccent ? "ml-2" : ""}`}>
+        <h5 className={`text-xs font-bold text-primary mb-1.5 flex items-center gap-1 ${hasLeftAccent ? "ml-2" : ""}`}>
           {cat.name}
         </h5>
 
@@ -388,40 +413,18 @@ export default function StagerBalancingClient({
 
         {(isRunning || isPaused || isCompleted) && (
           <div className="mt-2 ml-2">
-            <div className={`flex justify-between text-[9px] font-bold mb-0.5 ${
-              isPaused ? "text-amber-700" : isCompleted ? "text-blue-700" : "text-secondary"
-            }`}>
+            <div className={`flex justify-between text-[9px] font-bold mb-0.5 ${isPaused ? "text-amber-700" : isCompleted ? "text-blue-700" : "text-secondary"
+              }`}>
               <span>{matchesDone} / {matchesTotal} matches</span>
               <span>{pct.toFixed(0)}%</span>
             </div>
             <div className="w-full bg-surface-container-high h-1.5 rounded-full overflow-hidden">
               <div
-                className={`h-full transition-all duration-500 ease-out ${
-                  isPaused ? "bg-amber-500" : isCompleted ? "bg-blue-600" : "bg-secondary"
-                }`}
+                className={`h-full transition-all duration-500 ease-out ${isPaused ? "bg-amber-500" : isCompleted ? "bg-blue-600" : "bg-secondary"
+                  }`}
                 style={{ width: `${Math.min(100, pct)}%` }}
               />
             </div>
-          </div>
-        )}
-
-        {/* Stager Status Badge */}
-        {stagerStatus && (
-          <div
-            className={`mt-2 flex items-center gap-1.5 px-2 py-1 rounded text-[10px] font-bold ${
-              hasLeftAccent ? "ml-2" : ""
-            } ${
-              stagerStatus === "calling"
-                ? "bg-amber-100 text-amber-800 border border-amber-300"
-                : "bg-green-100 text-green-800 border border-green-300"
-            }`}
-          >
-            <span className="material-symbols-outlined text-[13px]">
-              {stagerStatus === "calling" ? "notifications_active" : "check_circle"}
-            </span>
-            {stagerStatus === "calling"
-              ? `Calling in progress by ${stagerActorName}`
-              : `Ready — called by ${stagerActorName}`}
           </div>
         )}
 
@@ -437,12 +440,11 @@ export default function StagerBalancingClient({
               });
             }}
             disabled={!!loadingAction}
-            className={`flex-1 flex items-center justify-center gap-1.5 py-1.5 px-2 rounded text-[10px] font-bold transition-all border whitespace-nowrap select-none cursor-pointer ${
-              stagerStatus === "calling"
+            className={`flex-1 flex items-center justify-center gap-1.5 py-1.5 px-2 rounded text-[10px] font-bold transition-all border whitespace-nowrap select-none cursor-pointer ${stagerStatus === "calling"
                 ? "bg-amber-500 text-white border-amber-500 shadow-sm"
                 : "bg-amber-100/60 text-amber-800 border-amber-300 hover:bg-amber-200"
-            } disabled:opacity-50`}
-            title="Mark as In Progress — notify others you're calling this category"
+              } disabled:opacity-50`}
+            title="Mark as In Progress - notify others you're calling this category"
           >
             {isCallingLoading ? (
               <span className="w-3 h-3 border-2 border-amber-600 border-t-transparent rounded-full animate-spin shrink-0" />
@@ -462,12 +464,11 @@ export default function StagerBalancingClient({
               });
             }}
             disabled={!!loadingAction}
-            className={`flex-1 flex items-center justify-center gap-1.5 py-1.5 px-2 rounded text-[10px] font-bold transition-all border whitespace-nowrap select-none cursor-pointer ${
-              stagerStatus === "ready"
+            className={`flex-1 flex items-center justify-center gap-1.5 py-1.5 px-2 rounded text-[10px] font-bold transition-all border whitespace-nowrap select-none cursor-pointer ${stagerStatus === "ready"
                 ? "bg-green-600 text-white border-green-600 shadow-sm"
                 : "bg-green-100/60 text-green-800 border-green-300 hover:bg-green-200"
-            } disabled:opacity-50`}
-            title="Mark as Called — notify others this category is ready"
+              } disabled:opacity-50`}
+            title="Mark as Called - notify others this category is ready"
           >
             {isReadyLoading ? (
               <span className="w-3 h-3 border-2 border-green-600 border-t-transparent rounded-full animate-spin shrink-0" />
@@ -609,20 +610,19 @@ export default function StagerBalancingClient({
           >
             {/* Minimal Icon */}
             <div
-              className={`w-11 h-11 rounded-full flex items-center justify-center mx-auto ${
-                confirmModal.isClearing
+              className={`w-11 h-11 rounded-full flex items-center justify-center mx-auto ${confirmModal.isClearing
                   ? "bg-surface-container-high text-on-surface-variant"
                   : confirmModal.requestedStatus === "calling"
-                  ? "bg-amber-100 text-amber-700"
-                  : "bg-green-100 text-green-700"
-              }`}
+                    ? "bg-amber-100 text-amber-700"
+                    : "bg-green-100 text-green-700"
+                }`}
             >
               <span className="material-symbols-outlined text-2xl">
                 {confirmModal.isClearing
                   ? "restart_alt"
                   : confirmModal.requestedStatus === "calling"
-                  ? "notifications_active"
-                  : "check_circle"}
+                    ? "notifications_active"
+                    : "check_circle"}
               </span>
             </div>
 
@@ -671,13 +671,12 @@ export default function StagerBalancingClient({
                   setConfirmModal(null);
                   handleStagerAction(categoryId, requestedStatus);
                 }}
-                className={`flex-1 py-2 px-3 rounded-xl text-xs font-bold text-white shadow-sm transition-colors cursor-pointer ${
-                  confirmModal.isClearing
+                className={`flex-1 py-2 px-3 rounded-xl text-xs font-bold text-white shadow-sm transition-colors cursor-pointer ${confirmModal.isClearing
                     ? "bg-neutral-800 hover:bg-neutral-900"
                     : confirmModal.requestedStatus === "calling"
-                    ? "bg-amber-600 hover:bg-amber-700"
-                    : "bg-green-600 hover:bg-green-700"
-                }`}
+                      ? "bg-amber-600 hover:bg-amber-700"
+                      : "bg-green-600 hover:bg-green-700"
+                  }`}
               >
                 Yes, Confirm
               </button>
@@ -685,6 +684,13 @@ export default function StagerBalancingClient({
           </div>
         </div>
       )}
+
+      {/* 80% Floating PDF Viewer Modal with blurred background */}
+      <PdfViewerModal
+        url={viewingPdf?.url || null}
+        title={viewingPdf?.title}
+        onClose={() => setViewingPdf(null)}
+      />
     </div>
   );
 }

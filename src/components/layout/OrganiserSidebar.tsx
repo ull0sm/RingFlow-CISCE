@@ -35,7 +35,84 @@ export default function OrganiserSidebar() {
     { name: "Students", href: `/organiser/event/${id}/athletes`, icon: "groups" },
   ];
 
+  // Active session watcher: kicks out the organiser if an admin revokes their session
+  useEffect(() => {
+    let isCleanedUp = false;
+    const supabase = createClient();
+
+    const handleRevoked = () => {
+      document.cookie = "org_token=; path=/; max-age=0; SameSite=Strict";
+      router.push("/login/organiser?reason=revoked");
+    };
+
+    const checkSession = async (token: string) => {
+      const { data: request, error } = await supabase
+        .from("organiser_requests")
+        .select("status, expires_at")
+        .eq("session_token", token)
+        .maybeSingle();
+
+      if (isCleanedUp) return;
+
+      if (error || !request || request.status !== "approved" || (request.expires_at && new Date(request.expires_at).getTime() < Date.now())) {
+        handleRevoked();
+      }
+    };
+
+    let interval: NodeJS.Timeout | null = null;
+    let channel: ReturnType<typeof supabase.channel> | null = null;
+
+    const init = async () => {
+      // If user is an authenticated admin, do not kick out or poll
+      const { data: { user } } = await supabase.auth.getUser();
+      if (user || isCleanedUp) return;
+
+      const match = typeof document !== "undefined" ? document.cookie.match(/(?:^|; )org_token=([^;]*)/) : null;
+      const token = match ? decodeURIComponent(match[1]) : null;
+
+      if (!token) {
+        router.push("/login/organiser");
+        return;
+      }
+
+      // Check immediately on mount
+      await checkSession(token);
+      if (isCleanedUp) return;
+
+      // Realtime listener: instant kick-out when admin updates the request status
+      channel = supabase
+        .channel(`org_session_${token.slice(0, 8)}`)
+        .on(
+          "postgres_changes",
+          {
+            event: "UPDATE",
+            schema: "public",
+            table: "organiser_requests",
+            filter: `session_token=eq.${token}`,
+          },
+          (payload: { new: Record<string, unknown> }) => {
+            if (payload?.new?.status !== "approved") {
+              handleRevoked();
+            }
+          }
+        )
+        .subscribe();
+
+      // Relaxed fallback poll every 30s (down from 4s) in case WebSocket disconnected
+      interval = setInterval(() => checkSession(token), 30000);
+    };
+
+    init();
+
+    return () => {
+      isCleanedUp = true;
+      if (interval) clearInterval(interval);
+      if (channel) supabase.removeChannel(channel);
+    };
+  }, [router]);
+
   const handleLogout = async () => {
+    document.cookie = "org_token=; path=/; max-age=0; SameSite=Strict";
     const supabase = createClient();
     await supabase.auth.signOut();
     router.push("/login/organiser");
@@ -44,18 +121,18 @@ export default function OrganiserSidebar() {
   return (
     <>
       <aside
-      className={`hidden md:flex flex-col sticky top-0 h-screen py-6 space-y-2 bg-surface-container-low border-r border-outline-variant shrink-0 z-20 transition-[width] duration-300 relative ${
+      className={`hidden md:flex flex-col sticky top-0 h-screen py-6 space-y-2 bg-surface-container-low border-r border-outline-variant shrink-0 z-40 transition-[width] duration-300 relative ${
         isCollapsed ? "w-20 px-2" : "w-64 px-4"
       }`}
     >
-      {/* Smoothened < or > Arrow Toggle Button in the Middle of the Sidebar */}
+      {/* Pop-out black button with white arrow centered on sidebar border */}
       <button
         onClick={toggleCollapse}
         type="button"
         title={isCollapsed ? "Expand sidebar" : "Collapse sidebar"}
-        className="absolute top-1/2 -right-3.5 -translate-y-1/2 w-7 h-7 bg-white border border-outline-variant rounded-full shadow-md hover:shadow-lg flex items-center justify-center text-on-surface-variant hover:text-primary hover:scale-110 active:scale-95 transition-all cursor-pointer z-30"
+        className="absolute top-1/2 -right-4 -translate-y-1/2 w-8 h-8 bg-black border-2 border-white/90 rounded-full shadow-xl flex items-center justify-center text-white hover:scale-110 active:scale-95 transition-all cursor-pointer z-50"
       >
-        <span className="material-symbols-outlined text-[18px] select-none leading-none">
+        <span className="material-symbols-outlined text-[20px] select-none leading-none text-white">
           {isCollapsed ? "chevron_right" : "chevron_left"}
         </span>
       </button>

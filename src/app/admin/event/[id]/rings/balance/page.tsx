@@ -16,13 +16,23 @@ export default async function RingBalancingPage({ params }: { params: Promise<{ 
 
   const [
     { data: tournament, error: tournamentError },
-    { data: categories },
+    catRes,
     { data: rings }
   ] = await Promise.all([
     supabase.from("tournaments").select("*").eq("id", tournamentId).single(),
-    supabase.from("categories").select("id, name, age_bracket, weight_class, athletes_count, expected_matches, belt, age_min, age_max, sex, day").eq("tournament_id", tournamentId).order("created_at", { ascending: false }),
+    supabase.from("categories").select("id, name, age_bracket, weight_class, athletes_count, expected_matches, belt, age_min, age_max, sex, day, doc_url").eq("tournament_id", tournamentId).order("created_at", { ascending: false }),
     supabase.from("rings").select("*").eq("tournament_id", tournamentId).order("ring_order", { ascending: true })
   ]);
+
+  let categories = catRes.data;
+  if (catRes.error || !categories) {
+    const { data: catFallback } = await supabase
+      .from("categories")
+      .select("id, name, age_bracket, weight_class, athletes_count, expected_matches, belt, age_min, age_max, sex, day")
+      .eq("tournament_id", tournamentId)
+      .order("created_at", { ascending: false });
+    categories = (catFallback || []).map((c: any) => ({ ...c, doc_url: null }));
+  }
 
   if (tournamentError || !tournament) {
     redirect("/admin");
