@@ -351,10 +351,10 @@ export function PdfViewerModal({ url, title, onClose }: PdfViewerModalProps) {
             </div>
           )}
 
-          {/* Dedicated Canvas Container: horizontally scrollable with w-max */}
+          {/* Dedicated Canvas Container: vertical scroll across pages, horizontal scroll per page */}
           <div
             ref={containerRef}
-            className="flex flex-row items-center justify-start min-h-full w-max mx-auto gap-6"
+            className="flex flex-col items-center justify-start min-h-full w-max mx-auto gap-6 pb-6"
           />
         </div>
       </div>
