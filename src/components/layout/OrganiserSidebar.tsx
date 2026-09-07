@@ -60,7 +60,7 @@ export default function OrganiserSidebar() {
     };
 
     let interval: NodeJS.Timeout | null = null;
-    let channel: any = null;
+    let channel: ReturnType<typeof supabase.channel> | null = null;
 
     const init = async () => {
       // If user is an authenticated admin, do not kick out or poll
@@ -90,7 +90,7 @@ export default function OrganiserSidebar() {
             table: "organiser_requests",
             filter: `session_token=eq.${token}`,
           },
-          (payload: any) => {
+          (payload: { new: Record<string, unknown> }) => {
             if (payload?.new?.status !== "approved") {
               handleRevoked();
             }
