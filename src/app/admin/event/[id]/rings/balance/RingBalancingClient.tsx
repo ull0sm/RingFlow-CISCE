@@ -4,6 +4,7 @@ import React, { useState, useEffect, useCallback } from "react";
 import { DragDropContext, Droppable, Draggable, DropResult } from "@hello-pangea/dnd";
 import { saveAssignments } from "@/actions/balancing";
 import { createClient } from "@/utils/supabase/client";
+import StagerStatusIndicator from "@/components/ui/StagerStatusIndicator";
 
 type Category = {
   id: string;
@@ -1106,24 +1107,29 @@ export default function RingBalancingClient({
                           <span className="material-symbols-outlined text-[12px]">{isCompleted ? 'done_all' : isPaused ? 'pause_circle' : 'schedule'}</span>
                           {ringName}
                         </span>
-                        {isPaused && (
-                          <span className="inline-flex items-center gap-1 text-[9px] font-bold text-amber-800 bg-amber-50 border border-amber-200 px-1.5 py-0.5 rounded uppercase tracking-wider shadow-2xs">
-                            <span className="w-1.5 h-1.5 rounded-full bg-amber-600 animate-pulse" />
-                            PAUSED
-                          </span>
-                        )}
-                        {isRunning && (
-                          <span className="inline-flex items-center gap-1 text-[9px] font-bold text-emerald-800 bg-emerald-50 border border-emerald-200 px-1.5 py-0.5 rounded uppercase tracking-wider shadow-2xs">
-                            <span className="w-1.5 h-1.5 rounded-full bg-emerald-600 animate-pulse" />
-                            LIVE
-                          </span>
-                        )}
-                        {isCompleted && (
-                          <span className="inline-flex items-center gap-1 text-[9px] font-bold text-blue-800 bg-blue-50 border border-blue-200 px-1.5 py-0.5 rounded uppercase tracking-wider shadow-2xs">
-                            <span className="material-symbols-outlined text-[10px] text-blue-600">done_all</span>
-                            DONE
-                          </span>
-                        )}
+                        <div className="flex items-center gap-1.5">
+                          {assignment?.stager_status && (
+                            <StagerStatusIndicator stagerStatus={assignment.stager_status} stagerActorName={assignment.stager_name} />
+                          )}
+                          {isPaused && (
+                            <span className="inline-flex items-center gap-1 text-[9px] font-bold text-amber-800 bg-amber-50 border border-amber-200 px-1.5 py-0.5 rounded uppercase tracking-wider shadow-2xs">
+                              <span className="w-1.5 h-1.5 rounded-full bg-amber-600 animate-pulse" />
+                              PAUSED
+                            </span>
+                          )}
+                          {isRunning && (
+                            <span className="inline-flex items-center gap-1 text-[9px] font-bold text-emerald-800 bg-emerald-50 border border-emerald-200 px-1.5 py-0.5 rounded uppercase tracking-wider shadow-2xs">
+                              <span className="w-1.5 h-1.5 rounded-full bg-emerald-600 animate-pulse" />
+                              LIVE
+                            </span>
+                          )}
+                          {isCompleted && (
+                            <span className="inline-flex items-center gap-1 text-[9px] font-bold text-blue-800 bg-blue-50 border border-blue-200 px-1.5 py-0.5 rounded uppercase tracking-wider shadow-2xs">
+                              <span className="material-symbols-outlined text-[10px] text-blue-600">done_all</span>
+                              DONE
+                            </span>
+                          )}
+                        </div>
                       </div>
                       {(isRunning || isPaused || isCompleted) && (
                         <div className={`mt-1.5 ${hasLeftAccent ? 'ml-1.5' : ''}`}>
@@ -1337,24 +1343,29 @@ export default function RingBalancingClient({
                                   }`}>
                                     {(cat.age_bracket || (cat.age_min !== null && cat.age_max !== null ? `${cat.age_min}-${cat.age_max}` : ""))} | {cat.weight_class || cat.belt || "-"}
                                   </span>
-                                  {isPaused ? (
-                                    <span className="inline-flex items-center gap-1 text-[9px] font-bold text-amber-800 bg-amber-50 border border-amber-200 px-1.5 py-0.5 rounded uppercase tracking-wider shadow-2xs">
-                                      <span className="w-1.5 h-1.5 rounded-full bg-amber-600 animate-pulse" />
-                                      PAUSED
-                                    </span>
-                                  ) : isRunning ? (
-                                    <span className="inline-flex items-center gap-1 text-[9px] font-bold text-emerald-800 bg-emerald-50 border border-emerald-200 px-1.5 py-0.5 rounded uppercase tracking-wider shadow-2xs">
-                                      <span className="w-1.5 h-1.5 rounded-full bg-emerald-600 animate-pulse" />
-                                      LIVE
-                                    </span>
-                                  ) : isCompleted ? (
-                                    <span className="inline-flex items-center gap-1 text-[9px] font-bold text-blue-800 bg-blue-50 border border-blue-200 px-1.5 py-0.5 rounded uppercase tracking-wider shadow-2xs">
-                                      <span className="material-symbols-outlined text-[11px] text-blue-600">done_all</span>
-                                      COMPLETED
-                                    </span>
-                                  ) : (
-                                    <span className="font-data-mono text-[10px] font-bold text-on-surface-variant">{Math.ceil((cat.expected_matches * 109) / 60)}m</span>
-                                  )}
+                                  <div className="flex items-center gap-1.5 shrink-0">
+                                    {stagerStatus && (
+                                      <StagerStatusIndicator stagerStatus={stagerStatus} stagerActorName={stagerActorName} />
+                                    )}
+                                    {isPaused ? (
+                                      <span className="inline-flex items-center gap-1 text-[9px] font-bold text-amber-800 bg-amber-50 border border-amber-200 px-1.5 py-0.5 rounded uppercase tracking-wider shadow-2xs">
+                                        <span className="w-1.5 h-1.5 rounded-full bg-amber-600 animate-pulse" />
+                                        PAUSED
+                                      </span>
+                                    ) : isRunning ? (
+                                      <span className="inline-flex items-center gap-1 text-[9px] font-bold text-emerald-800 bg-emerald-50 border border-emerald-200 px-1.5 py-0.5 rounded uppercase tracking-wider shadow-2xs">
+                                        <span className="w-1.5 h-1.5 rounded-full bg-emerald-600 animate-pulse" />
+                                        LIVE
+                                      </span>
+                                    ) : isCompleted ? (
+                                      <span className="inline-flex items-center gap-1 text-[9px] font-bold text-blue-800 bg-blue-50 border border-blue-200 px-1.5 py-0.5 rounded uppercase tracking-wider shadow-2xs">
+                                        <span className="material-symbols-outlined text-[11px] text-blue-600">done_all</span>
+                                        COMPLETED
+                                      </span>
+                                    ) : (
+                                      <span className="font-data-mono text-[10px] font-bold text-on-surface-variant">{Math.ceil((cat.expected_matches * 109) / 60)}m</span>
+                                    )}
+                                  </div>
                                 </div>
                                 <h5 className={`text-xs font-bold text-primary mb-2 ${hasLeftAccent ? 'ml-2' : ''}`}>{cat.name}</h5>
                                 <div className={`flex gap-4 text-[10px] font-data-mono text-outline ${hasLeftAccent ? 'ml-2' : ''}`}>
@@ -1376,22 +1387,6 @@ export default function RingBalancingClient({
                                         style={{ width: `${Math.min(100, pct)}%` }}
                                       ></div>
                                     </div>
-                                  </div>
-                                )}
-                                {/* Stager Status Badge */}
-                                {stagerStatus && (
-                                  <div className={`mt-2 flex items-center gap-1.5 px-2 py-1 rounded text-[10px] font-bold ${hasLeftAccent ? 'ml-2' : ''} ${
-                                    stagerStatus === 'calling'
-                                      ? 'bg-amber-100 text-amber-800 border border-amber-300'
-                                      : 'bg-green-100 text-green-800 border border-green-300'
-                                  }`}>
-                                    <span className="material-symbols-outlined text-[13px]">
-                                      {stagerStatus === 'calling' ? 'notifications_active' : 'check_circle'}
-                                    </span>
-                                    {stagerStatus === 'calling'
-                                      ? `Calling in progress by ${stagerActorName}`
-                                      : `Ready — called by ${stagerActorName}`
-                                    }
                                   </div>
                                 )}
                               </div>
