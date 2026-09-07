@@ -32,8 +32,7 @@ export default function AdminDashboardClient({
       .on('postgres_changes', { 
         event: '*', 
         schema: 'public', 
-        table: 'category_assignments',
-        filter: `tournament_id=eq.${tournament.id}`
+        table: 'category_assignments'
       }, async (payload) => {
         if (payload.eventType === 'UPDATE') {
           setAssignments(prev => {
@@ -53,6 +52,7 @@ export default function AdminDashboardClient({
             return prev;
           });
         } else if (payload.eventType === 'INSERT') {
+          if (!rings.some(r => r.id === payload.new.ring_id)) return;
           // Fetch joined category data if missing so division name and match count are populated
           const { data: cat } = await supabase
             .from("categories")
