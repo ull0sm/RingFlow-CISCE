@@ -170,8 +170,15 @@ export default function StagerBalancingClient({
       .channel(`stager_balancing_${tournamentId}`)
       .on(
         "postgres_changes",
-        { event: "*", schema: "public", table: "category_assignments" },
+        {
+          event: "*",
+          schema: "public",
+          table: "category_assignments",
+          // Filter to THIS tournament only — avoids receiving events from all tournaments
+          filter: `tournament_id=eq.${tournamentId}`
+        },
         (payload) => {
+
           if (payload.eventType === "UPDATE" || payload.eventType === "INSERT") {
             const updated = payload.new as any;
             if (updated?.category_id) {

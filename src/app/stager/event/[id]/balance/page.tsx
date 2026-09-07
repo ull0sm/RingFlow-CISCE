@@ -4,6 +4,11 @@ import { createClient } from "@/utils/supabase/server";
 import { ensureStagerHasAccessToTournament } from "@/actions/stager";
 import StagerBalancingClient from "./StagerBalancingClient";
 
+// Cache this page for 10s on Vercel's CDN / edge.
+// The client-side Realtime subscription delivers live updates after hydration,
+// so stagers always see current data — this just speeds up the initial server render.
+export const revalidate = 10;
+
 export default async function StagerBalancePage({
   params,
 }: {

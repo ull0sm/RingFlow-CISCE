@@ -138,11 +138,14 @@ export default function RingBalancingClient({
     const ringIds = initialRings.map(r => r.id);
     if (ringIds.length === 0) return;
 
+    // Filter by tournament_id so we only receive events for THIS tournament's assignments.
+    // Without this, Supabase sends ALL category_assignment changes across every tournament.
     const channel = supabase.channel(`admin_balancing_${tournamentId}`)
       .on('postgres_changes', {
         event: '*',
         schema: 'public',
-        table: 'category_assignments'
+        table: 'category_assignments',
+        filter: `tournament_id=eq.${tournamentId}`
       }, (payload) => {
         if (payload.eventType === 'UPDATE' || payload.eventType === 'INSERT') {
           const updated = payload.new as any;
