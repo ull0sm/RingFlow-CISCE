@@ -19,6 +19,7 @@ type Category = {
   age_max?: number | null;
   sex?: string | null;
   day?: string | null;
+  doc_url?: string | null;
 };
 
 type Ring = {
@@ -325,15 +326,14 @@ export default function StagerBalancingClient({
     return (
       <div
         key={cat.id}
-        className={`p-3 border rounded-lg relative overflow-hidden ${
-          isPaused
+        className={`p-3 border rounded-lg relative overflow-hidden ${isPaused
             ? "bg-amber-500/5 border-amber-400/50 shadow-md"
             : isRunning
               ? "bg-secondary/5 border-secondary/40 shadow-md"
               : isCompleted
                 ? "bg-surface-container/60 border-outline-variant opacity-80"
                 : "bg-surface-container-lowest border-outline-variant"
-        }`}
+          }`}
       >
         {isPaused && (
           <div className="absolute top-0 left-0 w-1 h-full bg-amber-500" />
@@ -345,9 +345,8 @@ export default function StagerBalancingClient({
           <div className="absolute top-0 left-0 w-1 h-full bg-blue-600" />
         )}
         <div className={`flex justify-between items-center mb-1 ${hasLeftAccent ? "ml-2" : ""}`}>
-          <span className={`text-[9px] font-bold uppercase tracking-wider ${
-            isPaused ? "text-amber-700" : isCompleted ? "text-blue-700" : "text-secondary"
-          }`}>
+          <span className={`text-[9px] font-bold uppercase tracking-wider ${isPaused ? "text-amber-700" : isCompleted ? "text-blue-700" : "text-secondary"
+            }`}>
             {cat.age_bracket ||
               (cat.age_min !== null && cat.age_max !== null
                 ? `${cat.age_min}-${cat.age_max}`
@@ -355,6 +354,19 @@ export default function StagerBalancingClient({
             | {cat.weight_class || cat.belt || "–"}
           </span>
           <div className="flex items-center gap-1.5 shrink-0">
+            {cat.doc_url && (
+              <a
+                href={cat.doc_url}
+                target="_blank"
+                rel="noopener noreferrer"
+                onClick={(e) => e.stopPropagation()}
+                title="Open student list PDF"
+                className="material-symbols-outlined text-[13px] text-outline hover:text-primary transition-colors shrink-0"
+                style={{ fontVariationSettings: "'FILL' 0" }}
+              >
+                article
+              </a>
+            )}
             {stagerStatus && (
               <StagerStatusIndicator stagerStatus={stagerStatus} stagerActorName={stagerActorName} />
             )}
@@ -381,7 +393,7 @@ export default function StagerBalancingClient({
           </div>
         </div>
 
-        <h5 className={`text-xs font-bold text-primary mb-1.5 ${hasLeftAccent ? "ml-2" : ""}`}>
+        <h5 className={`text-xs font-bold text-primary mb-1.5 flex items-center gap-1 ${hasLeftAccent ? "ml-2" : ""}`}>
           {cat.name}
         </h5>
 
@@ -394,17 +406,15 @@ export default function StagerBalancingClient({
 
         {(isRunning || isPaused || isCompleted) && (
           <div className="mt-2 ml-2">
-            <div className={`flex justify-between text-[9px] font-bold mb-0.5 ${
-              isPaused ? "text-amber-700" : isCompleted ? "text-blue-700" : "text-secondary"
-            }`}>
+            <div className={`flex justify-between text-[9px] font-bold mb-0.5 ${isPaused ? "text-amber-700" : isCompleted ? "text-blue-700" : "text-secondary"
+              }`}>
               <span>{matchesDone} / {matchesTotal} matches</span>
               <span>{pct.toFixed(0)}%</span>
             </div>
             <div className="w-full bg-surface-container-high h-1.5 rounded-full overflow-hidden">
               <div
-                className={`h-full transition-all duration-500 ease-out ${
-                  isPaused ? "bg-amber-500" : isCompleted ? "bg-blue-600" : "bg-secondary"
-                }`}
+                className={`h-full transition-all duration-500 ease-out ${isPaused ? "bg-amber-500" : isCompleted ? "bg-blue-600" : "bg-secondary"
+                  }`}
                 style={{ width: `${Math.min(100, pct)}%` }}
               />
             </div>
@@ -423,12 +433,11 @@ export default function StagerBalancingClient({
               });
             }}
             disabled={!!loadingAction}
-            className={`flex-1 flex items-center justify-center gap-1.5 py-1.5 px-2 rounded text-[10px] font-bold transition-all border whitespace-nowrap select-none cursor-pointer ${
-              stagerStatus === "calling"
+            className={`flex-1 flex items-center justify-center gap-1.5 py-1.5 px-2 rounded text-[10px] font-bold transition-all border whitespace-nowrap select-none cursor-pointer ${stagerStatus === "calling"
                 ? "bg-amber-500 text-white border-amber-500 shadow-sm"
                 : "bg-amber-100/60 text-amber-800 border-amber-300 hover:bg-amber-200"
-            } disabled:opacity-50`}
-            title="Mark as In Progress — notify others you're calling this category"
+              } disabled:opacity-50`}
+            title="Mark as In Progress - notify others you're calling this category"
           >
             {isCallingLoading ? (
               <span className="w-3 h-3 border-2 border-amber-600 border-t-transparent rounded-full animate-spin shrink-0" />
@@ -448,12 +457,11 @@ export default function StagerBalancingClient({
               });
             }}
             disabled={!!loadingAction}
-            className={`flex-1 flex items-center justify-center gap-1.5 py-1.5 px-2 rounded text-[10px] font-bold transition-all border whitespace-nowrap select-none cursor-pointer ${
-              stagerStatus === "ready"
+            className={`flex-1 flex items-center justify-center gap-1.5 py-1.5 px-2 rounded text-[10px] font-bold transition-all border whitespace-nowrap select-none cursor-pointer ${stagerStatus === "ready"
                 ? "bg-green-600 text-white border-green-600 shadow-sm"
                 : "bg-green-100/60 text-green-800 border-green-300 hover:bg-green-200"
-            } disabled:opacity-50`}
-            title="Mark as Called — notify others this category is ready"
+              } disabled:opacity-50`}
+            title="Mark as Called - notify others this category is ready"
           >
             {isReadyLoading ? (
               <span className="w-3 h-3 border-2 border-green-600 border-t-transparent rounded-full animate-spin shrink-0" />
@@ -595,20 +603,19 @@ export default function StagerBalancingClient({
           >
             {/* Minimal Icon */}
             <div
-              className={`w-11 h-11 rounded-full flex items-center justify-center mx-auto ${
-                confirmModal.isClearing
+              className={`w-11 h-11 rounded-full flex items-center justify-center mx-auto ${confirmModal.isClearing
                   ? "bg-surface-container-high text-on-surface-variant"
                   : confirmModal.requestedStatus === "calling"
-                  ? "bg-amber-100 text-amber-700"
-                  : "bg-green-100 text-green-700"
-              }`}
+                    ? "bg-amber-100 text-amber-700"
+                    : "bg-green-100 text-green-700"
+                }`}
             >
               <span className="material-symbols-outlined text-2xl">
                 {confirmModal.isClearing
                   ? "restart_alt"
                   : confirmModal.requestedStatus === "calling"
-                  ? "notifications_active"
-                  : "check_circle"}
+                    ? "notifications_active"
+                    : "check_circle"}
               </span>
             </div>
 
@@ -657,13 +664,12 @@ export default function StagerBalancingClient({
                   setConfirmModal(null);
                   handleStagerAction(categoryId, requestedStatus);
                 }}
-                className={`flex-1 py-2 px-3 rounded-xl text-xs font-bold text-white shadow-sm transition-colors cursor-pointer ${
-                  confirmModal.isClearing
+                className={`flex-1 py-2 px-3 rounded-xl text-xs font-bold text-white shadow-sm transition-colors cursor-pointer ${confirmModal.isClearing
                     ? "bg-neutral-800 hover:bg-neutral-900"
                     : confirmModal.requestedStatus === "calling"
-                    ? "bg-amber-600 hover:bg-amber-700"
-                    : "bg-green-600 hover:bg-green-700"
-                }`}
+                      ? "bg-amber-600 hover:bg-amber-700"
+                      : "bg-green-600 hover:bg-green-700"
+                  }`}
               >
                 Yes, Confirm
               </button>

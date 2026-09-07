@@ -18,6 +18,7 @@ type Category = {
   age_max?: number | null;
   sex?: string | null;
   day?: string | null;
+  doc_url?: string | null;
 };
 
 type Ring = {
@@ -47,12 +48,12 @@ interface Props {
   readOnly?: boolean;
 }
 
-export default function RingBalancingClient({ 
-  tournamentId, 
-  tournamentName, 
-  initialCategories, 
-  initialRings, 
-  initialAssignments, 
+export default function RingBalancingClient({
+  tournamentId,
+  tournamentName,
+  initialCategories,
+  initialRings,
+  initialAssignments,
   completedTimes,
   readOnly = false,
 }: Props) {
@@ -68,7 +69,7 @@ export default function RingBalancingClient({
   const [lastSaved, setLastSaved] = useState<Date | null>(null);
   const [isMounted, setIsMounted] = useState(false);
   const [isInitialized, setIsInitialized] = useState(false);
-  
+
   // Drag confirmation state
   const [pendingDragResult, setPendingDragResult] = useState<DropResult | null>(null);
   const [confirmText, setConfirmText] = useState("");
@@ -115,7 +116,7 @@ export default function RingBalancingClient({
   }, []);
 
   // Realtime assignments map for live match count, status, queue_order and stager status tracking
-  const [assignmentsMap, setAssignmentsMap] = useState<Record<string, { matches_completed: number; status: string; ring_id: string; queue_order: number; stager_status: string | null; stager_name: string | null }>>({}); 
+  const [assignmentsMap, setAssignmentsMap] = useState<Record<string, { matches_completed: number; status: string; ring_id: string; queue_order: number; stager_status: string | null; stager_name: string | null }>>({});
 
   useEffect(() => {
     const map: Record<string, { matches_completed: number; status: string; ring_id: string; queue_order: number; stager_status: string | null; stager_name: string | null }> = {};
@@ -343,7 +344,7 @@ export default function RingBalancingClient({
       const targetQueue = ringQueues[destDroppableId] || [];
       const topCat = targetQueue[0];
       const topStatus = topCat ? assignmentsMap[topCat.id]?.status : null;
-      
+
       if (topCat && (topStatus === "running" || topStatus === "paused")) {
         // If moving item to position 0 (above running category)
         const isHeaderDrop = destination.droppableId.startsWith("header_");
@@ -439,7 +440,7 @@ export default function RingBalancingClient({
   const onDragEnd = (result: DropResult) => {
     const { source, destination } = result;
     if (!destination) return;
-    
+
     const sourceDroppableId = source.droppableId.startsWith("header_")
       ? source.droppableId.replace("header_", "")
       : source.droppableId;
@@ -490,15 +491,15 @@ export default function RingBalancingClient({
       payloadMap.set(cat.id, { category_id: cat.id, ring_id: null, queue_order: idx });
     });
 
-    // Process rings — active ring assignments take precedence
+    // Process rings - active ring assignments take precedence
     Object.keys(ringQueues).forEach(ringId => {
       ringQueues[ringId].forEach((cat, idx) => {
         const liveStatus = assignmentsMap[cat.id]?.status;
         const effectiveStatus = (liveStatus === "running" || liveStatus === "paused") ? liveStatus : "pending";
-        payloadMap.set(cat.id, { 
-          category_id: cat.id, 
-          ring_id: ringId, 
-          queue_order: idx, 
+        payloadMap.set(cat.id, {
+          category_id: cat.id,
+          ring_id: ringId,
+          queue_order: idx,
           status: effectiveStatus,
           completed_at: null,
         });
@@ -510,10 +511,10 @@ export default function RingBalancingClient({
       ringCompletedQueues[ringId].forEach((cat, idx) => {
         if (!ringQueues[ringId]?.some(c => c.id === cat.id)) {
           const originalAssignment = initialAssignments.find(a => a.category_id === cat.id);
-          payloadMap.set(cat.id, { 
-            category_id: cat.id, 
-            ring_id: ringId, 
-            queue_order: (ringQueues[ringId]?.length || 0) + idx, 
+          payloadMap.set(cat.id, {
+            category_id: cat.id,
+            ring_id: ringId,
+            queue_order: (ringQueues[ringId]?.length || 0) + idx,
             status: "completed",
             completed_at: originalAssignment?.completed_at || new Date().toISOString()
           });
@@ -544,7 +545,7 @@ export default function RingBalancingClient({
   };
 
   const triggerAutoSaveIfNeeded = (
-    updatedUnassigned?: Category[], 
+    updatedUnassigned?: Category[],
     updatedRingQueues?: Record<string, Category[]>,
     prevUnassigned?: Category[],
     prevRingQueues?: Record<string, Category[]>,
@@ -554,7 +555,7 @@ export default function RingBalancingClient({
     prevAssignmentsMap?: Record<string, { matches_completed: number; status: string; ring_id: string; queue_order: number; stager_status: string | null; stager_name: string | null }>
   ) => {
     if (!autoSave) return;
-    
+
     // Perform save with latest state snapshot
     const targetUnassigned = updatedUnassigned || unassigned;
     const targetRingQueues = updatedRingQueues || ringQueues;
@@ -576,10 +577,10 @@ export default function RingBalancingClient({
         const liveInfo = targetAssignmentsMap[cat.id];
         const rawStatus = liveInfo?.status;
         const effectiveStatus = (rawStatus === "running" || rawStatus === "paused") ? rawStatus : "pending";
-        payloadMap.set(cat.id, { 
-          category_id: cat.id, 
-          ring_id: ringId, 
-          queue_order: idx, 
+        payloadMap.set(cat.id, {
+          category_id: cat.id,
+          ring_id: ringId,
+          queue_order: idx,
           status: effectiveStatus,
           completed_at: null,
         });
@@ -591,10 +592,10 @@ export default function RingBalancingClient({
       targetCompletedQueues[ringId].forEach((cat, idx) => {
         if (!targetRingQueues[ringId]?.some(c => c.id === cat.id)) {
           const originalAssignment = initialAssignments.find(a => a.category_id === cat.id);
-          payloadMap.set(cat.id, { 
-            category_id: cat.id, 
-            ring_id: ringId, 
-            queue_order: (targetRingQueues[ringId]?.length || 0) + idx, 
+          payloadMap.set(cat.id, {
+            category_id: cat.id,
+            ring_id: ringId,
+            queue_order: (targetRingQueues[ringId]?.length || 0) + idx,
             status: "completed",
             completed_at: originalAssignment?.completed_at || new Date().toISOString()
           });
@@ -732,7 +733,7 @@ export default function RingBalancingClient({
     return a && a.status === 'completed';
   });
 
-  // Derive visible unassigned (only "idle" — not in any ring)
+  // Derive visible unassigned (only "idle" - not in any ring)
   const visibleUnassigned = unassigned
     .filter(cat => {
       if (search && !cat.name.toLowerCase().includes(search.toLowerCase())) return false;
@@ -768,8 +769,8 @@ export default function RingBalancingClient({
   const sidebarCategoriesToShow = statusFilter === "idle"
     ? visibleUnassigned
     : statusFilter === "queue"
-    ? queuedCategories.filter(cat => search ? cat.name.toLowerCase().includes(search.toLowerCase()) : true)
-    : allCompletedCategories.filter(cat => search ? cat.name.toLowerCase().includes(search.toLowerCase()) : true);
+      ? queuedCategories.filter(cat => search ? cat.name.toLowerCase().includes(search.toLowerCase()) : true)
+      : allCompletedCategories.filter(cat => search ? cat.name.toLowerCase().includes(search.toLowerCase()) : true);
 
   const uniqueBelts = Array.from(new Set(initialCategories.map(c => c.belt).filter(Boolean)));
   const uniqueAges = Array.from(new Set(initialCategories.map(c => c.age_bracket).filter(Boolean)));
@@ -809,18 +810,17 @@ export default function RingBalancingClient({
               {mobileShowPool ? "chevron_left" : "chevron_right"}
             </span>
           </button>
-          
+
           {!readOnly && (
             <div className="flex items-center gap-4 sm:gap-6 flex-wrap">
               <div className="flex flex-col">
                 <span className="text-[9px] sm:text-[10px] font-label-caps opacity-60">SYNC MODE</span>
-                <button 
+                <button
                   onClick={() => setAutoSave(!autoSave)}
-                  className={`flex items-center gap-2 px-2.5 sm:px-3 py-1 rounded-md text-xs font-bold transition-all border ${
-                    autoSave 
-                      ? 'bg-secondary/20 border-secondary text-white' 
+                  className={`flex items-center gap-2 px-2.5 sm:px-3 py-1 rounded-md text-xs font-bold transition-all border ${autoSave
+                      ? 'bg-secondary/20 border-secondary text-white'
                       : 'bg-white/5 border-outline-variant/40 text-on-primary/70 hover:bg-white/10'
-                  }`}
+                    }`}
                   title="Toggle Auto Sync after drag and drop"
                 >
                   <span className={`w-2 h-2 rounded-full ${autoSave ? 'bg-secondary animate-pulse' : 'bg-outline-variant'}`}></span>
@@ -832,8 +832,8 @@ export default function RingBalancingClient({
               {!autoSave && (
                 <div className="flex flex-col">
                   <span className="text-[9px] sm:text-[10px] font-label-caps opacity-60">ACTIONS</span>
-                  <button 
-                    onClick={handleSave} 
+                  <button
+                    onClick={handleSave}
                     disabled={isSaving}
                     className="bg-secondary text-white px-3 sm:px-4 py-1 rounded-md text-xs font-bold hover:opacity-90 disabled:opacity-50 flex items-center gap-1.5 shadow-sm cursor-pointer"
                   >
@@ -866,11 +866,10 @@ export default function RingBalancingClient({
 
           {/* Left Sidebar: Category Pool (expands inline; shrinks to 10% peek on mobile with > arrow) */}
           <section
-            className={`h-full flex flex-col bg-surface-container-lowest border-r border-outline-variant shrink-0 relative transition-[width] duration-300 ease-in-out z-20 ${
-              mobileShowPool
+            className={`h-full flex flex-col bg-surface-container-lowest border-r border-outline-variant shrink-0 relative transition-[width] duration-300 ease-in-out z-20 ${mobileShowPool
                 ? "w-[85vw] max-w-[340px] md:w-80 shadow-lg md:shadow-none"
                 : "w-[10vw] min-w-[36px] md:w-80 overflow-visible bg-surface-container-low/70 hover:bg-surface-container-low cursor-pointer select-none"
-            }`}
+              }`}
             onClick={!mobileShowPool ? togglePool : undefined}
             title={!mobileShowPool ? "Expand unassigned categories" : undefined}
           >
@@ -891,11 +890,10 @@ export default function RingBalancingClient({
 
             {/* Inner Content Container */}
             <div
-              className={`w-80 max-w-[85vw] md:max-w-none flex flex-col h-full transition-opacity duration-200 ${
-                mobileShowPool
+              className={`w-80 max-w-[85vw] md:max-w-none flex flex-col h-full transition-opacity duration-200 ${mobileShowPool
                   ? "opacity-100 overflow-y-auto"
                   : "opacity-0 md:opacity-100 pointer-events-none md:pointer-events-auto overflow-hidden"
-              }`}
+                }`}
             >
               <div className="p-4 border-b border-outline-variant bg-surface-container-low flex flex-col gap-3 shrink-0">
                 <div className="flex justify-between items-center">
@@ -903,7 +901,7 @@ export default function RingBalancingClient({
                     {statusFilter === "idle" ? `Unassigned (${visibleUnassigned.length})` : statusFilter === "queue" ? `In Queue (${queuedCategories.length})` : `Completed (${allCompletedCategories.length})`}
                   </h3>
                   <div className="flex items-center gap-2">
-                    <button 
+                    <button
                       onClick={() => {
                         setSearch(""); setBeltFilter(""); setAgeFilter(""); setSexFilter("");
                       }}
@@ -922,231 +920,259 @@ export default function RingBalancingClient({
                   </div>
                 </div>
 
-              {/* Status Filter Tabs */}
-              <div className="flex rounded-lg overflow-hidden border border-outline-variant bg-surface-container-high">
-                {(["idle", "queue", "completed"] as const).map(tab => (
-                  <button
-                    key={tab}
-                    onClick={() => setStatusFilter(tab)}
-                    className={`flex-1 py-1.5 text-[10px] font-bold uppercase tracking-wide transition-colors ${
-                      statusFilter === tab
-                        ? 'bg-primary text-on-primary'
-                        : 'text-on-surface-variant hover:bg-surface-container'
-                    }`}
-                  >
-                    {tab}
-                  </button>
-                ))}
-              </div>
-
-              {/* Search */}
-              <input 
-                type="text" 
-                placeholder="Search categories..." 
-                value={search}
-                onChange={e => setSearch(e.target.value)}
-                className="w-full bg-white border border-outline-variant rounded p-2 text-xs outline-none focus:border-secondary"
-              />
-
-              {/* Filters (only for idle) */}
-              {statusFilter === "idle" && (
-              <div className="flex gap-2 flex-wrap">
-                {uniqueBelts.length > 0 && (
-                  <select 
-                    value={beltFilter} 
-                    onChange={e => setBeltFilter(e.target.value)}
-                    className="flex-1 min-w-[70px] bg-white border border-outline-variant rounded p-1 text-[10px] outline-none"
-                  >
-                    <option value="">All Belts</option>
-                    {uniqueBelts.map(b => <option key={b as string} value={b as string}>{b}</option>)}
-                  </select>
-                )}
-
-                {uniqueAges.length > 0 && (
-                  <select 
-                    value={ageFilter} 
-                    onChange={e => setAgeFilter(e.target.value)}
-                    className="flex-1 min-w-[70px] bg-white border border-outline-variant rounded p-1 text-[10px] outline-none"
-                  >
-                    <option value="">Age</option>
-                    {uniqueAges.map(a => <option key={a as string} value={a as string}>{a}</option>)}
-                  </select>
-                )}
-
-                <select 
-                  value={sexFilter} 
-                  onChange={e => setSexFilter(e.target.value)}
-                  className="min-w-[60px] bg-white border border-outline-variant rounded p-1 text-[10px] outline-none"
-                >
-                  <option value="">Sex</option>
-                  {uniqueSexes.map(s => <option key={s as string} value={s as string}>{s}</option>)}
-                </select>
-
-                <div className="w-full flex gap-2">
-                  <select 
-                    value={sortBy} 
-                    onChange={e => setSortBy(e.target.value as any)}
-                    className="flex-1 bg-white border border-outline-variant rounded p-1 text-[10px] outline-none"
-                  >
-                    <option value="name">Sort: Name</option>
-                    <option value="athletes">Sort: Athletes</option>
-                    <option value="weight">Sort: Weight</option>
-                  </select>
-                  <button
-                    onClick={() => setSortOrder(sortOrder === "asc" ? "desc" : "asc")}
-                    className="bg-white border border-outline-variant rounded p-1 text-[10px] flex items-center justify-center min-w-[40px] hover:bg-surface-container"
-                  >
-                    {sortOrder === "asc" ? "ASC" : "DESC"}
-                  </button>
+                {/* Status Filter Tabs */}
+                <div className="flex rounded-lg overflow-hidden border border-outline-variant bg-surface-container-high">
+                  {(["idle", "queue", "completed"] as const).map(tab => (
+                    <button
+                      key={tab}
+                      onClick={() => setStatusFilter(tab)}
+                      className={`flex-1 py-1.5 text-[10px] font-bold uppercase tracking-wide transition-colors ${statusFilter === tab
+                          ? 'bg-primary text-on-primary'
+                          : 'text-on-surface-variant hover:bg-surface-container'
+                        }`}
+                    >
+                      {tab}
+                    </button>
+                  ))}
                 </div>
-              </div>
-              )}
-            </div>
 
-            {/* Idle view: draggable categories */}
-            {statusFilter === "idle" ? (
-              <Droppable droppableId="unassigned">
-                {(provided, snapshot) => (
-                  <div 
-                    ref={provided.innerRef} 
-                    {...provided.droppableProps}
-                    className={`flex-1 overflow-y-auto p-4 space-y-4 bg-surface-container-lowest ${snapshot.isDraggingOver ? 'bg-secondary/5' : ''}`}
-                  >
-                    {visibleUnassigned.map((cat, index) => (
-                      <Draggable key={cat.id} draggableId={cat.id} index={index} isDragDisabled={readOnly}>
-                        {(provided, snapshot) => (
-                          <div
-                            ref={provided.innerRef}
-                            {...provided.draggableProps}
-                            {...provided.dragHandleProps}
-                            className={`p-4 bg-white border ${snapshot.isDragging ? 'border-secondary shadow-lg' : 'border-outline-variant shadow-sm'} rounded-xl ${!readOnly ? 'cursor-grab active:cursor-grabbing' : ''}`}
-                          >
-                            <div className="flex justify-between items-start mb-2">
-                              <div className="flex gap-1 flex-wrap">
-                                {cat.belt && <span className="px-1.5 py-0.5 bg-surface-container-high text-on-surface rounded text-[9px] font-bold uppercase">{cat.belt}</span>}
-                                {cat.sex && <span className="px-1.5 py-0.5 bg-surface-container-high text-on-surface rounded text-[9px] font-bold uppercase">{cat.sex}</span>}
-                                {cat.age_bracket ? (
-                                  <span className="px-1.5 py-0.5 bg-surface-container-high text-on-surface rounded text-[9px] font-bold uppercase">{cat.age_bracket}</span>
-                                ) : (cat.age_min !== null || cat.age_max !== null) && (
-                                  <span className="px-1.5 py-0.5 bg-surface-container-high text-on-surface rounded text-[9px] font-bold uppercase">
-                                    {cat.age_min}-{cat.age_max}
-                                  </span>
-                                )}
-                                {cat.weight_class && <span className="px-1.5 py-0.5 bg-surface-container-high text-on-surface rounded text-[9px] font-bold uppercase">{cat.weight_class}</span>}
-                                {cat.day && <span className="px-1.5 py-0.5 bg-surface-container-high text-on-surface rounded text-[9px] font-bold uppercase">{cat.day}</span>}
+                {/* Search */}
+                <input
+                  type="text"
+                  placeholder="Search categories..."
+                  value={search}
+                  onChange={e => setSearch(e.target.value)}
+                  className="w-full bg-white border border-outline-variant rounded p-2 text-xs outline-none focus:border-secondary"
+                />
+
+                {/* Filters (only for idle) */}
+                {statusFilter === "idle" && (
+                  <div className="flex gap-2 flex-wrap">
+                    {uniqueBelts.length > 0 && (
+                      <select
+                        value={beltFilter}
+                        onChange={e => setBeltFilter(e.target.value)}
+                        className="flex-1 min-w-[70px] bg-white border border-outline-variant rounded p-1 text-[10px] outline-none"
+                      >
+                        <option value="">All Belts</option>
+                        {uniqueBelts.map(b => <option key={b as string} value={b as string}>{b}</option>)}
+                      </select>
+                    )}
+
+                    {uniqueAges.length > 0 && (
+                      <select
+                        value={ageFilter}
+                        onChange={e => setAgeFilter(e.target.value)}
+                        className="flex-1 min-w-[70px] bg-white border border-outline-variant rounded p-1 text-[10px] outline-none"
+                      >
+                        <option value="">Age</option>
+                        {uniqueAges.map(a => <option key={a as string} value={a as string}>{a}</option>)}
+                      </select>
+                    )}
+
+                    <select
+                      value={sexFilter}
+                      onChange={e => setSexFilter(e.target.value)}
+                      className="min-w-[60px] bg-white border border-outline-variant rounded p-1 text-[10px] outline-none"
+                    >
+                      <option value="">Sex</option>
+                      {uniqueSexes.map(s => <option key={s as string} value={s as string}>{s}</option>)}
+                    </select>
+
+                    <div className="w-full flex gap-2">
+                      <select
+                        value={sortBy}
+                        onChange={e => setSortBy(e.target.value as any)}
+                        className="flex-1 bg-white border border-outline-variant rounded p-1 text-[10px] outline-none"
+                      >
+                        <option value="name">Sort: Name</option>
+                        <option value="athletes">Sort: Athletes</option>
+                        <option value="weight">Sort: Weight</option>
+                      </select>
+                      <button
+                        onClick={() => setSortOrder(sortOrder === "asc" ? "desc" : "asc")}
+                        className="bg-white border border-outline-variant rounded p-1 text-[10px] flex items-center justify-center min-w-[40px] hover:bg-surface-container"
+                      >
+                        {sortOrder === "asc" ? "ASC" : "DESC"}
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* Idle view: draggable categories */}
+              {statusFilter === "idle" ? (
+                <Droppable droppableId="unassigned">
+                  {(provided, snapshot) => (
+                    <div
+                      ref={provided.innerRef}
+                      {...provided.droppableProps}
+                      className={`flex-1 overflow-y-auto p-4 space-y-4 bg-surface-container-lowest ${snapshot.isDraggingOver ? 'bg-secondary/5' : ''}`}
+                    >
+                      {visibleUnassigned.map((cat, index) => (
+                        <Draggable key={cat.id} draggableId={cat.id} index={index} isDragDisabled={readOnly}>
+                          {(provided, snapshot) => (
+                            <div
+                              ref={provided.innerRef}
+                              {...provided.draggableProps}
+                              {...provided.dragHandleProps}
+                              className={`p-4 bg-white border ${snapshot.isDragging ? 'border-secondary shadow-lg' : 'border-outline-variant shadow-sm'} rounded-xl ${!readOnly ? 'cursor-grab active:cursor-grabbing' : ''}`}
+                            >
+                              <div className="flex justify-between items-start mb-2">
+                                <div className="flex gap-1 flex-wrap">
+                                  {cat.belt && <span className="px-1.5 py-0.5 bg-surface-container-high text-on-surface rounded text-[9px] font-bold uppercase">{cat.belt}</span>}
+                                  {cat.sex && <span className="px-1.5 py-0.5 bg-surface-container-high text-on-surface rounded text-[9px] font-bold uppercase">{cat.sex}</span>}
+                                  {cat.age_bracket ? (
+                                    <span className="px-1.5 py-0.5 bg-surface-container-high text-on-surface rounded text-[9px] font-bold uppercase">{cat.age_bracket}</span>
+                                  ) : (cat.age_min !== null || cat.age_max !== null) && (
+                                    <span className="px-1.5 py-0.5 bg-surface-container-high text-on-surface rounded text-[9px] font-bold uppercase">
+                                      {cat.age_min}-{cat.age_max}
+                                    </span>
+                                  )}
+                                  {cat.weight_class && <span className="px-1.5 py-0.5 bg-surface-container-high text-on-surface rounded text-[9px] font-bold uppercase">{cat.weight_class}</span>}
+                                  {cat.day && <span className="px-1.5 py-0.5 bg-surface-container-high text-on-surface rounded text-[9px] font-bold uppercase">{cat.day}</span>}
+                                </div>
+                                {!readOnly && <span className="material-symbols-outlined text-outline-variant text-sm">drag_indicator</span>}
                               </div>
-                              {!readOnly && <span className="material-symbols-outlined text-outline-variant text-sm">drag_indicator</span>}
+                              <h4 className="font-headline-sm text-sm text-primary mb-3">
+                                <span className="flex items-center gap-1.5 flex-wrap">
+                                  {cat.name}
+                                  {cat.doc_url && (
+                                    <a
+                                      href={cat.doc_url}
+                                      target="_blank"
+                                      rel="noopener noreferrer"
+                                      onClick={(e) => e.stopPropagation()}
+                                      title="Open student list PDF"
+                                      className="material-symbols-outlined text-[14px] text-outline hover:text-primary transition-colors shrink-0"
+                                      style={{ fontVariationSettings: "'FILL' 0" }}
+                                    >
+                                      article
+                                    </a>
+                                  )}
+                                </span>
+                              </h4>
+                              <div className="flex items-center justify-between pt-3 border-t border-outline-variant/30">
+                                <div className="flex items-center gap-3">
+                                  <span className="flex items-center gap-1 font-data-mono text-[11px]"><span className="material-symbols-outlined text-[14px] text-outline">group</span> {cat.athletes_count}</span>
+                                </div>
+                                <span className="font-data-mono text-xs font-bold px-2 py-0.5 bg-primary text-on-primary rounded">{Math.ceil((cat.expected_matches * 109) / 60)}m</span>
+                              </div>
                             </div>
-                            <h4 className="font-headline-sm text-sm text-primary mb-3">{cat.name}</h4>
-                            <div className="flex items-center justify-between pt-3 border-t border-outline-variant/30">
-                              <div className="flex items-center gap-3">
-                                <span className="flex items-center gap-1 font-data-mono text-[11px]"><span className="material-symbols-outlined text-[14px] text-outline">group</span> {cat.athletes_count}</span>
-                              </div>
-                              <span className="font-data-mono text-xs font-bold px-2 py-0.5 bg-primary text-on-primary rounded">{Math.ceil((cat.expected_matches * 109) / 60)}m</span>
+                          )}
+                        </Draggable>
+                      ))}
+                      {provided.placeholder}
+                    </div>
+                  )}
+                </Droppable>
+              ) : (
+                /* Queue / Completed view: read-only greyed cards */
+                <div className="flex-1 overflow-y-auto p-4 space-y-3">
+                  {sidebarCategoriesToShow.length === 0 && (
+                    <div className="flex flex-col items-center justify-center h-40 text-outline opacity-60">
+                      <span className="material-symbols-outlined text-3xl mb-2">inbox</span>
+                      <span className="text-xs">No categories</span>
+                    </div>
+                  )}
+                  {sidebarCategoriesToShow.map(cat => {
+                    const assignment = assignmentsMap[cat.id];
+                    const ringName = initialRings.find(r => r.id === assignment?.ring_id)?.name?.replace(/Ring/i, 'Tatami') || "";
+                    const status = assignment?.status;
+                    const isCompleted = status === 'completed';
+                    const isRunning = status === 'running';
+                    const isPaused = status === 'paused';
+                    const hasLeftAccent = isRunning || isPaused || isCompleted;
+                    const matchesDone = assignment?.matches_completed || 0;
+                    const matchesTotal = cat.expected_matches || 0;
+                    const pct = matchesTotal > 0 ? (matchesDone / matchesTotal) * 100 : 0;
+
+                    return (
+                      <div
+                        key={cat.id}
+                        className={`p-3 border rounded-xl relative overflow-hidden ${isPaused
+                            ? 'bg-amber-500/5 border-amber-300 shadow-2xs'
+                            : isRunning
+                              ? 'bg-secondary/5 border-secondary/30 shadow-2xs'
+                              : isCompleted
+                                ? 'bg-surface-container border-outline-variant/50 opacity-60'
+                                : 'bg-surface-container border-outline-variant/50 opacity-70'
+                          }`}
+                      >
+                        {isPaused && (
+                          <div className="absolute top-0 left-0 w-1 h-full bg-amber-500"></div>
+                        )}
+                        {isRunning && (
+                          <div className="absolute top-0 left-0 w-1 h-full bg-secondary"></div>
+                        )}
+                        {isCompleted && (
+                          <div className="absolute top-0 left-0 w-1 h-full bg-blue-600"></div>
+                        )}
+                        <div className={`flex gap-1 flex-wrap mb-1.5 ${hasLeftAccent ? 'ml-1.5' : ''}`}>
+                          {cat.belt && <span className="px-1.5 py-0.5 bg-surface-container-high text-on-surface rounded text-[9px] font-bold uppercase">{cat.belt}</span>}
+                          {cat.sex && <span className="px-1.5 py-0.5 bg-surface-container-high text-on-surface rounded text-[9px] font-bold uppercase">{cat.sex}</span>}
+                          {cat.age_bracket && <span className="px-1.5 py-0.5 bg-surface-container-high text-on-surface rounded text-[9px] font-bold uppercase">{cat.age_bracket}</span>}
+                          {cat.weight_class && <span className="px-1.5 py-0.5 bg-surface-container-high text-on-surface rounded text-[9px] font-bold uppercase">{cat.weight_class}</span>}
+                        </div>
+                        <h4 className={`text-xs font-bold text-on-surface mb-1.5 ${hasLeftAccent ? 'ml-1.5' : ''}`}>{cat.name}</h4>
+                        <div className={`flex justify-between items-center text-[10px] text-on-surface-variant mb-1 ${hasLeftAccent ? 'ml-1.5' : ''}`}>
+                          <span className="flex items-center gap-1 font-bold">
+                            <span className="material-symbols-outlined text-[12px]">{isCompleted ? 'done_all' : isPaused ? 'pause_circle' : 'schedule'}</span>
+                            {ringName}
+                          </span>
+                          <div className="flex items-center gap-1.5">
+                            {cat.doc_url && (
+                              <a
+                                href={cat.doc_url}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                onClick={(e) => e.stopPropagation()}
+                                title="Open student list PDF"
+                                className="material-symbols-outlined text-[12px] text-outline hover:text-primary transition-colors shrink-0"
+                                style={{ fontVariationSettings: "'FILL' 0" }}
+                              >
+                                article
+                              </a>
+                            )}
+                            {assignment?.stager_status && (
+                              <StagerStatusIndicator stagerStatus={assignment.stager_status} stagerActorName={assignment.stager_name} />
+                            )}
+                            {isPaused && (
+                              <span className="inline-flex items-center gap-1 text-[9px] font-bold text-amber-800 bg-amber-50 border border-amber-200 px-1.5 py-0.5 rounded uppercase tracking-wider shadow-2xs">
+                                <span className="w-1.5 h-1.5 rounded-full bg-amber-600 animate-pulse" />
+                                PAUSED
+                              </span>
+                            )}
+                            {isRunning && (
+                              <span className="inline-flex items-center gap-1 text-[9px] font-bold text-emerald-800 bg-emerald-50 border border-emerald-200 px-1.5 py-0.5 rounded uppercase tracking-wider shadow-2xs">
+                                <span className="w-1.5 h-1.5 rounded-full bg-emerald-600 animate-pulse" />
+                                LIVE
+                              </span>
+                            )}
+                            {isCompleted && (
+                              <span className="inline-flex items-center gap-1 text-[9px] font-bold text-blue-800 bg-blue-50 border border-blue-200 px-1.5 py-0.5 rounded uppercase tracking-wider shadow-2xs">
+                                <span className="material-symbols-outlined text-[10px] text-blue-600">done_all</span>
+                                DONE
+                              </span>
+                            )}
+                          </div>
+                        </div>
+                        {(isRunning || isPaused || isCompleted) && (
+                          <div className={`mt-1.5 ${hasLeftAccent ? 'ml-1.5' : ''}`}>
+                            <div className="flex justify-between text-[9px] font-bold text-on-surface-variant mb-0.5">
+                              <span>{matchesDone} / {matchesTotal} matches</span>
+                              <span>{pct.toFixed(0)}%</span>
+                            </div>
+                            <div className="w-full bg-surface-container-high h-1 rounded-full overflow-hidden">
+                              <div className={`h-full transition-all duration-500 ${isCompleted ? 'bg-blue-600' : isPaused ? 'bg-amber-500' : 'bg-secondary'}`} style={{ width: `${Math.min(100, pct)}%` }}></div>
                             </div>
                           </div>
                         )}
-                      </Draggable>
-                    ))}
-                    {provided.placeholder}
-                  </div>
-                )}
-              </Droppable>
-            ) : (
-              /* Queue / Completed view: read-only greyed cards */
-              <div className="flex-1 overflow-y-auto p-4 space-y-3">
-                {sidebarCategoriesToShow.length === 0 && (
-                  <div className="flex flex-col items-center justify-center h-40 text-outline opacity-60">
-                    <span className="material-symbols-outlined text-3xl mb-2">inbox</span>
-                    <span className="text-xs">No categories</span>
-                  </div>
-                )}
-                {sidebarCategoriesToShow.map(cat => {
-                  const assignment = assignmentsMap[cat.id];
-                  const ringName = initialRings.find(r => r.id === assignment?.ring_id)?.name?.replace(/Ring/i, 'Tatami') || "";
-                  const status = assignment?.status;
-                  const isCompleted = status === 'completed';
-                  const isRunning = status === 'running';
-                  const isPaused = status === 'paused';
-                  const hasLeftAccent = isRunning || isPaused || isCompleted;
-                  const matchesDone = assignment?.matches_completed || 0;
-                  const matchesTotal = cat.expected_matches || 0;
-                  const pct = matchesTotal > 0 ? (matchesDone / matchesTotal) * 100 : 0;
-
-                  return (
-                    <div
-                      key={cat.id}
-                      className={`p-3 border rounded-xl relative overflow-hidden ${
-                        isPaused
-                          ? 'bg-amber-500/5 border-amber-300 shadow-2xs'
-                          : isRunning
-                            ? 'bg-secondary/5 border-secondary/30 shadow-2xs'
-                            : isCompleted
-                              ? 'bg-surface-container border-outline-variant/50 opacity-60'
-                              : 'bg-surface-container border-outline-variant/50 opacity-70'
-                      }`}
-                    >
-                      {isPaused && (
-                        <div className="absolute top-0 left-0 w-1 h-full bg-amber-500"></div>
-                      )}
-                      {isRunning && (
-                        <div className="absolute top-0 left-0 w-1 h-full bg-secondary"></div>
-                      )}
-                      {isCompleted && (
-                        <div className="absolute top-0 left-0 w-1 h-full bg-blue-600"></div>
-                      )}
-                      <div className={`flex gap-1 flex-wrap mb-1.5 ${hasLeftAccent ? 'ml-1.5' : ''}`}>
-                        {cat.belt && <span className="px-1.5 py-0.5 bg-surface-container-high text-on-surface rounded text-[9px] font-bold uppercase">{cat.belt}</span>}
-                        {cat.sex && <span className="px-1.5 py-0.5 bg-surface-container-high text-on-surface rounded text-[9px] font-bold uppercase">{cat.sex}</span>}
-                        {cat.age_bracket && <span className="px-1.5 py-0.5 bg-surface-container-high text-on-surface rounded text-[9px] font-bold uppercase">{cat.age_bracket}</span>}
-                        {cat.weight_class && <span className="px-1.5 py-0.5 bg-surface-container-high text-on-surface rounded text-[9px] font-bold uppercase">{cat.weight_class}</span>}
                       </div>
-                      <h4 className={`text-xs font-bold text-on-surface mb-1.5 ${hasLeftAccent ? 'ml-1.5' : ''}`}>{cat.name}</h4>
-                      <div className={`flex justify-between items-center text-[10px] text-on-surface-variant mb-1 ${hasLeftAccent ? 'ml-1.5' : ''}`}>
-                        <span className="flex items-center gap-1 font-bold">
-                          <span className="material-symbols-outlined text-[12px]">{isCompleted ? 'done_all' : isPaused ? 'pause_circle' : 'schedule'}</span>
-                          {ringName}
-                        </span>
-                        <div className="flex items-center gap-1.5">
-                          {assignment?.stager_status && (
-                            <StagerStatusIndicator stagerStatus={assignment.stager_status} stagerActorName={assignment.stager_name} />
-                          )}
-                          {isPaused && (
-                            <span className="inline-flex items-center gap-1 text-[9px] font-bold text-amber-800 bg-amber-50 border border-amber-200 px-1.5 py-0.5 rounded uppercase tracking-wider shadow-2xs">
-                              <span className="w-1.5 h-1.5 rounded-full bg-amber-600 animate-pulse" />
-                              PAUSED
-                            </span>
-                          )}
-                          {isRunning && (
-                            <span className="inline-flex items-center gap-1 text-[9px] font-bold text-emerald-800 bg-emerald-50 border border-emerald-200 px-1.5 py-0.5 rounded uppercase tracking-wider shadow-2xs">
-                              <span className="w-1.5 h-1.5 rounded-full bg-emerald-600 animate-pulse" />
-                              LIVE
-                            </span>
-                          )}
-                          {isCompleted && (
-                            <span className="inline-flex items-center gap-1 text-[9px] font-bold text-blue-800 bg-blue-50 border border-blue-200 px-1.5 py-0.5 rounded uppercase tracking-wider shadow-2xs">
-                              <span className="material-symbols-outlined text-[10px] text-blue-600">done_all</span>
-                              DONE
-                            </span>
-                          )}
-                        </div>
-                      </div>
-                      {(isRunning || isPaused || isCompleted) && (
-                        <div className={`mt-1.5 ${hasLeftAccent ? 'ml-1.5' : ''}`}>
-                          <div className="flex justify-between text-[9px] font-bold text-on-surface-variant mb-0.5">
-                            <span>{matchesDone} / {matchesTotal} matches</span>
-                            <span>{pct.toFixed(0)}%</span>
-                          </div>
-                          <div className="w-full bg-surface-container-high h-1 rounded-full overflow-hidden">
-                            <div className={`h-full transition-all duration-500 ${isCompleted ? 'bg-blue-600' : isPaused ? 'bg-amber-500' : 'bg-secondary'}`} style={{ width: `${Math.min(100, pct)}%` }}></div>
-                          </div>
-                        </div>
-                      )}
-                    </div>
-                  );
-                })}
-              </div>
-            )}
+                    );
+                  })}
+                </div>
+              )}
             </div>
           </section>
 
@@ -1155,7 +1181,7 @@ export default function RingBalancingClient({
             {initialRings.map(ring => {
               const overloaded = isOverloaded(ring.id);
               const isHistoryView = historyOpenForRing === ring.id;
-              
+
               if (isHistoryView) {
                 return (
                   <div key={ring.id} className="w-[85vw] max-w-[340px] md:w-72 shrink-0 flex flex-col bg-surface-container-lowest border border-outline-variant rounded-xl overflow-hidden shadow-sm h-full">
@@ -1170,7 +1196,7 @@ export default function RingBalancingClient({
                           </div>
                         </div>
                       </div>
-                      <button 
+                      <button
                         className="p-1 rounded hover:bg-black/10 transition-colors flex items-center justify-center text-primary"
                         onClick={() => setHistoryOpenForRing(null)}
                         title="Back to Current"
@@ -1178,7 +1204,7 @@ export default function RingBalancingClient({
                         <span className="material-symbols-outlined text-[20px]">close</span>
                       </button>
                     </div>
-                    
+
                     <div className="flex-1 overflow-y-auto p-4 space-y-3">
                       {(!ringCompletedQueues[ring.id] || ringCompletedQueues[ring.id].length === 0) ? (
                         <div className="flex flex-col items-center justify-center h-full text-outline opacity-70">
@@ -1198,13 +1224,28 @@ export default function RingBalancingClient({
                                 <span className="text-[10px] font-bold text-secondary uppercase tracking-wider">
                                   {(cat.age_bracket || (cat.age_min !== null && cat.age_max !== null ? `${cat.age_min}-${cat.age_max}` : ""))} | {cat.weight_class || cat.belt || "-"}
                                 </span>
-                                <span className="text-[10px] font-bold text-green-600 bg-green-500/10 px-1.5 py-0.5 rounded flex items-center gap-1">
+                                <span suppressHydrationWarning className="text-[10px] font-bold text-green-600 bg-green-500/10 px-1.5 py-0.5 rounded flex items-center gap-1">
                                   <span className="material-symbols-outlined text-[12px]">done_all</span>
                                   {timeStr}
                                 </span>
                               </div>
                               <div className="flex justify-between items-center ml-2">
-                                <h5 className="text-xs font-bold text-primary">{cat.name}</h5>
+                                <h5 className="text-xs font-bold text-primary flex items-center gap-1">
+                                  {cat.name}
+                                  {cat.doc_url && (
+                                    <a
+                                      href={cat.doc_url}
+                                      target="_blank"
+                                      rel="noopener noreferrer"
+                                      onClick={(e) => e.stopPropagation()}
+                                      title="Open student list PDF"
+                                      className="material-symbols-outlined text-[13px] text-outline hover:text-primary transition-colors shrink-0"
+                                      style={{ fontVariationSettings: "'FILL' 0" }}
+                                    >
+                                      article
+                                    </a>
+                                  )}
+                                </h5>
                                 <span className="flex items-center gap-1 text-[10px] font-data-mono font-bold text-outline">
                                   <span className="material-symbols-outlined text-[12px]">group</span> {cat.athletes_count}
                                 </span>
@@ -1241,11 +1282,10 @@ export default function RingBalancingClient({
                       <div
                         ref={providedHeader.innerRef}
                         {...providedHeader.droppableProps}
-                        className={`sticky top-0 z-10 p-4 flex flex-col shrink-0 relative transition-all ${
-                          snapshotHeader.isDraggingOver
+                        className={`sticky top-0 z-10 p-4 flex flex-col shrink-0 relative transition-all ${snapshotHeader.isDraggingOver
                             ? 'bg-emerald-600 text-white ring-4 ring-emerald-400/50 shadow-xl'
                             : overloaded ? 'bg-error text-on-error' : 'bg-primary text-on-primary'
-                        }`}
+                          }`}
                       >
                         <div className="flex justify-between items-center w-full">
                           <div>
@@ -1253,7 +1293,7 @@ export default function RingBalancingClient({
                             <span className="text-[9px] font-label-caps opacity-80">{overloaded ? "OVERLOADED" : "OPTIMUM CAPACITY"}</span>
                           </div>
                           <div className="relative flex items-center gap-1">
-                            <button 
+                            <button
                               className="p-1 rounded hover:bg-white/20 transition-colors flex items-center justify-center"
                               onClick={() => setHistoryOpenForRing(ring.id)}
                               title="View Completed Categories"
@@ -1293,7 +1333,7 @@ export default function RingBalancingClient({
                   {/* Queue Droppable */}
                   <Droppable droppableId={ring.id}>
                     {(provided, snapshot) => (
-                      <div 
+                      <div
                         className={`flex-1 overflow-y-auto p-3 space-y-3 ${snapshot.isDraggingOver ? 'bg-secondary/5' : ''}`}
                         ref={provided.innerRef}
                         {...provided.droppableProps}
@@ -1314,82 +1354,91 @@ export default function RingBalancingClient({
                               const stagerActorName = catAssignment?.stager_name ?? null;
 
                               return (
-                              <div 
-                                ref={provided.innerRef}
-                                {...provided.draggableProps}
-                                {...provided.dragHandleProps}
-                                className={`p-3 border rounded-lg relative overflow-hidden ${
-                                  isPaused
-                                    ? 'bg-amber-500/5 border-amber-400/50 shadow-md'
-                                    : isRunning
-                                      ? 'bg-secondary/5 border-secondary/40 shadow-md'
-                                      : isCompleted
-                                        ? 'bg-surface-container/60 border-outline-variant opacity-80'
-                                        : `bg-surface-container-lowest border-outline-variant ${snapshot.isDragging ? 'border-secondary shadow-lg' : ''}`
-                                } ${!readOnly ? 'cursor-grab active:cursor-grabbing' : ''}`}
-                              >
-                                {isPaused && (
-                                  <div className="absolute top-0 left-0 w-1 h-full bg-amber-500"></div>
-                                )}
-                                {isRunning && (
-                                  <div className="absolute top-0 left-0 w-1 h-full bg-secondary"></div>
-                                )}
-                                {isCompleted && (
-                                  <div className="absolute top-0 left-0 w-1 h-full bg-blue-600"></div>
-                                )}
-                                <div className={`flex justify-between items-center mb-1 ${hasLeftAccent ? 'ml-2' : ''}`}>
-                                  <span className={`text-[9px] font-bold uppercase tracking-wider ${
-                                    isPaused ? 'text-amber-700' : isCompleted ? 'text-blue-700' : 'text-secondary'
-                                  }`}>
-                                    {(cat.age_bracket || (cat.age_min !== null && cat.age_max !== null ? `${cat.age_min}-${cat.age_max}` : ""))} | {cat.weight_class || cat.belt || "-"}
-                                  </span>
-                                  <div className="flex items-center gap-1.5 shrink-0">
-                                    {stagerStatus && (
-                                      <StagerStatusIndicator stagerStatus={stagerStatus} stagerActorName={stagerActorName} />
-                                    )}
-                                    {isPaused ? (
-                                      <span className="inline-flex items-center gap-1 text-[9px] font-bold text-amber-800 bg-amber-50 border border-amber-200 px-1.5 py-0.5 rounded uppercase tracking-wider shadow-2xs">
-                                        <span className="w-1.5 h-1.5 rounded-full bg-amber-600 animate-pulse" />
-                                        PAUSED
-                                      </span>
-                                    ) : isRunning ? (
-                                      <span className="inline-flex items-center gap-1 text-[9px] font-bold text-emerald-800 bg-emerald-50 border border-emerald-200 px-1.5 py-0.5 rounded uppercase tracking-wider shadow-2xs">
-                                        <span className="w-1.5 h-1.5 rounded-full bg-emerald-600 animate-pulse" />
-                                        LIVE
-                                      </span>
-                                    ) : isCompleted ? (
-                                      <span className="inline-flex items-center gap-1 text-[9px] font-bold text-blue-800 bg-blue-50 border border-blue-200 px-1.5 py-0.5 rounded uppercase tracking-wider shadow-2xs">
-                                        <span className="material-symbols-outlined text-[11px] text-blue-600">done_all</span>
-                                        COMPLETED
-                                      </span>
-                                    ) : (
-                                      <span className="font-data-mono text-[10px] font-bold text-on-surface-variant">{Math.ceil((cat.expected_matches * 109) / 60)}m</span>
-                                    )}
-                                  </div>
-                                </div>
-                                <h5 className={`text-xs font-bold text-primary mb-2 ${hasLeftAccent ? 'ml-2' : ''}`}>{cat.name}</h5>
-                                <div className={`flex gap-4 text-[10px] font-data-mono text-outline ${hasLeftAccent ? 'ml-2' : ''}`}>
-                                  <span className="flex items-center gap-1"><span className="material-symbols-outlined text-[12px]">group</span> {cat.athletes_count}</span>
-                                </div>
-                                {(isRunning || isPaused || isCompleted) && (
-                                  <div className="mt-2 ml-2">
-                                    <div className={`flex justify-between text-[9px] font-bold mb-0.5 ${
-                                      isPaused ? 'text-amber-700' : isCompleted ? 'text-blue-700' : 'text-secondary'
-                                    }`}>
-                                      <span>{matchesDone} / {matchesTotal} matches</span>
-                                      <span>{pct.toFixed(0)}%</span>
-                                    </div>
-                                    <div className="w-full bg-surface-container-high h-1.5 rounded-full overflow-hidden">
-                                      <div
-                                        className={`h-full transition-all duration-500 ease-out ${
-                                          isPaused ? 'bg-amber-500' : isCompleted ? 'bg-blue-600' : 'bg-secondary'
-                                        }`}
-                                        style={{ width: `${Math.min(100, pct)}%` }}
-                                      ></div>
+                                <div
+                                  ref={provided.innerRef}
+                                  {...provided.draggableProps}
+                                  {...provided.dragHandleProps}
+                                  className={`p-3 border rounded-lg relative overflow-hidden ${isPaused
+                                      ? 'bg-amber-500/5 border-amber-400/50 shadow-md'
+                                      : isRunning
+                                        ? 'bg-secondary/5 border-secondary/40 shadow-md'
+                                        : isCompleted
+                                          ? 'bg-surface-container/60 border-outline-variant opacity-80'
+                                          : `bg-surface-container-lowest border-outline-variant ${snapshot.isDragging ? 'border-secondary shadow-lg' : ''}`
+                                    } ${!readOnly ? 'cursor-grab active:cursor-grabbing' : ''}`}
+                                >
+                                  {isPaused && (
+                                    <div className="absolute top-0 left-0 w-1 h-full bg-amber-500"></div>
+                                  )}
+                                  {isRunning && (
+                                    <div className="absolute top-0 left-0 w-1 h-full bg-secondary"></div>
+                                  )}
+                                  {isCompleted && (
+                                    <div className="absolute top-0 left-0 w-1 h-full bg-blue-600"></div>
+                                  )}
+                                  <div className={`flex justify-between items-center mb-1 ${hasLeftAccent ? 'ml-2' : ''}`}>
+                                    <span className={`text-[9px] font-bold uppercase tracking-wider ${isPaused ? 'text-amber-700' : isCompleted ? 'text-blue-700' : 'text-secondary'
+                                      }`}>
+                                      {(cat.age_bracket || (cat.age_min !== null && cat.age_max !== null ? `${cat.age_min}-${cat.age_max}` : ""))} | {cat.weight_class || cat.belt || "-"}
+                                    </span>
+                                    <div className="flex items-center gap-1.5 shrink-0">
+                                      {cat.doc_url && (
+                                        <a
+                                          href={cat.doc_url}
+                                          target="_blank"
+                                          rel="noopener noreferrer"
+                                          onClick={(e) => e.stopPropagation()}
+                                          title="Open student list PDF"
+                                          className="material-symbols-outlined text-[13px] text-outline hover:text-primary transition-colors shrink-0"
+                                          style={{ fontVariationSettings: "'FILL' 0" }}
+                                        >
+                                          article
+                                        </a>
+                                      )}
+                                      {stagerStatus && (
+                                        <StagerStatusIndicator stagerStatus={stagerStatus} stagerActorName={stagerActorName} />
+                                      )}
+                                      {isPaused ? (
+                                        <span className="inline-flex items-center gap-1 text-[9px] font-bold text-amber-800 bg-amber-50 border border-amber-200 px-1.5 py-0.5 rounded uppercase tracking-wider shadow-2xs">
+                                          <span className="w-1.5 h-1.5 rounded-full bg-amber-600 animate-pulse" />
+                                          PAUSED
+                                        </span>
+                                      ) : isRunning ? (
+                                        <span className="inline-flex items-center gap-1 text-[9px] font-bold text-emerald-800 bg-emerald-50 border border-emerald-200 px-1.5 py-0.5 rounded uppercase tracking-wider shadow-2xs">
+                                          <span className="w-1.5 h-1.5 rounded-full bg-emerald-600 animate-pulse" />
+                                          LIVE
+                                        </span>
+                                      ) : isCompleted ? (
+                                        <span className="inline-flex items-center gap-1 text-[9px] font-bold text-blue-800 bg-blue-50 border border-blue-200 px-1.5 py-0.5 rounded uppercase tracking-wider shadow-2xs">
+                                          <span className="material-symbols-outlined text-[11px] text-blue-600">done_all</span>
+                                          COMPLETED
+                                        </span>
+                                      ) : (
+                                        <span className="font-data-mono text-[10px] font-bold text-on-surface-variant">{Math.ceil((cat.expected_matches * 109) / 60)}m</span>
+                                      )}
                                     </div>
                                   </div>
-                                )}
-                              </div>
+                                  <h5 className={`text-xs font-bold text-primary mb-2 ${hasLeftAccent ? 'ml-2' : ''}`}>{cat.name}</h5>
+                                  <div className={`flex gap-4 text-[10px] font-data-mono text-outline ${hasLeftAccent ? 'ml-2' : ''}`}>
+                                    <span className="flex items-center gap-1"><span className="material-symbols-outlined text-[12px]">group</span> {cat.athletes_count}</span>
+                                  </div>
+                                  {(isRunning || isPaused || isCompleted) && (
+                                    <div className="mt-2 ml-2">
+                                      <div className={`flex justify-between text-[9px] font-bold mb-0.5 ${isPaused ? 'text-amber-700' : isCompleted ? 'text-blue-700' : 'text-secondary'
+                                        }`}>
+                                        <span>{matchesDone} / {matchesTotal} matches</span>
+                                        <span>{pct.toFixed(0)}%</span>
+                                      </div>
+                                      <div className="w-full bg-surface-container-high h-1.5 rounded-full overflow-hidden">
+                                        <div
+                                          className={`h-full transition-all duration-500 ease-out ${isPaused ? 'bg-amber-500' : isCompleted ? 'bg-blue-600' : 'bg-secondary'
+                                            }`}
+                                          style={{ width: `${Math.min(100, pct)}%` }}
+                                        ></div>
+                                      </div>
+                                    </div>
+                                  )}
+                                </div>
                               );
                             }}
                           </Draggable>
@@ -1447,7 +1496,7 @@ export default function RingBalancingClient({
 
       {/* Confirmation Modal */}
       {pendingDragResult && (
-        <div 
+        <div
           className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4"
           onKeyDown={(e) => {
             if (e.key === "Escape") {
@@ -1455,7 +1504,7 @@ export default function RingBalancingClient({
             }
           }}
         >
-          <form 
+          <form
             onSubmit={(e) => {
               e.preventDefault();
               if (confirmText.trim().toLowerCase() === "confirm" && pendingDragResult) {
@@ -1477,8 +1526,8 @@ export default function RingBalancingClient({
               </p>
               <div className="bg-error/10 p-4 rounded-lg border border-error/20">
                 <label className="text-xs font-bold text-error block mb-2">Type "confirm" to proceed</label>
-                <input 
-                  type="text" 
+                <input
+                  type="text"
                   autoFocus
                   value={confirmText}
                   onChange={(e) => setConfirmText(e.target.value)}
@@ -1488,14 +1537,14 @@ export default function RingBalancingClient({
               </div>
             </div>
             <div className="p-4 bg-surface-container flex justify-end gap-3 border-t border-outline-variant">
-              <button 
+              <button
                 type="button"
                 onClick={() => setPendingDragResult(null)}
                 className="px-4 py-2 text-sm font-bold text-on-surface-variant hover:bg-surface-container-high rounded transition-colors"
               >
                 Cancel
               </button>
-              <button 
+              <button
                 type="submit"
                 disabled={confirmText.trim().toLowerCase() !== "confirm"}
                 className="px-4 py-2 bg-error text-white text-sm font-bold rounded hover:opacity-90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
@@ -1509,7 +1558,7 @@ export default function RingBalancingClient({
 
       {/* Revert Category Confirmation Modal */}
       {pendingRevertCategory && (
-        <div 
+        <div
           className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4 animate-in fade-in duration-150"
           onKeyDown={(e) => {
             if (e.key === "Escape") {
@@ -1517,7 +1566,7 @@ export default function RingBalancingClient({
             }
           }}
         >
-          <form 
+          <form
             onSubmit={(e) => {
               e.preventDefault();
               handleConfirmRevert();
@@ -1555,14 +1604,14 @@ export default function RingBalancingClient({
               </div>
             </div>
             <div className="p-4 bg-surface-container flex justify-end items-center gap-3 border-t border-outline-variant">
-              <button 
+              <button
                 type="button"
                 onClick={() => setPendingRevertCategory(null)}
                 className="px-4 py-2 text-sm font-bold text-on-surface-variant hover:bg-surface-container-high rounded transition-colors"
               >
                 Cancel <span className="text-xs opacity-60">(Esc)</span>
               </button>
-              <button 
+              <button
                 type="submit"
                 autoFocus
                 className="px-4 py-2 bg-amber-600 hover:bg-amber-700 active:bg-amber-800 text-white text-sm font-bold rounded shadow transition-colors flex items-center gap-1.5 focus:ring-2 focus:ring-amber-500 focus:outline-none cursor-pointer"
