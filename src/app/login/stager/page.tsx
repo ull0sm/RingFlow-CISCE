@@ -68,20 +68,10 @@ function StagerLoginContent() {
 
       const { browser, os, deviceType } = parseUserAgent(navigator.userAgent);
 
-      let ip = "Unknown";
-      let location = "Unknown";
-      try {
-        const res = await fetch("https://ipapi.co/json/");
-        if (res.ok) {
-          const data = await res.json();
-          ip = data.ip;
-          location = `${data.city}, ${data.region}`;
-        }
-      } catch {
-        // silent fallback
-      }
+      // Note: IP and location are resolved server-side from x-forwarded-for headers
+      // in the requestStagerAccess server action — no need to call ipapi.co here.
+      const deviceInfo = { deviceId, browser, os, deviceType };
 
-      const deviceInfo = { deviceId, browser, os, deviceType, ip, location };
 
       const result = await requestStagerAccess(
         accessCode,

@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, Suspense } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { requestOrganiserAccess } from "@/actions/organiser";
 import { Turnstile } from "@marsidev/react-turnstile";
 import { RingFlowLogo } from "@/components/ui/ringflow-logo";
@@ -34,6 +34,7 @@ function OrganiserLoginContent() {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState("");
   const router = useRouter();
+  const searchParams = useSearchParams();
 
   const handleInput = (e: React.ChangeEvent<HTMLInputElement>) => {
     let val = e.target.value.replace(/[^a-zA-Z0-9]/g, "").toUpperCase();
@@ -68,31 +69,18 @@ function OrganiserLoginContent() {
         localStorage.setItem("ringflow_org_device_id", deviceId);
       }
 
-      // 2. Parse User Agent
+      // 2. Parse User Agent (instant, no network call)
       const { browser, os, deviceType } = parseUserAgent(navigator.userAgent);
 
-      // 3. Approximate location & IP
-      let ip = "Unknown";
-      let location = "Unknown";
-      try {
-        const res = await fetch("https://ipapi.co/json/");
-        if (res.ok) {
-          const data = await res.json();
-          ip = data.ip;
-          location = `${data.city}, ${data.region}`;
-        }
-      } catch (e) {
-        // Fallback silently if blocked
-      }
-
+      // Note: IP and location are resolved server-side from x-forwarded-for headers
+      // in the requestOrganiserAccess server action — no need to call ipapi.co here.
       const deviceInfo = {
         deviceId,
         browser,
         os,
         deviceType,
-        ip,
-        location,
       };
+
 
       const result = await requestOrganiserAccess(
         accessCode,
@@ -126,6 +114,13 @@ function OrganiserLoginContent() {
         <p className="font-body-sm text-on-surface-variant mb-6">
           Enter your Tournament Organiser Access Code to request entry
         </p>
+
+        {searchParams.get("reason") === "revoked" && (
+          <div className="mb-4 p-3 rounded-lg bg-amber-500/10 border border-amber-500/30 text-amber-900 dark:text-amber-200 text-xs font-semibold text-left flex items-center gap-2">
+            <span className="material-symbols-outlined text-[18px] text-amber-600 shrink-0">block</span>
+            <span>Your organiser session has been revoked by the tournament administrator.</span>
+          </div>
+        )}
 
         {error && (
           <div className="mb-4 p-3 rounded-lg bg-error/10 border border-error/20 text-error text-label-sm font-label-sm text-left">

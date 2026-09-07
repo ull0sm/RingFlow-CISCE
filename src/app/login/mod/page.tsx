@@ -71,31 +71,18 @@ function ModeratorLoginContent() {
         localStorage.setItem("ringflow_mod_device_id", deviceId);
       }
 
-      // 2. Parse User Agent
+      // 2. Parse User Agent (instant, no network call)
       const { browser, os, deviceType } = parseUserAgent(navigator.userAgent);
 
-      // 3. Fetch approx location and IP
-      let ip = "Unknown";
-      let location = "Unknown";
-      try {
-        const res = await fetch("https://ipapi.co/json/");
-        if (res.ok) {
-          const data = await res.json();
-          ip = data.ip;
-          location = `${data.city}, ${data.region}`;
-        }
-      } catch {
-        // Fallback silently if blocked
-      }
-
+      // Note: IP and location are resolved server-side from x-forwarded-for headers
+      // in the requestModeratorAccess server action — no need to call ipapi.co here.
       const deviceInfo = {
         deviceId,
         browser,
         os,
         deviceType,
-        ip,
-        location,
       };
+
 
       const result = await requestModeratorAccess(
         accessCode,

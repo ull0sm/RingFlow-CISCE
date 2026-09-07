@@ -46,8 +46,10 @@ export default function StagerWaitingRoom() {
     // 1. Initial status check
     checkStatus();
 
-    // 2. Polling interval
-    const pollInterval = setInterval(checkStatus, 2500);
+    // 2. Fallback polling every 6s — Realtime is primary; this catches edge cases
+    //    where the websocket misses an event. Lower frequency = fewer DB queries.
+    const pollInterval = setInterval(checkStatus, 6000);
+
 
     // 3. Realtime listener
     const channel = supabase
