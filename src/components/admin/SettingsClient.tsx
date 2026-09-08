@@ -49,7 +49,7 @@ export default function SettingsClient({ tournament, initialOrganiserRequests = 
     status: tournament.status,
     venue: tournament.venue || "",
     city: tournament.city || "",
-    show_public_draws: tournament.show_public_draws !== false,
+    show_public_draws: tournament.show_public_draws === true,
   });
   
   const [organiserCode, setOrganiserCode] = useState(tournament.organiser_code || "------");

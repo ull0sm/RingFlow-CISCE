@@ -87,7 +87,7 @@ export default function PublicEventClient({
   const [assignments, setAssignments] = useState<CategoryAssignment[]>(initialAssignments);
   const [flashingMatId, setFlashingMatId] = useState<string | null>(null);
   const [viewingPdf, setViewingPdf] = useState<{ url: string; title: string } | null>(null);
-  const isPublicDrawsEnabled = tournament.show_public_draws !== false;
+  const isPublicDrawsEnabled = tournament.show_public_draws === true;
 
   // Search state
   const [searchQuery, setSearchQuery] = useState("");
@@ -579,7 +579,7 @@ export default function PublicEventClient({
                             title="View category draws PDF"
                           >
                             <svg className="spectator-pdf-icon" viewBox="0 0 16 16" fill="none" aria-hidden="true">
-                              <rect x="0.5" y="0.5" width="15" height="15" rx="3" fill="#DC2626" stroke="#B91C1C" strokeWidth="0.5" />
+                              <rect x="0.5" y="0.5" width="15" height="15" rx="3" fill="#68645A" stroke="#524F47" strokeWidth="0.5" />
                               <text x="8" y="11" fill="#FFFFFF" fontSize="6.5" fontWeight="800" textAnchor="middle" fontFamily="system-ui, -apple-system, sans-serif" letterSpacing="0.2">PDF</text>
                             </svg>
                             <span className="spectator-draws-link">View Draws</span>

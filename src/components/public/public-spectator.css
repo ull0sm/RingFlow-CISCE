@@ -372,9 +372,9 @@
   display: inline-flex;
   align-items: center;
   gap: 4.5px;
-  padding: 1px 6px 1px 4px;
-  background: rgba(220, 38, 38, 0.08);
-  border: 1px solid rgba(220, 38, 38, 0.22);
+  padding: 1.5px 6px 1.5px 4.5px;
+  background: var(--idle-soft);
+  border: 1px solid var(--line);
   border-radius: 4px;
   cursor: pointer;
   transition: all 0.15s ease;
@@ -384,8 +384,8 @@
 }
 
 .spectator-pdf-chip:hover {
-  background: rgba(220, 38, 38, 0.16);
-  border-color: rgba(220, 38, 38, 0.4);
+  background: var(--line-soft);
+  border-color: var(--idle-line);
 }
 
 .spectator-pdf-icon {
@@ -397,17 +397,17 @@
 .spectator-draws-link {
   font-size: 11px;
   font-weight: 600;
-  color: #B91C1C;
+  color: var(--ink-soft);
   text-decoration: underline dotted 1.5px;
   text-underline-offset: 2px;
-  text-decoration-color: #EF4444;
+  text-decoration-color: var(--ink-faint);
   letter-spacing: 0.01em;
 }
 
 .spectator-result-row:hover .spectator-draws-link,
 .spectator-pdf-chip:hover .spectator-draws-link {
-  color: #991B1B;
-  text-decoration-color: #B91C1C;
+  color: var(--ink);
+  text-decoration-color: var(--ink-soft);
 }
 
 .spectator-result-mat {
