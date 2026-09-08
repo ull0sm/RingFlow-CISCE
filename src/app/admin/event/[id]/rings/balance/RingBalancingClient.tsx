@@ -777,34 +777,127 @@ export default function RingBalancingClient({
   const uniqueAges = Array.from(new Set(initialCategories.map(c => c.age_bracket).filter(Boolean)));
   const uniqueSexes = Array.from(new Set(initialCategories.map(c => c.sex).filter(Boolean)));
 
+  // ── Overall Tournament Stats for Black Overview Strip ───────────────────────
+  const totalCategoriesCount = initialCategories.length;
+  
+  // Track all completed categories across completed queues and live assignments
+  const completedCategoryIds = new Set<string>();
+  Object.values(ringCompletedQueues).forEach(queue => {
+    queue.forEach(c => completedCategoryIds.add(c.id));
+  });
+  Object.entries(assignmentsMap).forEach(([catId, info]) => {
+    if (info.status === "completed") completedCategoryIds.add(catId);
+  });
+  const completedCategoriesCount = completedCategoryIds.size;
+
+  // Total Athletes across all categories
+  const totalAthletesCount = initialCategories.reduce(
+    (sum, cat) => sum + (cat.athletes_count || 0),
+    0
+  );
+
+  // Match / Overall Progress
+  let overallTotalExpectedMatches = 0;
+  let overallCompletedMatches = 0;
+
+  initialCategories.forEach(cat => {
+    overallTotalExpectedMatches += (cat.expected_matches || 0);
+    const assignment = assignmentsMap[cat.id];
+    if (completedCategoryIds.has(cat.id) || assignment?.status === "completed") {
+      overallCompletedMatches += (cat.expected_matches || assignment?.matches_completed || 0);
+    } else if (assignment) {
+      overallCompletedMatches += Math.min(cat.expected_matches || 0, assignment.matches_completed || 0);
+    }
+  });
+
+  const overallProgressPct = overallTotalExpectedMatches > 0
+    ? Math.round((overallCompletedMatches / overallTotalExpectedMatches) * 100)
+    : (totalCategoriesCount > 0 ? Math.round((completedCategoriesCount / totalCategoriesCount) * 100) : 0);
+
   return (
     <div className="flex flex-col overflow-hidden w-full h-[calc(100dvh-4rem)] md:h-screen">
       {/* TopNavBar */}
-      <header className="flex justify-between items-center w-full px-4 sm:px-8 h-14 sm:h-16 bg-surface-container-lowest border-b border-outline-variant shrink-0 z-10">
-        <div className="flex items-center gap-3 sm:gap-6 min-w-0 pr-2">
-          <span className="text-base sm:text-headline-lg font-black text-primary tracking-tighter shrink-0 whitespace-nowrap">Ring Flow</span>
-          <div className="h-6 sm:h-8 w-[1px] bg-outline-variant hidden xs:block shrink-0"></div>
-          <div className="flex items-center gap-1.5 sm:gap-2 min-w-0">
+      <header className="flex justify-between items-center w-full px-3 sm:px-8 h-14 sm:h-16 bg-surface-container-lowest border-b border-outline-variant shrink-0 z-10 gap-2">
+        <div className="flex items-center gap-2 sm:gap-4 md:gap-6 min-w-0 pr-1">
+          <span className="text-sm sm:text-headline-lg font-black text-primary tracking-tighter shrink-0 whitespace-nowrap">Ring Flow</span>
+          <div className="h-4 sm:h-8 w-[1px] bg-outline-variant shrink-0"></div>
+          <div className="flex items-center gap-1 sm:gap-2 min-w-0">
             <h2 className="font-headline-sm text-xs sm:text-headline-sm text-primary whitespace-nowrap">Tatami Balancing</h2>
-            <span className="text-outline-variant shrink-0">/</span>
-            <span className="text-on-surface-variant font-label-caps text-label-caps opacity-70 truncate max-w-[100px] sm:max-w-[220px] whitespace-nowrap">{tournamentName}</span>
+            <span className="text-outline-variant shrink-0 hidden xs:inline">/</span>
+            <span className="text-on-surface-variant font-label-caps text-label-caps opacity-70 truncate max-w-[80px] sm:max-w-[200px] md:max-w-none whitespace-nowrap hidden xs:inline">{tournamentName}</span>
           </div>
+        </div>
+
+        {/* Developed by CruxStudios Badge */}
+        <div className="flex items-center shrink-0">
+          <a
+            href="https://cruxstudios.dev"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="group inline-flex items-center gap-1.5 sm:gap-2 px-2.5 sm:px-3 py-1 sm:py-1.5 rounded-full bg-[#1B1815] hover:bg-black text-[#F5F3EC] border border-[#E1DDCF]/40 hover:border-cyan-400/60 shadow-[0_2px_8px_rgba(27,24,21,0.12)] hover:shadow-[0_0_15px_rgba(0,229,255,0.25)] hover:-translate-y-0.5 transition-all duration-300"
+          >
+            <span className="font-['Inter',sans-serif] font-medium text-[9px] sm:text-[11px] text-[#F5F3EC]/90 group-hover:text-white transition-colors hidden sm:inline whitespace-nowrap">
+              Developed by
+            </span>
+            <div className="flex items-center gap-1 sm:gap-1.5">
+              <img
+                src="https://cruxstudios.dev/favicon.svg"
+                alt="CruxStudios"
+                className="h-3.5 sm:h-4 w-3.5 sm:w-4 drop-shadow-[0_0_6px_rgba(0,229,255,0.7)] group-hover:scale-110 group-hover:rotate-6 transition-all duration-300"
+              />
+              <span className="font-['Plus_Jakarta_Sans',sans-serif] font-black text-[10px] sm:text-[12.5px] text-white tracking-tight group-hover:text-[#00E5FF] transition-colors whitespace-nowrap">
+                CruxStudios
+              </span>
+            </div>
+            <svg
+              className="w-2.5 sm:w-3 h-2.5 sm:h-3 text-[#F5F3EC]/80 group-hover:text-[#00E5FF] group-hover:translate-x-0.5 group-hover:-translate-y-0.5 transition-all duration-300 hidden md:block"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2.5"
+            >
+              <path d="M7 17L17 7M17 7H7M17 7V17" />
+            </svg>
+          </a>
         </div>
       </header>
 
       {/* Tournament Overview Bar */}
-      <div className="bg-primary text-on-primary px-4 sm:px-8 py-2.5 sm:py-3 flex items-center justify-between shrink-0 shadow-lg z-10 w-full overflow-x-auto gap-4">
-        <div className="flex items-center gap-4 sm:gap-10 shrink-0">
+      <div className="bg-primary text-on-primary px-3 sm:px-8 py-2 sm:py-3 flex items-center justify-between shrink-0 shadow-lg z-10 w-full overflow-x-auto gap-3 sm:gap-4">
+        <div className="flex items-center gap-2.5 sm:gap-8 shrink-0">
+          {/* Stat 1: Completed Categories */}
           <div className="flex flex-col">
-            <span className="text-[9px] sm:text-[10px] font-label-caps opacity-60">TOTAL TATAMIS</span>
-            <span className="font-data-mono text-sm sm:text-lg font-bold">{initialRings.length} ACTIVE</span>
+            <span className="text-[8px] sm:text-[10px] font-label-caps opacity-60 whitespace-nowrap">CATEGORIES</span>
+            <span className="font-data-mono text-xs sm:text-lg font-bold whitespace-nowrap">{completedCategoriesCount} / {totalCategoriesCount}</span>
           </div>
-          <div className="h-6 w-[1px] bg-white/20"></div>
+          <div className="h-5 sm:h-6 w-[1px] bg-white/20 shrink-0"></div>
+
+          {/* Stat 2: Completed Matches */}
+          <div className="flex flex-col">
+            <span className="text-[8px] sm:text-[10px] font-label-caps opacity-60 whitespace-nowrap">MATCHES</span>
+            <span className="font-data-mono text-xs sm:text-lg font-bold whitespace-nowrap">{overallCompletedMatches} / {overallTotalExpectedMatches}</span>
+          </div>
+          <div className="h-5 sm:h-6 w-[1px] bg-white/20 shrink-0"></div>
+
+          {/* Stat 3: Overall Progress */}
+          <div className="flex flex-col justify-center min-w-[75px] sm:min-w-[120px]">
+            <div className="flex items-center justify-between gap-1.5 sm:gap-2">
+              <span className="text-[8px] sm:text-[10px] font-label-caps opacity-60 whitespace-nowrap">PROGRESS</span>
+              <span className="font-data-mono text-[10px] sm:text-sm font-bold text-secondary">{overallProgressPct}%</span>
+            </div>
+            <div className="w-full bg-white/20 h-1 sm:h-1.5 rounded-full overflow-hidden mt-0.5 sm:mt-1">
+              <div
+                className="bg-secondary h-full rounded-full transition-all duration-500"
+                style={{ width: `${Math.min(100, Math.max(0, overallProgressPct))}%` }}
+              />
+            </div>
+          </div>
+          <div className="h-5 sm:h-6 w-[1px] bg-white/20 shrink-0"></div>
 
           {/* Mobile Pool vs Board toggle */}
           <button
             onClick={togglePool}
-            className="md:hidden flex items-center gap-1.5 px-3 py-1.5 bg-white/15 hover:bg-white/25 border border-white/20 rounded-lg text-xs font-bold text-white transition-all cursor-pointer shrink-0"
+            className="md:hidden flex items-center gap-1 sm:gap-1.5 px-2 sm:px-3 py-1 sm:py-1.5 bg-white/15 hover:bg-white/25 border border-white/20 rounded-lg text-[11px] sm:text-xs font-bold text-white transition-all cursor-pointer shrink-0"
           >
             <span>{mobileShowPool ? "Show Tatamis" : "Show unassigned categories"}</span>
             <span className="material-symbols-outlined text-[16px] leading-none">

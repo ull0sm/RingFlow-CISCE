@@ -62,6 +62,7 @@ export default function StagerBalancingClient({
 }: Props) {
   const [currentStagerName, setCurrentStagerName] = useState(stagerName);
   const [viewingPdf, setViewingPdf] = useState<{ url: string; title: string } | null>(null);
+  const [historyOpenForRing, setHistoryOpenForRing] = useState<string | null>(null);
 
   useEffect(() => {
     if ((!currentStagerName || currentStagerName === "Stager") && typeof window !== "undefined") {
@@ -507,22 +508,36 @@ export default function StagerBalancingClient({
         </div>
       </header>
 
-      {/* Overview & Info Bar */}
-      <div className="bg-primary text-on-primary px-3 sm:px-6 py-2 sm:py-2.5 shrink-0 flex flex-col gap-1.5 shadow-sm z-10">
-        <div className="flex items-center justify-between">
-          <div className="flex flex-col shrink-0">
-            <span className="text-[9px] sm:text-[10px] font-label-caps opacity-60 tracking-wider">TOTAL TATAMIS</span>
-            <span className="font-data-mono text-xs sm:text-base font-bold">{initialRings.length} ACTIVE</span>
-          </div>
-        </div>
-
-        {/* Dedicated Instruction Line on New Line */}
-        <div className="flex items-center gap-2 pt-1.5 border-t border-white/15 text-xs text-white/95">
-          <span className="material-symbols-outlined text-[17px] text-amber-300 shrink-0">info</span>
-          <p className="leading-snug text-[11px] sm:text-xs">
-            Use <span className="font-bold text-amber-300">&apos;In Progress&apos;</span> and <span className="font-bold text-emerald-300">&apos;Called&apos;</span> buttons to alert admin &amp; ring team
+      {/* Overview & Info Bar - Slim Responsive */}
+      <div className="bg-primary text-on-primary px-3 sm:px-6 py-1.5 sm:py-2 shrink-0 flex items-center justify-between gap-2 shadow-sm z-10 text-xs text-white/95">
+        <div className="flex items-center gap-1.5 sm:gap-2 min-w-0">
+          <span className="material-symbols-outlined text-[15px] sm:text-[17px] text-amber-300 shrink-0">info</span>
+          <p className="leading-tight text-[10.5px] sm:text-xs truncate sm:whitespace-normal">
+            Use <span className="font-bold text-amber-300">&apos;In Progress&apos;</span> and <span className="font-bold text-emerald-300">&apos;Called&apos;</span> to alert team
           </p>
         </div>
+
+        {/* Developed by CruxStudios Badge */}
+        <a
+          href="https://cruxstudios.dev"
+          target="_blank"
+          rel="noopener noreferrer"
+          className="group inline-flex items-center gap-1 sm:gap-1.5 px-2 sm:px-2.5 py-0.5 sm:py-1 rounded-full bg-white/10 hover:bg-white/20 text-[#F5F3EC] border border-white/20 hover:border-cyan-400/60 shadow-xs hover:-translate-y-0.5 transition-all duration-300 shrink-0"
+        >
+          <span className="font-['Inter',sans-serif] font-medium text-[9px] sm:text-[10px] text-white/80 group-hover:text-white transition-colors hidden xs:inline whitespace-nowrap">
+            Developed by
+          </span>
+          <div className="flex items-center gap-1">
+            <img
+              src="https://cruxstudios.dev/favicon.svg"
+              alt="CruxStudios"
+              className="h-3 sm:h-3.5 w-3 sm:w-3.5 drop-shadow-[0_0_6px_rgba(0,229,255,0.7)] group-hover:scale-110 transition-all duration-300"
+            />
+            <span className="font-['Plus_Jakarta_Sans',sans-serif] font-black text-[10px] sm:text-[11px] text-white tracking-tight group-hover:text-[#00E5FF] transition-colors whitespace-nowrap">
+              CruxStudios
+            </span>
+          </div>
+        </a>
       </div>
 
       {/* Ring Grid */}
@@ -530,6 +545,112 @@ export default function StagerBalancingClient({
         {initialRings.map((ring) => {
           const activeQueue = ringQueues[ring.id] || [];
           const completedQueue = ringCompletedQueues[ring.id] || [];
+          const isHistoryView = historyOpenForRing === ring.id;
+
+          if (isHistoryView) {
+            return (
+              <div
+                key={ring.id}
+                className="w-[85vw] max-w-[340px] sm:w-72 shrink-0 flex flex-col bg-surface-container-lowest border border-outline-variant rounded-xl overflow-hidden shadow-sm h-full"
+              >
+                <div className="sticky top-0 z-10 p-4 flex justify-between items-start shrink-0 bg-surface-container-highest text-on-surface">
+                  <div className="flex items-start gap-2">
+                    <span className="material-symbols-outlined text-[20px] text-primary mt-1">history</span>
+                    <div>
+                      <h4 className="font-headline-sm text-lg tracking-tight leading-none mb-1">
+                        {ring.name.replace(/Ring/i, "Tatami")} History
+                      </h4>
+                      <div className="flex gap-3 text-[10px] font-bold text-on-surface-variant uppercase">
+                        <span>{completedQueue.length} Categories</span>
+                        <span className="flex items-center gap-1">
+                          <span className="material-symbols-outlined text-[12px]">group</span>
+                          {completedQueue.reduce((sum, cat) => sum + cat.athletes_count, 0)} Athletes
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    className="p-1 rounded hover:bg-black/10 transition-colors flex items-center justify-center text-primary cursor-pointer"
+                    onClick={() => setHistoryOpenForRing(null)}
+                    title="Back to Current Queue"
+                  >
+                    <span className="material-symbols-outlined text-[20px]">close</span>
+                  </button>
+                </div>
+
+                <div className="flex-1 overflow-y-auto p-4 space-y-3">
+                  {completedQueue.length === 0 ? (
+                    <div className="flex flex-col items-center justify-center h-full text-outline opacity-70">
+                      <span className="material-symbols-outlined text-4xl mb-2">inbox</span>
+                      <span className="text-sm">No completed categories</span>
+                    </div>
+                  ) : (
+                    completedQueue.map((cat) => {
+                      const assignment = initialAssignments.find((a) => a.category_id === cat.id);
+                      const rawTime =
+                        completedTimes[cat.id] ||
+                        (assignment as any)?.completed_at ||
+                        (assignment as any)?.created_at;
+                      const timeStr = rawTime
+                        ? new Date(rawTime).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })
+                        : "Completed";
+                      return (
+                        <div
+                          key={cat.id}
+                          className="p-3 bg-white border border-outline-variant rounded-lg flex flex-col gap-1 shadow-sm relative overflow-hidden"
+                        >
+                          <div className="absolute top-0 left-0 w-1 h-full bg-green-500"></div>
+                          <div className="flex justify-between items-center ml-2">
+                            <span className="text-[10px] font-bold text-secondary uppercase tracking-wider">
+                              {cat.age_bracket ||
+                                (cat.age_min !== null && cat.age_max !== null
+                                  ? `${cat.age_min}-${cat.age_max}`
+                                  : "")}{" "}
+                              | {cat.weight_class || cat.belt || "-"}
+                            </span>
+                            <span
+                              suppressHydrationWarning
+                              className="text-[10px] font-bold text-green-600 bg-green-500/10 px-1.5 py-0.5 rounded flex items-center gap-1"
+                            >
+                              <span className="material-symbols-outlined text-[12px]">done_all</span>
+                              {timeStr}
+                            </span>
+                          </div>
+                          <div className="flex justify-between items-center ml-2">
+                            <h5 className="text-xs font-bold text-primary flex items-center gap-1">
+                              {cat.name}
+                              {cat.doc_url && (
+                                <button
+                                  type="button"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    setViewingPdf({ url: cat.doc_url!, title: cat.name });
+                                  }}
+                                  title="View student list PDF"
+                                  className="material-symbols-outlined text-[13px] text-outline hover:text-primary transition-colors shrink-0 cursor-pointer"
+                                  style={{ fontVariationSettings: "'FILL' 0" }}
+                                >
+                                  article
+                                </button>
+                              )}
+                            </h5>
+                          </div>
+                          <div className="flex gap-4 text-[10px] font-data-mono text-outline ml-2">
+                            <span className="flex items-center gap-1">
+                              <span className="material-symbols-outlined text-[12px]">group</span>
+                              {cat.athletes_count}
+                            </span>
+                            <span>{cat.expected_matches} Matches</span>
+                          </div>
+                        </div>
+                      );
+                    })
+                  )}
+                </div>
+              </div>
+            );
+          }
 
           return (
             <div
@@ -537,52 +658,35 @@ export default function StagerBalancingClient({
               className="w-[85vw] max-w-[340px] sm:w-72 shrink-0 flex flex-col bg-white border border-outline-variant rounded-xl overflow-hidden shadow-sm h-full"
             >
               {/* Ring Header */}
-              <div className="p-4 flex flex-col shrink-0 bg-primary text-on-primary">
-                <h4 className="font-headline-sm text-lg tracking-tight leading-none mb-0.5">
-                  {ring.name.replace(/Ring/i, "Tatami")}
-                </h4>
-                <span className="text-[9px] font-label-caps opacity-70">
-                  {activeQueue.length} ACTIVE · {completedQueue.length} DONE
-                </span>
+              <div className="p-4 flex justify-between items-center shrink-0 bg-primary text-on-primary">
+                <div>
+                  <h4 className="font-headline-sm text-lg tracking-tight leading-none mb-0.5">
+                    {ring.name.replace(/Ring/i, "Tatami")}
+                  </h4>
+                  <span className="text-[9px] font-label-caps opacity-70">
+                    {activeQueue.length} ACTIVE · {completedQueue.length} DONE
+                  </span>
+                </div>
+                <button
+                  type="button"
+                  className="p-1 rounded hover:bg-white/20 transition-colors flex items-center justify-center cursor-pointer text-white"
+                  onClick={() => setHistoryOpenForRing(ring.id)}
+                  title="View Completed Categories"
+                >
+                  <span className="material-symbols-outlined text-[20px]">history</span>
+                </button>
               </div>
 
               {/* Active Queue */}
               <div className="flex-1 overflow-y-auto p-3 space-y-3">
-                {activeQueue.length === 0 && completedQueue.length === 0 && (
+                {activeQueue.length === 0 && (
                   <div className="flex flex-col items-center justify-center h-32 text-outline opacity-50">
                     <span className="material-symbols-outlined text-3xl mb-1">inbox</span>
-                    <span className="text-xs">No categories assigned</span>
+                    <span className="text-xs">No active categories</span>
                   </div>
                 )}
 
                 {activeQueue.map((cat) => renderCategoryCard(cat, ring.id))}
-
-                {/* Completed Categories (read-only, no buttons) */}
-                {completedQueue.length > 0 && (
-                  <div className="pt-2 border-t border-outline-variant/30">
-                    <p className="text-[9px] font-label-caps text-on-surface-variant mb-2 uppercase">
-                      Completed ({completedQueue.length})
-                    </p>
-                    {completedQueue.map((cat) => {
-                      const rawTime = completedTimes[cat.id];
-                      const timeStr = rawTime
-                        ? new Date(rawTime).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })
-                        : "Done";
-                      return (
-                        <div
-                          key={cat.id}
-                          className="p-2.5 bg-surface-container border border-outline-variant/40 rounded-lg flex items-center justify-between opacity-60 mb-1.5"
-                        >
-                          <span className="text-xs font-medium text-on-surface truncate">{cat.name}</span>
-                          <span className="text-[9px] font-bold text-green-600 bg-green-500/10 px-1.5 py-0.5 rounded flex items-center gap-1 shrink-0 ml-2">
-                            <span className="material-symbols-outlined text-[11px]">done_all</span>
-                            {timeStr}
-                          </span>
-                        </div>
-                      );
-                    })}
-                  </div>
-                )}
               </div>
             </div>
           );
