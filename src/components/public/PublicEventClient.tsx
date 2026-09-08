@@ -14,6 +14,7 @@ interface Tournament {
   venue?: string;
   city?: string;
   status?: string;
+  show_public_draws?: boolean;
 }
 
 interface Ring {
@@ -86,6 +87,7 @@ export default function PublicEventClient({
   const [assignments, setAssignments] = useState<CategoryAssignment[]>(initialAssignments);
   const [flashingMatId, setFlashingMatId] = useState<string | null>(null);
   const [viewingPdf, setViewingPdf] = useState<{ url: string; title: string } | null>(null);
+  const isPublicDrawsEnabled = tournament.show_public_draws !== false;
 
   // Search state
   const [searchQuery, setSearchQuery] = useState("");
@@ -334,7 +336,7 @@ export default function PublicEventClient({
     docUrl: string | null,
     categoryName: string
   ) => {
-    if (docUrl) {
+    if (docUrl && isPublicDrawsEnabled) {
       // Keep search open in background and do not scroll away
       setViewingPdf({
         url: docUrl,
@@ -343,7 +345,7 @@ export default function PublicEventClient({
       return;
     }
 
-    // Only if there is no PDF, close search and scroll to ring
+    // Only if there is no PDF or draws disabled, close search and scroll to ring
     setIsSearchOpen(false);
     if (ringId) {
       const card = matCardsRef.current[ringId];
@@ -563,7 +565,7 @@ export default function PublicEventClient({
                         <span className="spectator-result-division">
                           {displayCategoryName}
                         </span>
-                        {docUrl && (
+                        {docUrl && isPublicDrawsEnabled && (
                           <button
                             type="button"
                             className="spectator-pdf-chip"

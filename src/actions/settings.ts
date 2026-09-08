@@ -13,6 +13,7 @@ export async function updateTournamentSettings(
     status: string; 
     venue: string; 
     city: string; 
+    show_public_draws?: boolean;
   }
 ) {
   await ensureAdminOwnsTournament(tournamentId);
@@ -26,12 +27,25 @@ export async function updateTournamentSettings(
     city: data.city || null,
   };
 
+  if (typeof data.show_public_draws === "boolean") {
+    updatePayload.show_public_draws = data.show_public_draws;
+  }
+
   const { error } = await supabase
     .from("tournaments")
     .update(updatePayload)
     .eq("id", tournamentId);
 
   if (error) {
+    if (error.message?.includes("show_public_draws")) {
+      // Retry without show_public_draws in case migration5 hasn't been executed yet
+      delete updatePayload.show_public_draws;
+      await supabase.from("tournaments").update(updatePayload).eq("id", tournamentId);
+      revalidatePath(`/admin/event/${tournamentId}/settings`);
+      throw new Error(
+        "Tournament details saved! To save the Public Draws toggle, please run migration5_public_draws_toggle.sql in Supabase SQL Editor."
+      );
+    }
     console.error("Failed to update tournament settings:", error);
     throw new Error("Failed to update tournament settings");
   }
@@ -40,6 +54,7 @@ export async function updateTournamentSettings(
   revalidatePath(`/admin/event/${tournamentId}/dashboard`);
   revalidatePath(`/admin`);
   revalidatePath(`/organiser`);
+  revalidatePath(`/public/event/${tournamentId}`);
 }
 
 export async function deleteTournament(tournamentId: string) {
