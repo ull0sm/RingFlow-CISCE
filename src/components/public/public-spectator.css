@@ -55,9 +55,10 @@
 
 /* ---------- shell ---------- */
 .spectator-page {
-  max-width: 1180px;
+  max-width: min(1560px, 94vw);
+  width: 100%;
   margin: 0 auto;
-  padding: 36px 32px 80px;
+  padding: clamp(24px, 3vw, 44px) clamp(16px, 2.5vw, 36px) 80px;
 }
 
 /* ---------- header (page chrome, no card) ---------- */
@@ -559,8 +560,8 @@
 /* ---------- mat grid ---------- */
 .spectator-mat-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(270px, 1fr));
-  gap: 14px;
+  grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+  gap: clamp(14px, 1.5vw, 22px);
 }
 
 .spectator-mat-card {

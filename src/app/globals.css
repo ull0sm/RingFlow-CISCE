@@ -12,6 +12,18 @@
   --bg: #F5F3EC;
 }
 
+/* Fluid responsive root font-size scaling across all screens:
+   - Mobile (<= 640px): 15px - 16px (standard comfortable mobile density)
+   - Small laptops / tablets (768px - 1280px): scales smoothly 16px - 17.5px
+   - 13"-15.6" laptops (1366px - 1920px): scales smoothly to 18px - 19px (fixes "zoomed out" appearance)
+   - Large desktop monitors (>= 1920px): up to 19.5px
+*/
+html {
+  font-size: clamp(15px, 0.35vw + 14px, 19px);
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
+}
+
 body {
   background-color: #F5F3EC;
   color: var(--foreground);

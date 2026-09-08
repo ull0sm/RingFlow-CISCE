@@ -58,10 +58,10 @@ export default async function PublicHome() {
     <>
       {/* Top Navigation Bar */}
       <header className="w-full top-0 sticky z-50 bg-[#F5F3EC]/90 backdrop-blur-md border-b border-[#E1DDCF] transition-all font-['Inter',sans-serif]">
-        <div className="max-w-7xl mx-auto flex justify-between items-center h-16 px-4 md:px-margin-desktop">
+        <div className="max-w-7xl 2xl:max-w-[1560px] mx-auto flex justify-between items-center h-16 md:h-18 px-4 md:px-8 lg:px-12">
           <Link href="/" className="flex items-center gap-2.5 group">
-            <RingFlowLogo className="h-[34px] w-[34px] text-[#1B1815] group-hover:scale-105 transition-transform shrink-0" />
-            <span className="text-[23px] font-black text-[#1B1815] tracking-[-0.02em] leading-none font-['Plus_Jakarta_Sans',sans-serif]">
+            <RingFlowLogo className="h-8 md:h-9 w-8 md:w-9 text-[#1B1815] group-hover:scale-105 transition-transform shrink-0" />
+            <span className="text-2xl md:text-[26px] font-black text-[#1B1815] tracking-[-0.02em] leading-none font-['Plus_Jakarta_Sans',sans-serif]">
               RingFlow
             </span>
           </Link>
@@ -69,7 +69,7 @@ export default async function PublicHome() {
           <nav className="flex items-center">
             <Link
               href="#events"
-              className="inline-flex items-center px-4 py-2 bg-[#1B1815] hover:bg-black text-[#F5F3EC] rounded-lg text-[13.5px] font-bold font-['Plus_Jakarta_Sans',sans-serif] transition-all shadow-sm hover:shadow"
+              className="inline-flex items-center px-4 md:px-5 py-2 md:py-2.5 bg-[#1B1815] hover:bg-black text-[#F5F3EC] rounded-lg text-sm md:text-base font-bold font-['Plus_Jakarta_Sans',sans-serif] transition-all shadow-sm hover:shadow"
             >
               <span>Tournaments</span>
             </Link>
@@ -79,7 +79,7 @@ export default async function PublicHome() {
       
       <main className="flex-grow font-['Inter',sans-serif]">
         {/* Hero Section */}
-        <section className="relative min-h-[calc(100svh-4rem)] min-h-[calc(100dvh-4rem)] md:min-h-0 md:h-[580px] lg:h-[620px] overflow-hidden bg-[#F5F3EC] border-b border-[#E1DDCF] flex flex-col justify-between md:justify-center">
+        <section className="relative min-h-[calc(100svh-4rem)] md:min-h-[calc(100vh-4.5rem)] overflow-hidden bg-[#F5F3EC] border-b border-[#E1DDCF] flex flex-col justify-between md:justify-center py-6 md:py-16 lg:py-20">
           <div className="absolute inset-0 bg-[url('/hero-section.jpg')] bg-cover bg-[position:82%_center] md:bg-center opacity-95" />
           <div className="absolute inset-0 bg-gradient-to-r from-[#F5F3EC] via-[#F5F3EC]/90 to-transparent md:via-[#F5F3EC]/60" />
 
@@ -145,47 +145,47 @@ export default async function PublicHome() {
           </div>
 
           {/* 💻 DESKTOP & LAPTOP VIEW ONLY (hidden md:flex) */}
-          <div className="relative max-w-7xl mx-auto px-margin-desktop w-full py-16 hidden md:flex md:flex-col md:justify-center z-10">
-            <div className="max-w-2xl">
-              <h1 className="font-['Plus_Jakarta_Sans',sans-serif] text-[46px] lg:text-[54px] font-black tracking-[-0.03em] leading-[1.08] mb-3 text-[#1B1815]">
+          <div className="relative max-w-7xl 2xl:max-w-[1560px] mx-auto px-6 md:px-8 lg:px-12 w-full py-8 md:py-12 hidden md:flex md:flex-col md:justify-center z-10">
+            <div className="max-w-3xl">
+              <h1 className="font-['Plus_Jakarta_Sans',sans-serif] text-4xl md:text-5xl lg:text-[54px] xl:text-[62px] font-black tracking-[-0.03em] leading-[1.08] mb-4 text-[#1B1815]">
                 Find Your Next Championship
               </h1>
-              <p className="text-[#68645A] font-['Inter',sans-serif] font-normal text-lg lg:text-xl max-w-xl leading-relaxed mb-6">
+              <p className="text-[#68645A] font-['Inter',sans-serif] font-normal text-base md:text-lg lg:text-xl max-w-2xl leading-relaxed mb-8">
                 Track live tatami rings, category assignments, and athlete queue status in real time.
               </p>
 
               {/* 2-Column Desktop Grid for Bullet Points */}
-              <div className="grid grid-cols-2 gap-x-8 gap-y-3 max-w-xl mb-8">
-                <div className="flex items-center gap-2.5 text-[14px] text-[#3D3A33] font-medium">
-                  <span className="w-1.5 h-1.5 rounded-full bg-[#1B1815] shrink-0" />
+              <div className="grid grid-cols-2 gap-x-10 gap-y-4 max-w-2xl mb-10">
+                <div className="flex items-center gap-3 text-sm md:text-base lg:text-[16px] text-[#3D3A33] font-medium">
+                  <span className="w-2 h-2 rounded-full bg-[#1B1815] shrink-0" />
                   <span>Live tatami ring status</span>
                 </div>
-                <div className="flex items-center gap-2.5 text-[14px] text-[#3D3A33] font-medium">
-                  <span className="w-1.5 h-1.5 rounded-full bg-[#1B1815] shrink-0" />
+                <div className="flex items-center gap-3 text-sm md:text-base lg:text-[16px] text-[#3D3A33] font-medium">
+                  <span className="w-2 h-2 rounded-full bg-[#1B1815] shrink-0" />
                   <span>Instant bracket progression</span>
                 </div>
-                <div className="flex items-center gap-2.5 text-[14px] text-[#3D3A33] font-medium">
-                  <span className="w-1.5 h-1.5 rounded-full bg-[#1B1815] shrink-0" />
+                <div className="flex items-center gap-3 text-sm md:text-base lg:text-[16px] text-[#3D3A33] font-medium">
+                  <span className="w-2 h-2 rounded-full bg-[#1B1815] shrink-0" />
                   <span>Real-time match queues</span>
                 </div>
-                <div className="flex items-center gap-2.5 text-[14px] text-[#3D3A33] font-medium">
-                  <span className="w-1.5 h-1.5 rounded-full bg-[#1B1815] shrink-0" />
+                <div className="flex items-center gap-3 text-sm md:text-base lg:text-[16px] text-[#3D3A33] font-medium">
+                  <span className="w-2 h-2 rounded-full bg-[#1B1815] shrink-0" />
                   <span>Match schedule routing</span>
                 </div>
-                <div className="flex items-center gap-2.5 text-[14px] text-[#3D3A33] font-medium">
-                  <span className="w-1.5 h-1.5 rounded-full bg-[#1B1815] shrink-0" />
+                <div className="flex items-center gap-3 text-sm md:text-base lg:text-[16px] text-[#3D3A33] font-medium">
+                  <span className="w-2 h-2 rounded-full bg-[#1B1815] shrink-0" />
                   <span>Category allocations</span>
                 </div>
-                <div className="flex items-center gap-2.5 text-[14px] text-[#3D3A33] font-medium">
-                  <span className="w-1.5 h-1.5 rounded-full bg-[#1B1815] shrink-0" />
+                <div className="flex items-center gap-3 text-sm md:text-base lg:text-[16px] text-[#3D3A33] font-medium">
+                  <span className="w-2 h-2 rounded-full bg-[#1B1815] shrink-0" />
                   <span>Referee floor assignments</span>
                 </div>
-                <div className="flex items-center gap-2.5 text-[14px] text-[#3D3A33] font-medium">
-                  <span className="w-1.5 h-1.5 rounded-full bg-[#1B1815] shrink-0" />
+                <div className="flex items-center gap-3 text-sm md:text-base lg:text-[16px] text-[#3D3A33] font-medium">
+                  <span className="w-2 h-2 rounded-full bg-[#1B1815] shrink-0" />
                   <span>Athlete bullpen tracking</span>
                 </div>
-                <div className="flex items-center gap-2.5 text-[14px] text-[#3D3A33] font-medium">
-                  <span className="w-1.5 h-1.5 rounded-full bg-[#1B1815] shrink-0" />
+                <div className="flex items-center gap-3 text-sm md:text-base lg:text-[16px] text-[#3D3A33] font-medium">
+                  <span className="w-2 h-2 rounded-full bg-[#1B1815] shrink-0" />
                   <span>Live spectator scoreboards</span>
                 </div>
               </div>
@@ -194,7 +194,7 @@ export default async function PublicHome() {
               <div className="flex items-center gap-4">
                 <Link
                   href="#events"
-                  className="px-8 py-3.5 bg-[#1B1815] hover:bg-black text-[#F5F3EC] font-['Plus_Jakarta_Sans',sans-serif] font-bold text-[15px] rounded-lg transition-all shadow-md hover:shadow-lg inline-block active:scale-[0.98]"
+                  className="px-9 py-4 bg-[#1B1815] hover:bg-black text-[#F5F3EC] font-['Plus_Jakarta_Sans',sans-serif] font-bold text-base md:text-lg rounded-xl transition-all shadow-md hover:shadow-xl inline-block active:scale-[0.98]"
                 >
                   View Events
                 </Link>
@@ -215,12 +215,12 @@ export default async function PublicHome() {
         <PublicStats />
 
         {/* Unified Events Grid */}
-        <section id="events" className="max-w-7xl mx-auto px-6 sm:px-8 md:px-margin-desktop py-14 scroll-mt-20">
-          <div className="mb-8">
-            <h2 className="font-['Plus_Jakarta_Sans',sans-serif] text-[28px] md:text-[32px] font-black tracking-[-0.02em] text-[#1B1815] mb-2">
+        <section id="events" className="max-w-7xl 2xl:max-w-[1560px] mx-auto px-6 sm:px-8 md:px-8 lg:px-12 py-16 scroll-mt-20">
+          <div className="mb-10">
+            <h2 className="font-['Plus_Jakarta_Sans',sans-serif] text-3xl md:text-4xl font-black tracking-[-0.02em] text-[#1B1815] mb-3">
               Tournaments
             </h2>
-            <p className="text-[#68645A] text-[15px]">
+            <p className="text-[#68645A] text-base md:text-lg">
               Live floor operations, tatami status, and category allocations.
             </p>
           </div>

@@ -863,39 +863,42 @@ export default function RingBalancingClient({
       </header>
 
       {/* Tournament Overview Bar */}
-      <div className="bg-primary text-on-primary px-4 sm:px-8 py-2.5 sm:py-3 shrink-0 shadow-lg z-10 w-full">
-        <div className="flex items-center justify-between w-full gap-3 sm:gap-8">
-          {/* Stat 1: Completed Categories */}
-          <div className="flex-1 flex flex-col items-start min-w-0">
-            <span className="text-[9px] sm:text-[11px] font-label-caps opacity-60 tracking-wider whitespace-nowrap">CATEGORIES</span>
-            <div className="flex items-baseline gap-1.5">
-              <span className="font-data-mono text-xs sm:text-lg font-bold whitespace-nowrap">{completedCategoriesCount} / {totalCategoriesCount}</span>
-              <span className="text-[9px] opacity-60 font-label-caps hidden sm:inline">DONE</span>
-            </div>
-          </div>
-
-          <div className="h-6 sm:h-8 w-[1px] bg-white/20 shrink-0"></div>
-
-          {/* Stat 2: Completed Matches */}
-          <div className="flex-1 flex flex-col items-center min-w-0">
-            <span className="text-[9px] sm:text-[11px] font-label-caps opacity-60 tracking-wider whitespace-nowrap">MATCHES</span>
-            <span className="font-data-mono text-xs sm:text-lg font-bold whitespace-nowrap">{overallCompletedMatches} / {overallTotalExpectedMatches}</span>
-          </div>
-
-          <div className="h-6 sm:h-8 w-[1px] bg-white/20 shrink-0"></div>
-
-          {/* Stat 3: Overall Progress */}
-          <div className={`flex-1 flex flex-col ${readOnly ? "items-end" : "sm:items-center items-end"} min-w-0`}>
-            <div className="w-full max-w-[200px] flex flex-col">
-              <div className="flex items-center justify-between gap-1.5 sm:gap-2">
-                <span className="text-[9px] sm:text-[11px] font-label-caps opacity-60 tracking-wider whitespace-nowrap">PROGRESS</span>
-                <span className="font-data-mono text-xs sm:text-sm font-bold text-secondary whitespace-nowrap">{overallProgressPct}%</span>
+      <div className="bg-primary text-on-primary px-3 sm:px-6 lg:px-8 py-2.5 sm:py-3.5 shrink-0 shadow-lg z-10 w-full">
+        <div className="flex items-center justify-between w-full gap-3 sm:gap-6 lg:gap-8">
+          {/* 3 Stats: Horizontally covering full width edge-to-edge */}
+          <div className="flex-1 flex items-center justify-between gap-3 sm:gap-6 lg:gap-8 min-w-0">
+            {/* Stat 1: Completed Categories */}
+            <div className="flex-1 flex flex-col items-start min-w-0">
+              <span className="text-[10px] sm:text-xs font-label-caps opacity-70 tracking-wider whitespace-nowrap">CATEGORIES</span>
+              <div className="flex items-baseline gap-1.5">
+                <span className="font-data-mono text-xs sm:text-lg lg:text-xl font-bold whitespace-nowrap">{completedCategoriesCount} / {totalCategoriesCount}</span>
+                <span className="text-[10px] opacity-70 font-label-caps hidden sm:inline">DONE</span>
               </div>
-              <div className="w-full bg-white/20 h-1.5 sm:h-2 rounded-full overflow-hidden mt-1">
-                <div
-                  className="bg-secondary h-full rounded-full transition-all duration-500"
-                  style={{ width: `${Math.min(100, Math.max(0, overallProgressPct))}%` }}
-                />
+            </div>
+
+            <div className="h-6 sm:h-8 w-[1px] bg-white/20 shrink-0"></div>
+
+            {/* Stat 2: Completed Matches */}
+            <div className="flex-1 flex flex-col items-center min-w-0">
+              <span className="text-[10px] sm:text-xs font-label-caps opacity-70 tracking-wider whitespace-nowrap">MATCHES</span>
+              <span className="font-data-mono text-xs sm:text-lg lg:text-xl font-bold whitespace-nowrap">{overallCompletedMatches} / {overallTotalExpectedMatches}</span>
+            </div>
+
+            <div className="h-6 sm:h-8 w-[1px] bg-white/20 shrink-0"></div>
+
+            {/* Stat 3: Overall Progress - Fluidly expands across remaining space */}
+            <div className="flex-1 flex flex-col items-end sm:items-stretch min-w-0">
+              <div className="w-full flex flex-col">
+                <div className="flex items-center justify-between gap-1.5 sm:gap-2">
+                  <span className="text-[10px] sm:text-xs font-label-caps opacity-70 tracking-wider whitespace-nowrap">PROGRESS</span>
+                  <span className="font-data-mono text-xs sm:text-sm lg:text-base font-bold text-secondary whitespace-nowrap">{overallProgressPct}%</span>
+                </div>
+                <div className="w-full bg-white/20 h-1.5 sm:h-2 rounded-full overflow-hidden mt-1">
+                  <div
+                    className="bg-secondary h-full rounded-full transition-all duration-500"
+                    style={{ width: `${Math.min(100, Math.max(0, overallProgressPct))}%` }}
+                  />
+                </div>
               </div>
             </div>
           </div>
@@ -1278,7 +1281,7 @@ export default function RingBalancingClient({
 
               if (isHistoryView) {
                 return (
-                  <div key={ring.id} className="w-[85vw] max-w-[340px] md:w-72 shrink-0 flex flex-col bg-surface-container-lowest border border-outline-variant rounded-xl overflow-hidden shadow-sm h-full">
+                  <div key={ring.id} className="w-[85vw] max-w-[360px] md:w-80 lg:w-[330px] xl:w-[350px] 2xl:w-[380px] shrink-0 flex flex-col bg-surface-container-lowest border border-outline-variant rounded-xl overflow-hidden shadow-sm h-full">
                     <div className="sticky top-0 z-10 p-4 flex justify-between items-start shrink-0 bg-surface-container-highest text-on-surface">
                       <div className="flex items-start gap-2">
                         <span className="material-symbols-outlined text-[20px] text-primary mt-1">history</span>
@@ -1370,7 +1373,7 @@ export default function RingBalancingClient({
 
 
               return (
-                <div key={ring.id} className="w-[85vw] max-w-[340px] md:w-72 shrink-0 flex flex-col bg-white border border-outline-variant rounded-xl overflow-hidden shadow-sm h-full">
+                <div key={ring.id} className="w-[85vw] max-w-[360px] md:w-80 lg:w-[330px] xl:w-[350px] 2xl:w-[380px] shrink-0 flex flex-col bg-white border border-outline-variant rounded-xl overflow-hidden shadow-sm h-full">
                   {/* Header Droppable Shortcut Target */}
                   <Droppable droppableId={`header_${ring.id}`}>
                     {(providedHeader, snapshotHeader) => (

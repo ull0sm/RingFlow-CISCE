@@ -551,7 +551,7 @@ export default function StagerBalancingClient({
             return (
               <div
                 key={ring.id}
-                className="w-[85vw] max-w-[340px] sm:w-72 shrink-0 flex flex-col bg-surface-container-lowest border border-outline-variant rounded-xl overflow-hidden shadow-sm h-full"
+                className="w-[85vw] max-w-[360px] sm:w-80 lg:w-[330px] xl:w-[350px] 2xl:w-[380px] shrink-0 flex flex-col bg-surface-container-lowest border border-outline-variant rounded-xl overflow-hidden shadow-sm h-full"
               >
                 <div className="sticky top-0 z-10 p-4 flex justify-between items-start shrink-0 bg-surface-container-highest text-on-surface">
                   <div className="flex items-start gap-2">
@@ -655,7 +655,7 @@ export default function StagerBalancingClient({
           return (
             <div
               key={ring.id}
-              className="w-[85vw] max-w-[340px] sm:w-72 shrink-0 flex flex-col bg-white border border-outline-variant rounded-xl overflow-hidden shadow-sm h-full"
+              className="w-[85vw] max-w-[360px] sm:w-80 lg:w-[330px] xl:w-[350px] 2xl:w-[380px] shrink-0 flex flex-col bg-white border border-outline-variant rounded-xl overflow-hidden shadow-sm h-full"
             >
               {/* Ring Header */}
               <div className="p-4 flex justify-between items-center shrink-0 bg-primary text-on-primary">
