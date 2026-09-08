@@ -31,6 +31,7 @@ interface Tournament {
   venue: string | null;
   city: string | null;
   organiser_code?: string | null;
+  show_public_draws?: boolean;
 }
 
 interface Props {
@@ -48,6 +49,7 @@ export default function SettingsClient({ tournament, initialOrganiserRequests = 
     status: tournament.status,
     venue: tournament.venue || "",
     city: tournament.city || "",
+    show_public_draws: tournament.show_public_draws === true,
   });
   
   const [organiserCode, setOrganiserCode] = useState(tournament.organiser_code || "------");
@@ -281,6 +283,42 @@ export default function SettingsClient({ tournament, initialOrganiserRequests = 
                     className="w-full p-3 border border-outline-variant rounded focus:border-secondary focus:ring-1 focus:ring-secondary outline-none font-body-md" 
                   />
                 </div>
+              </div>
+
+              {/* Public Event Draws Visibility Toggle */}
+              <div className="pt-6 border-t border-outline-variant/60 flex items-center justify-between gap-4">
+                <div className="flex flex-col gap-1 pr-2">
+                  <div className="flex items-center gap-2">
+                    <span className="material-symbols-outlined text-[18px] text-red-500">description</span>
+                    <label 
+                      className="font-label-caps text-[11px] font-bold text-primary cursor-pointer select-none" 
+                      onClick={() => setForm(f => ({ ...f, show_public_draws: !f.show_public_draws }))}
+                    >
+                      SHOW CATEGORY DRAWS ON PUBLIC FLOOR
+                    </label>
+                  </div>
+                  <p className="text-body-xs text-on-surface-variant max-w-xl">
+                    When enabled, students and parents searching their name in the live public event dashboard can view their category draw sheet PDF.
+                    When turned off, draw PDFs remain accessible only to Admin, Organiser, and Stagers.
+                  </p>
+                </div>
+
+                <button
+                  type="button"
+                  role="switch"
+                  aria-checked={form.show_public_draws}
+                  onClick={() => setForm(f => ({ ...f, show_public_draws: !f.show_public_draws }))}
+                  className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${
+                    form.show_public_draws ? "bg-primary" : "bg-outline-variant"
+                  }`}
+                  title={form.show_public_draws ? "Public draws enabled" : "Public draws disabled"}
+                >
+                  <span
+                    className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${
+                      form.show_public_draws ? "translate-x-5" : "translate-x-0"
+                    }`}
+                  />
+                </button>
               </div>
             </div>
 
