@@ -486,15 +486,15 @@ export default function StagerBalancingClient({
   // ── Main Render ────────────────────────────────────────────────────────────
   return (
     <div className="flex flex-col h-screen overflow-hidden w-full bg-surface">
-      {/* Top Nav */}
-      <header className="flex justify-between items-center w-full px-3 sm:px-6 h-14 bg-surface-container-lowest border-b border-outline-variant shrink-0 z-10 gap-2">
-        <div className="flex items-center gap-2 sm:gap-4 min-w-0">
-          <span className="font-headline-lg font-black text-primary tracking-tighter text-sm sm:text-base shrink-0 whitespace-nowrap">Ring Flow</span>
-          <div className="h-4 sm:h-6 w-[1px] bg-outline-variant shrink-0" />
+      {/* Top Nav - Slim Low-Profile Header */}
+      <header className="flex justify-between items-center w-full px-3 sm:px-6 h-11 sm:h-12 bg-surface-container-lowest border-b border-outline-variant shrink-0 z-10 gap-2">
+        <div className="flex items-center gap-2 sm:gap-3.5 min-w-0">
+          <span className="text-sm sm:text-base font-black text-primary tracking-tight shrink-0 whitespace-nowrap">Ring Flow</span>
+          <div className="h-3.5 sm:h-4 w-[1px] bg-outline-variant shrink-0" />
           <div className="flex items-center gap-1.5 sm:gap-2 min-w-0">
-            <h2 className="font-headline-sm text-xs sm:text-sm md:text-headline-sm text-primary font-bold whitespace-nowrap">Tatami Board</h2>
-            <span className="text-outline-variant hidden sm:inline">/</span>
-            <span className="text-on-surface-variant font-label-caps text-xs opacity-70 truncate max-w-[120px] sm:max-w-[200px] md:max-w-none whitespace-nowrap">
+            <h2 className="text-xs sm:text-sm font-bold text-primary whitespace-nowrap">Tatami Board</h2>
+            <span className="text-outline-variant hidden sm:inline text-xs">/</span>
+            <span className="text-on-surface-variant text-[11px] sm:text-xs opacity-70 truncate max-w-[120px] sm:max-w-[200px] md:max-w-none whitespace-nowrap">
               {tournamentName}
             </span>
           </div>

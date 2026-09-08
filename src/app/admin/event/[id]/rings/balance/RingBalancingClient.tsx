@@ -816,41 +816,41 @@ export default function RingBalancingClient({
 
   return (
     <div className="flex flex-col overflow-hidden w-full h-[calc(100dvh-4rem)] md:h-screen">
-      {/* TopNavBar */}
-      <header className="flex justify-between items-center w-full px-3 sm:px-8 h-14 sm:h-16 bg-surface-container-lowest border-b border-outline-variant shrink-0 z-10 gap-2">
-        <div className="flex items-center gap-2 sm:gap-4 md:gap-6 min-w-0 pr-1">
-          <span className="text-sm sm:text-headline-lg font-black text-primary tracking-tighter shrink-0 whitespace-nowrap">Ring Flow</span>
-          <div className="h-4 sm:h-8 w-[1px] bg-outline-variant shrink-0"></div>
+      {/* TopNavBar - Slim Low-Profile Header */}
+      <header className="flex justify-between items-center w-full px-3 sm:px-6 h-11 sm:h-12 bg-surface-container-lowest border-b border-outline-variant shrink-0 z-10 gap-2">
+        <div className="flex items-center gap-2 sm:gap-3.5 min-w-0 pr-1">
+          <span className="text-sm sm:text-base font-black text-primary tracking-tight shrink-0 whitespace-nowrap">Ring Flow</span>
+          <div className="h-3.5 sm:h-4 w-[1px] bg-outline-variant shrink-0"></div>
           <div className="flex items-center gap-1 sm:gap-2 min-w-0">
-            <h2 className="font-headline-sm text-xs sm:text-headline-sm text-primary whitespace-nowrap">Tatami Balancing</h2>
-            <span className="text-outline-variant shrink-0 hidden xs:inline">/</span>
-            <span className="text-on-surface-variant font-label-caps text-label-caps opacity-70 truncate max-w-[80px] sm:max-w-[200px] md:max-w-none whitespace-nowrap hidden xs:inline">{tournamentName}</span>
+            <h2 className="text-xs sm:text-sm font-bold text-primary whitespace-nowrap">Tatami Balancing</h2>
+            <span className="text-outline-variant shrink-0 hidden xs:inline text-xs">/</span>
+            <span className="text-on-surface-variant text-[11px] sm:text-xs opacity-70 truncate max-w-[80px] sm:max-w-[200px] md:max-w-none whitespace-nowrap hidden xs:inline">{tournamentName}</span>
           </div>
         </div>
 
-        {/* Developed by CruxStudios Badge */}
+        {/* Developed by CruxStudios Badge - Compact */}
         <div className="flex items-center shrink-0">
           <a
             href="https://cruxstudios.dev"
             target="_blank"
             rel="noopener noreferrer"
-            className="group inline-flex items-center gap-1.5 sm:gap-2 px-2.5 sm:px-3 py-1 sm:py-1.5 rounded-full bg-[#1B1815] hover:bg-black text-[#F5F3EC] border border-[#E1DDCF]/40 hover:border-cyan-400/60 shadow-[0_2px_8px_rgba(27,24,21,0.12)] hover:shadow-[0_0_15px_rgba(0,229,255,0.25)] hover:-translate-y-0.5 transition-all duration-300"
+            className="group inline-flex items-center gap-1.5 px-2.5 py-0.5 sm:py-1 rounded-full bg-[#1B1815] hover:bg-black text-[#F5F3EC] border border-[#E1DDCF]/40 hover:border-cyan-400/60 shadow-[0_1px_4px_rgba(27,24,21,0.08)] hover:shadow-[0_0_12px_rgba(0,229,255,0.2)] hover:-translate-y-0.5 transition-all duration-300"
           >
-            <span className="font-['Inter',sans-serif] font-medium text-[9px] sm:text-[11px] text-[#F5F3EC]/90 group-hover:text-white transition-colors hidden sm:inline whitespace-nowrap">
+            <span className="font-['Inter',sans-serif] font-medium text-[9px] sm:text-[10px] text-[#F5F3EC]/90 group-hover:text-white transition-colors hidden sm:inline whitespace-nowrap">
               Developed by
             </span>
-            <div className="flex items-center gap-1 sm:gap-1.5">
+            <div className="flex items-center gap-1">
               <img
                 src="https://cruxstudios.dev/favicon.svg"
                 alt="CruxStudios"
-                className="h-3.5 sm:h-4 w-3.5 sm:w-4 drop-shadow-[0_0_6px_rgba(0,229,255,0.7)] group-hover:scale-110 group-hover:rotate-6 transition-all duration-300"
+                className="h-3 sm:h-3.5 w-3 sm:w-3.5 drop-shadow-[0_0_4px_rgba(0,229,255,0.6)] group-hover:scale-110 group-hover:rotate-6 transition-all duration-300"
               />
-              <span className="font-['Plus_Jakarta_Sans',sans-serif] font-black text-[10px] sm:text-[12.5px] text-white tracking-tight group-hover:text-[#00E5FF] transition-colors whitespace-nowrap">
+              <span className="font-['Plus_Jakarta_Sans',sans-serif] font-bold text-[10px] sm:text-[11px] text-white tracking-tight group-hover:text-[#00E5FF] transition-colors whitespace-nowrap">
                 CruxStudios
               </span>
             </div>
             <svg
-              className="w-2.5 sm:w-3 h-2.5 sm:h-3 text-[#F5F3EC]/80 group-hover:text-[#00E5FF] group-hover:translate-x-0.5 group-hover:-translate-y-0.5 transition-all duration-300 hidden md:block"
+              className="w-2.5 h-2.5 text-[#F5F3EC]/80 group-hover:text-[#00E5FF] group-hover:translate-x-0.5 group-hover:-translate-y-0.5 transition-all duration-300 hidden md:block"
               viewBox="0 0 24 24"
               fill="none"
               stroke="currentColor"
@@ -862,38 +862,38 @@ export default function RingBalancingClient({
         </div>
       </header>
 
-      {/* Tournament Overview Bar */}
-      <div className="bg-primary text-on-primary px-3 sm:px-6 lg:px-8 py-2.5 sm:py-3.5 shrink-0 shadow-lg z-10 w-full">
-        <div className="flex items-center justify-between w-full gap-3 sm:gap-6 lg:gap-8">
+      {/* Tournament Overview Bar - Slim Low-Profile Strip */}
+      <div className="bg-primary text-on-primary px-3 sm:px-6 py-1 sm:py-1.5 shrink-0 shadow-sm z-10 w-full">
+        <div className="flex items-center justify-between w-full gap-3 sm:gap-6">
           {/* 3 Stats: Horizontally covering full width edge-to-edge */}
-          <div className="flex-1 flex items-center justify-between gap-3 sm:gap-6 lg:gap-8 min-w-0">
+          <div className="flex-1 flex items-center justify-between gap-3 sm:gap-6 min-w-0">
             {/* Stat 1: Completed Categories */}
             <div className="flex-1 flex flex-col items-start min-w-0">
-              <span className="text-[10px] sm:text-xs font-label-caps opacity-70 tracking-wider whitespace-nowrap">CATEGORIES</span>
-              <div className="flex items-baseline gap-1.5">
-                <span className="font-data-mono text-xs sm:text-lg lg:text-xl font-bold whitespace-nowrap">{completedCategoriesCount} / {totalCategoriesCount}</span>
-                <span className="text-[10px] opacity-70 font-label-caps hidden sm:inline">DONE</span>
+              <span className="text-[8.5px] sm:text-[9.5px] font-label-caps opacity-60 tracking-wider whitespace-nowrap">CATEGORIES</span>
+              <div className="flex items-baseline gap-1">
+                <span className="font-data-mono text-xs sm:text-sm font-bold whitespace-nowrap">{completedCategoriesCount} / {totalCategoriesCount}</span>
+                <span className="text-[8px] opacity-60 font-label-caps hidden sm:inline">DONE</span>
               </div>
             </div>
 
-            <div className="h-6 sm:h-8 w-[1px] bg-white/20 shrink-0"></div>
+            <div className="h-4 sm:h-5 w-[1px] bg-white/20 shrink-0"></div>
 
             {/* Stat 2: Completed Matches */}
             <div className="flex-1 flex flex-col items-center min-w-0">
-              <span className="text-[10px] sm:text-xs font-label-caps opacity-70 tracking-wider whitespace-nowrap">MATCHES</span>
-              <span className="font-data-mono text-xs sm:text-lg lg:text-xl font-bold whitespace-nowrap">{overallCompletedMatches} / {overallTotalExpectedMatches}</span>
+              <span className="text-[8.5px] sm:text-[9.5px] font-label-caps opacity-60 tracking-wider whitespace-nowrap">MATCHES</span>
+              <span className="font-data-mono text-xs sm:text-sm font-bold whitespace-nowrap">{overallCompletedMatches} / {overallTotalExpectedMatches}</span>
             </div>
 
-            <div className="h-6 sm:h-8 w-[1px] bg-white/20 shrink-0"></div>
+            <div className="h-4 sm:h-5 w-[1px] bg-white/20 shrink-0"></div>
 
-            {/* Stat 3: Overall Progress - Fluidly expands across remaining space */}
+            {/* Stat 3: Overall Progress */}
             <div className="flex-1 flex flex-col items-end sm:items-stretch min-w-0">
               <div className="w-full flex flex-col">
-                <div className="flex items-center justify-between gap-1.5 sm:gap-2">
-                  <span className="text-[10px] sm:text-xs font-label-caps opacity-70 tracking-wider whitespace-nowrap">PROGRESS</span>
-                  <span className="font-data-mono text-xs sm:text-sm lg:text-base font-bold text-secondary whitespace-nowrap">{overallProgressPct}%</span>
+                <div className="flex items-center justify-between gap-1 sm:gap-1.5">
+                  <span className="text-[8.5px] sm:text-[9.5px] font-label-caps opacity-60 tracking-wider whitespace-nowrap">PROGRESS</span>
+                  <span className="font-data-mono text-[11px] sm:text-xs font-bold text-secondary whitespace-nowrap">{overallProgressPct}%</span>
                 </div>
-                <div className="w-full bg-white/20 h-1.5 sm:h-2 rounded-full overflow-hidden mt-1">
+                <div className="w-full bg-white/20 h-1 sm:h-1.5 rounded-full overflow-hidden mt-0.5">
                   <div
                     className="bg-secondary h-full rounded-full transition-all duration-500"
                     style={{ width: `${Math.min(100, Math.max(0, overallProgressPct))}%` }}
@@ -905,47 +905,47 @@ export default function RingBalancingClient({
 
           {!readOnly && (
             <>
-              <div className="h-6 sm:h-8 w-[1px] bg-white/20 shrink-0 hidden sm:block"></div>
-              <div className="flex items-center gap-3 sm:gap-5 shrink-0">
+              <div className="h-4 sm:h-5 w-[1px] bg-white/20 shrink-0 hidden sm:block"></div>
+              <div className="flex items-center gap-2 sm:gap-4 shrink-0">
                 <div className="flex flex-col">
-                  <span className="text-[9px] sm:text-[10px] font-label-caps opacity-60">SYNC MODE</span>
+                  <span className="text-[8px] sm:text-[8.5px] font-label-caps opacity-60">SYNC MODE</span>
                   <button
                     onClick={() => setAutoSave(!autoSave)}
-                    className={`flex items-center gap-1.5 sm:gap-2 px-2.5 sm:px-3 py-1 rounded-md text-xs font-bold transition-all border ${autoSave
+                    className={`flex items-center gap-1 px-2 py-0.5 rounded text-[11px] font-bold transition-all border ${autoSave
                         ? 'bg-secondary/20 border-secondary text-white'
                         : 'bg-white/5 border-outline-variant/40 text-on-primary/70 hover:bg-white/10'
                       }`}
                     title="Toggle Auto Sync after drag and drop"
                   >
-                    <span className={`w-2 h-2 rounded-full ${autoSave ? 'bg-secondary animate-pulse' : 'bg-outline-variant'}`}></span>
-                    <span className="font-label-caps text-[10px] sm:text-xs whitespace-nowrap">{autoSave ? "AUTO SYNC ON" : "MANUAL SYNC"}</span>
+                    <span className={`w-1.5 h-1.5 rounded-full ${autoSave ? 'bg-secondary animate-pulse' : 'bg-outline-variant'}`}></span>
+                    <span className="font-label-caps text-[9px] sm:text-[10px] whitespace-nowrap">{autoSave ? "AUTO SYNC" : "MANUAL"}</span>
                   </button>
                 </div>
 
                 {/* Show Save button only when Auto-Save is OFF */}
                 {!autoSave && (
                   <div className="flex flex-col">
-                    <span className="text-[9px] sm:text-[10px] font-label-caps opacity-60">ACTIONS</span>
+                    <span className="text-[8px] sm:text-[8.5px] font-label-caps opacity-60">ACTIONS</span>
                     <button
                       onClick={handleSave}
                       disabled={isSaving}
-                      className="bg-secondary text-white px-3 sm:px-4 py-1 rounded-md text-xs font-bold hover:opacity-90 disabled:opacity-50 flex items-center gap-1.5 shadow-sm cursor-pointer whitespace-nowrap"
+                      className="bg-secondary text-white px-2.5 py-0.5 rounded text-[11px] font-bold hover:opacity-90 disabled:opacity-50 flex items-center gap-1 shadow-xs cursor-pointer whitespace-nowrap"
                     >
-                      {isSaving && <span className="w-3 h-3 border-2 border-white border-t-transparent rounded-full animate-spin"></span>}
-                      {isSaving ? "SAVING..." : "SAVE BALANCING"}
+                      {isSaving && <span className="w-2.5 h-2.5 border-2 border-white border-t-transparent rounded-full animate-spin"></span>}
+                      {isSaving ? "SAVING..." : "SAVE"}
                     </button>
                   </div>
                 )}
 
                 {/* Design-System Aligned Status Cue */}
                 {saveStatusText && (
-                  <div className="flex items-center gap-1.5 px-2.5 sm:px-3 py-1 bg-secondary text-white text-xs font-bold rounded-md shadow-md shrink-0">
-                    <span className="material-symbols-outlined text-sm">sync</span>
-                    <span className="font-label-caps text-[10px] sm:text-xs tracking-wider whitespace-nowrap">{saveStatusText}</span>
+                  <div className="flex items-center gap-1 px-2 py-0.5 bg-secondary text-white text-[11px] font-bold rounded shadow-xs shrink-0">
+                    <span className="material-symbols-outlined text-[13px]">sync</span>
+                    <span className="font-label-caps text-[9px] sm:text-[10px] tracking-wider whitespace-nowrap">{saveStatusText}</span>
                   </div>
                 )}
                 {!saveStatusText && lastSaved && (
-                  <span className="text-[10px] sm:text-[11px] opacity-70 font-data-mono hidden xl:inline whitespace-nowrap">
+                  <span className="text-[9px] sm:text-[10px] opacity-70 font-data-mono hidden xl:inline whitespace-nowrap">
                     Synced {lastSaved.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })}
                   </span>
                 )}
