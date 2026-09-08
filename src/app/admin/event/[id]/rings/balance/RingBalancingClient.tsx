@@ -862,34 +862,32 @@ export default function RingBalancingClient({
         </div>
       </header>
 
-      {/* Tournament Overview Bar - Slim Low-Profile Strip */}
-      <div className="bg-primary text-on-primary px-3 sm:px-6 py-1 sm:py-1.5 shrink-0 shadow-sm z-10 w-full">
-        <div className="flex items-center justify-between w-full gap-3 sm:gap-6">
-          {/* 3 Stats: Horizontally covering full width edge-to-edge */}
-          <div className="flex-1 flex items-center justify-between gap-3 sm:gap-6 min-w-0">
+      {/* Tournament Overview Bar - Centered Balanced Strip */}
+      <div className="bg-primary text-on-primary px-3 sm:px-6 py-1 sm:py-1.5 shrink-0 shadow-sm z-10 w-full relative">
+        <div className="flex items-center justify-between w-full relative">
+          {/* 3 Stats: Centered in the bar, occupying equal 1/3 space each */}
+          <div className="w-full max-w-xl sm:max-w-2xl lg:max-w-3xl mx-auto grid grid-cols-3 divide-x divide-white/20">
             {/* Stat 1: Completed Categories */}
-            <div className="flex-1 flex flex-col items-start min-w-0">
+            <div className="flex flex-col items-center justify-center text-center px-2 min-w-0">
               <span className="text-[8.5px] sm:text-[9.5px] font-label-caps opacity-60 tracking-wider whitespace-nowrap">CATEGORIES</span>
-              <div className="flex items-baseline gap-1">
+              <div className="flex items-baseline justify-center gap-1 mt-0.5">
                 <span className="font-data-mono text-xs sm:text-sm font-bold whitespace-nowrap">{completedCategoriesCount} / {totalCategoriesCount}</span>
                 <span className="text-[8px] opacity-60 font-label-caps hidden sm:inline">DONE</span>
               </div>
             </div>
 
-            <div className="h-4 sm:h-5 w-[1px] bg-white/20 shrink-0"></div>
-
             {/* Stat 2: Completed Matches */}
-            <div className="flex-1 flex flex-col items-center min-w-0">
+            <div className="flex flex-col items-center justify-center text-center px-2 min-w-0">
               <span className="text-[8.5px] sm:text-[9.5px] font-label-caps opacity-60 tracking-wider whitespace-nowrap">MATCHES</span>
-              <span className="font-data-mono text-xs sm:text-sm font-bold whitespace-nowrap">{overallCompletedMatches} / {overallTotalExpectedMatches}</span>
+              <div className="flex items-baseline justify-center gap-1 mt-0.5">
+                <span className="font-data-mono text-xs sm:text-sm font-bold whitespace-nowrap">{overallCompletedMatches} / {overallTotalExpectedMatches}</span>
+              </div>
             </div>
 
-            <div className="h-4 sm:h-5 w-[1px] bg-white/20 shrink-0"></div>
-
             {/* Stat 3: Overall Progress */}
-            <div className="flex-1 flex flex-col items-end sm:items-stretch min-w-0">
-              <div className="w-full flex flex-col">
-                <div className="flex items-center justify-between gap-1 sm:gap-1.5">
+            <div className="flex flex-col items-center justify-center text-center px-2 min-w-0">
+              <div className="w-full max-w-[130px] sm:max-w-[160px] flex flex-col items-center">
+                <div className="w-full flex items-center justify-between gap-1.5">
                   <span className="text-[8.5px] sm:text-[9.5px] font-label-caps opacity-60 tracking-wider whitespace-nowrap">PROGRESS</span>
                   <span className="font-data-mono text-[11px] sm:text-xs font-bold text-secondary whitespace-nowrap">{overallProgressPct}%</span>
                 </div>
@@ -904,53 +902,50 @@ export default function RingBalancingClient({
           </div>
 
           {!readOnly && (
-            <>
-              <div className="h-4 sm:h-5 w-[1px] bg-white/20 shrink-0 hidden sm:block"></div>
-              <div className="flex items-center gap-2 sm:gap-4 shrink-0">
+            <div className="sm:absolute sm:right-0 flex items-center gap-2 sm:gap-3 shrink-0 pl-2">
+              <div className="flex flex-col">
+                <span className="text-[8px] sm:text-[8.5px] font-label-caps opacity-60">SYNC MODE</span>
+                <button
+                  onClick={() => setAutoSave(!autoSave)}
+                  className={`flex items-center gap-1 px-2 py-0.5 rounded text-[11px] font-bold transition-all border ${autoSave
+                      ? 'bg-secondary/20 border-secondary text-white'
+                      : 'bg-white/5 border-outline-variant/40 text-on-primary/70 hover:bg-white/10'
+                    }`}
+                  title="Toggle Auto Sync after drag and drop"
+                >
+                  <span className={`w-1.5 h-1.5 rounded-full ${autoSave ? 'bg-secondary animate-pulse' : 'bg-outline-variant'}`}></span>
+                  <span className="font-label-caps text-[9px] sm:text-[10px] whitespace-nowrap">{autoSave ? "AUTO SYNC" : "MANUAL"}</span>
+                </button>
+              </div>
+
+              {/* Show Save button only when Auto-Save is OFF */}
+              {!autoSave && (
                 <div className="flex flex-col">
-                  <span className="text-[8px] sm:text-[8.5px] font-label-caps opacity-60">SYNC MODE</span>
+                  <span className="text-[8px] sm:text-[8.5px] font-label-caps opacity-60">ACTIONS</span>
                   <button
-                    onClick={() => setAutoSave(!autoSave)}
-                    className={`flex items-center gap-1 px-2 py-0.5 rounded text-[11px] font-bold transition-all border ${autoSave
-                        ? 'bg-secondary/20 border-secondary text-white'
-                        : 'bg-white/5 border-outline-variant/40 text-on-primary/70 hover:bg-white/10'
-                      }`}
-                    title="Toggle Auto Sync after drag and drop"
+                    onClick={handleSave}
+                    disabled={isSaving}
+                    className="bg-secondary text-white px-2.5 py-0.5 rounded text-[11px] font-bold hover:opacity-90 disabled:opacity-50 flex items-center gap-1 shadow-xs cursor-pointer whitespace-nowrap"
                   >
-                    <span className={`w-1.5 h-1.5 rounded-full ${autoSave ? 'bg-secondary animate-pulse' : 'bg-outline-variant'}`}></span>
-                    <span className="font-label-caps text-[9px] sm:text-[10px] whitespace-nowrap">{autoSave ? "AUTO SYNC" : "MANUAL"}</span>
+                    {isSaving && <span className="w-2.5 h-2.5 border-2 border-white border-t-transparent rounded-full animate-spin"></span>}
+                    {isSaving ? "SAVING..." : "SAVE"}
                   </button>
                 </div>
+              )}
 
-                {/* Show Save button only when Auto-Save is OFF */}
-                {!autoSave && (
-                  <div className="flex flex-col">
-                    <span className="text-[8px] sm:text-[8.5px] font-label-caps opacity-60">ACTIONS</span>
-                    <button
-                      onClick={handleSave}
-                      disabled={isSaving}
-                      className="bg-secondary text-white px-2.5 py-0.5 rounded text-[11px] font-bold hover:opacity-90 disabled:opacity-50 flex items-center gap-1 shadow-xs cursor-pointer whitespace-nowrap"
-                    >
-                      {isSaving && <span className="w-2.5 h-2.5 border-2 border-white border-t-transparent rounded-full animate-spin"></span>}
-                      {isSaving ? "SAVING..." : "SAVE"}
-                    </button>
-                  </div>
-                )}
-
-                {/* Design-System Aligned Status Cue */}
-                {saveStatusText && (
-                  <div className="flex items-center gap-1 px-2 py-0.5 bg-secondary text-white text-[11px] font-bold rounded shadow-xs shrink-0">
-                    <span className="material-symbols-outlined text-[13px]">sync</span>
-                    <span className="font-label-caps text-[9px] sm:text-[10px] tracking-wider whitespace-nowrap">{saveStatusText}</span>
-                  </div>
-                )}
-                {!saveStatusText && lastSaved && (
-                  <span className="text-[9px] sm:text-[10px] opacity-70 font-data-mono hidden xl:inline whitespace-nowrap">
-                    Synced {lastSaved.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })}
-                  </span>
-                )}
-              </div>
-            </>
+              {/* Design-System Aligned Status Cue */}
+              {saveStatusText && (
+                <div className="flex items-center gap-1 px-2 py-0.5 bg-secondary text-white text-[11px] font-bold rounded shadow-xs shrink-0">
+                  <span className="material-symbols-outlined text-[13px]">sync</span>
+                  <span className="font-label-caps text-[9px] sm:text-[10px] tracking-wider whitespace-nowrap">{saveStatusText}</span>
+                </div>
+              )}
+              {!saveStatusText && lastSaved && (
+                <span className="text-[9px] sm:text-[10px] opacity-70 font-data-mono hidden xl:inline whitespace-nowrap">
+                  Synced {lastSaved.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })}
+                </span>
+              )}
+            </div>
           )}
         </div>
       </div>
