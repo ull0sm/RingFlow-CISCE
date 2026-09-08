@@ -263,9 +263,15 @@ export default function PublicEventClient({
     return () => clearTimeout(debounce);
   }, [searchQuery, tournament.id, supabase]);
 
+  const viewingPdfRef = useRef(viewingPdf);
+  viewingPdfRef.current = viewingPdf;
+
   // Outside click listener for search
   useEffect(() => {
     const handleClickOutside = (e: MouseEvent) => {
+      // Keep search state intact if PDF modal is open or being interacted with
+      if (viewingPdfRef.current) return;
+
       if (searchWrapRef.current && !searchWrapRef.current.contains(e.target as Node)) {
         setIsSearchOpen(false);
       }
@@ -328,13 +334,17 @@ export default function PublicEventClient({
     docUrl: string | null,
     categoryName: string
   ) => {
-    setIsSearchOpen(false);
     if (docUrl) {
+      // Keep search open in background and do not scroll away
       setViewingPdf({
         url: docUrl,
         title: `${athlete.name} · ${categoryName}`,
       });
+      return;
     }
+
+    // Only if there is no PDF, close search and scroll to ring
+    setIsSearchOpen(false);
     if (ringId) {
       const card = matCardsRef.current[ringId];
       if (card) {
@@ -559,7 +569,6 @@ export default function PublicEventClient({
                             className="spectator-pdf-chip"
                             onClick={(e) => {
                               e.stopPropagation();
-                              setIsSearchOpen(false);
                               setViewingPdf({
                                 url: docUrl,
                                 title: `${a.name} · ${displayCategoryName}`,
