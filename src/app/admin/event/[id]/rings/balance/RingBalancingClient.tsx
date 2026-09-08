@@ -863,93 +863,91 @@ export default function RingBalancingClient({
       </header>
 
       {/* Tournament Overview Bar */}
-      <div className="bg-primary text-on-primary px-3 sm:px-8 py-2 sm:py-3 flex items-center justify-between shrink-0 shadow-lg z-10 w-full overflow-x-auto gap-3 sm:gap-4">
-        <div className="flex items-center gap-2.5 sm:gap-8 shrink-0">
+      <div className="bg-primary text-on-primary px-4 sm:px-8 py-2.5 sm:py-3 shrink-0 shadow-lg z-10 w-full">
+        <div className="flex items-center justify-between w-full gap-3 sm:gap-8">
           {/* Stat 1: Completed Categories */}
-          <div className="flex flex-col">
-            <span className="text-[8px] sm:text-[10px] font-label-caps opacity-60 whitespace-nowrap">CATEGORIES</span>
-            <span className="font-data-mono text-xs sm:text-lg font-bold whitespace-nowrap">{completedCategoriesCount} / {totalCategoriesCount}</span>
+          <div className="flex-1 flex flex-col items-start min-w-0">
+            <span className="text-[9px] sm:text-[11px] font-label-caps opacity-60 tracking-wider whitespace-nowrap">CATEGORIES</span>
+            <div className="flex items-baseline gap-1.5">
+              <span className="font-data-mono text-xs sm:text-lg font-bold whitespace-nowrap">{completedCategoriesCount} / {totalCategoriesCount}</span>
+              <span className="text-[9px] opacity-60 font-label-caps hidden sm:inline">DONE</span>
+            </div>
           </div>
-          <div className="h-5 sm:h-6 w-[1px] bg-white/20 shrink-0"></div>
+
+          <div className="h-6 sm:h-8 w-[1px] bg-white/20 shrink-0"></div>
 
           {/* Stat 2: Completed Matches */}
-          <div className="flex flex-col">
-            <span className="text-[8px] sm:text-[10px] font-label-caps opacity-60 whitespace-nowrap">MATCHES</span>
+          <div className="flex-1 flex flex-col items-center min-w-0">
+            <span className="text-[9px] sm:text-[11px] font-label-caps opacity-60 tracking-wider whitespace-nowrap">MATCHES</span>
             <span className="font-data-mono text-xs sm:text-lg font-bold whitespace-nowrap">{overallCompletedMatches} / {overallTotalExpectedMatches}</span>
           </div>
-          <div className="h-5 sm:h-6 w-[1px] bg-white/20 shrink-0"></div>
+
+          <div className="h-6 sm:h-8 w-[1px] bg-white/20 shrink-0"></div>
 
           {/* Stat 3: Overall Progress */}
-          <div className="flex flex-col justify-center min-w-[75px] sm:min-w-[120px]">
-            <div className="flex items-center justify-between gap-1.5 sm:gap-2">
-              <span className="text-[8px] sm:text-[10px] font-label-caps opacity-60 whitespace-nowrap">PROGRESS</span>
-              <span className="font-data-mono text-[10px] sm:text-sm font-bold text-secondary">{overallProgressPct}%</span>
-            </div>
-            <div className="w-full bg-white/20 h-1 sm:h-1.5 rounded-full overflow-hidden mt-0.5 sm:mt-1">
-              <div
-                className="bg-secondary h-full rounded-full transition-all duration-500"
-                style={{ width: `${Math.min(100, Math.max(0, overallProgressPct))}%` }}
-              />
+          <div className={`flex-1 flex flex-col ${readOnly ? "items-end" : "sm:items-center items-end"} min-w-0`}>
+            <div className="w-full max-w-[200px] flex flex-col">
+              <div className="flex items-center justify-between gap-1.5 sm:gap-2">
+                <span className="text-[9px] sm:text-[11px] font-label-caps opacity-60 tracking-wider whitespace-nowrap">PROGRESS</span>
+                <span className="font-data-mono text-xs sm:text-sm font-bold text-secondary whitespace-nowrap">{overallProgressPct}%</span>
+              </div>
+              <div className="w-full bg-white/20 h-1.5 sm:h-2 rounded-full overflow-hidden mt-1">
+                <div
+                  className="bg-secondary h-full rounded-full transition-all duration-500"
+                  style={{ width: `${Math.min(100, Math.max(0, overallProgressPct))}%` }}
+                />
+              </div>
             </div>
           </div>
-          <div className="h-5 sm:h-6 w-[1px] bg-white/20 shrink-0"></div>
-
-          {/* Mobile Pool vs Board toggle */}
-          <button
-            onClick={togglePool}
-            className="md:hidden flex items-center gap-1 sm:gap-1.5 px-2 sm:px-3 py-1 sm:py-1.5 bg-white/15 hover:bg-white/25 border border-white/20 rounded-lg text-[11px] sm:text-xs font-bold text-white transition-all cursor-pointer shrink-0"
-          >
-            <span>{mobileShowPool ? "Show Tatamis" : "Show unassigned categories"}</span>
-            <span className="material-symbols-outlined text-[16px] leading-none">
-              {mobileShowPool ? "chevron_left" : "chevron_right"}
-            </span>
-          </button>
 
           {!readOnly && (
-            <div className="flex items-center gap-4 sm:gap-6 flex-wrap">
-              <div className="flex flex-col">
-                <span className="text-[9px] sm:text-[10px] font-label-caps opacity-60">SYNC MODE</span>
-                <button
-                  onClick={() => setAutoSave(!autoSave)}
-                  className={`flex items-center gap-2 px-2.5 sm:px-3 py-1 rounded-md text-xs font-bold transition-all border ${autoSave
-                      ? 'bg-secondary/20 border-secondary text-white'
-                      : 'bg-white/5 border-outline-variant/40 text-on-primary/70 hover:bg-white/10'
-                    }`}
-                  title="Toggle Auto Sync after drag and drop"
-                >
-                  <span className={`w-2 h-2 rounded-full ${autoSave ? 'bg-secondary animate-pulse' : 'bg-outline-variant'}`}></span>
-                  <span className="font-label-caps text-[10px] sm:text-xs">{autoSave ? "AUTO SYNC ON" : "MANUAL SYNC"}</span>
-                </button>
-              </div>
-
-              {/* Show Save button only when Auto-Save is OFF */}
-              {!autoSave && (
+            <>
+              <div className="h-6 sm:h-8 w-[1px] bg-white/20 shrink-0 hidden sm:block"></div>
+              <div className="flex items-center gap-3 sm:gap-5 shrink-0">
                 <div className="flex flex-col">
-                  <span className="text-[9px] sm:text-[10px] font-label-caps opacity-60">ACTIONS</span>
+                  <span className="text-[9px] sm:text-[10px] font-label-caps opacity-60">SYNC MODE</span>
                   <button
-                    onClick={handleSave}
-                    disabled={isSaving}
-                    className="bg-secondary text-white px-3 sm:px-4 py-1 rounded-md text-xs font-bold hover:opacity-90 disabled:opacity-50 flex items-center gap-1.5 shadow-sm cursor-pointer"
+                    onClick={() => setAutoSave(!autoSave)}
+                    className={`flex items-center gap-1.5 sm:gap-2 px-2.5 sm:px-3 py-1 rounded-md text-xs font-bold transition-all border ${autoSave
+                        ? 'bg-secondary/20 border-secondary text-white'
+                        : 'bg-white/5 border-outline-variant/40 text-on-primary/70 hover:bg-white/10'
+                      }`}
+                    title="Toggle Auto Sync after drag and drop"
                   >
-                    {isSaving && <span className="w-3 h-3 border-2 border-white border-t-transparent rounded-full animate-spin"></span>}
-                    {isSaving ? "SAVING..." : "SAVE BALANCING"}
+                    <span className={`w-2 h-2 rounded-full ${autoSave ? 'bg-secondary animate-pulse' : 'bg-outline-variant'}`}></span>
+                    <span className="font-label-caps text-[10px] sm:text-xs whitespace-nowrap">{autoSave ? "AUTO SYNC ON" : "MANUAL SYNC"}</span>
                   </button>
                 </div>
-              )}
 
-              {/* Design-System Aligned Status Cue */}
-              {saveStatusText && (
-                <div className="flex items-center gap-1.5 px-2.5 sm:px-3 py-1 bg-secondary text-white text-xs font-bold rounded-md shadow-md">
-                  <span className="material-symbols-outlined text-sm">sync</span>
-                  <span className="font-label-caps text-[10px] sm:text-xs tracking-wider">{saveStatusText}</span>
-                </div>
-              )}
-              {!saveStatusText && lastSaved && (
-                <span className="text-[10px] sm:text-[11px] opacity-70 font-data-mono hidden sm:inline">
-                  Synced {lastSaved.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })}
-                </span>
-              )}
-            </div>
+                {/* Show Save button only when Auto-Save is OFF */}
+                {!autoSave && (
+                  <div className="flex flex-col">
+                    <span className="text-[9px] sm:text-[10px] font-label-caps opacity-60">ACTIONS</span>
+                    <button
+                      onClick={handleSave}
+                      disabled={isSaving}
+                      className="bg-secondary text-white px-3 sm:px-4 py-1 rounded-md text-xs font-bold hover:opacity-90 disabled:opacity-50 flex items-center gap-1.5 shadow-sm cursor-pointer whitespace-nowrap"
+                    >
+                      {isSaving && <span className="w-3 h-3 border-2 border-white border-t-transparent rounded-full animate-spin"></span>}
+                      {isSaving ? "SAVING..." : "SAVE BALANCING"}
+                    </button>
+                  </div>
+                )}
+
+                {/* Design-System Aligned Status Cue */}
+                {saveStatusText && (
+                  <div className="flex items-center gap-1.5 px-2.5 sm:px-3 py-1 bg-secondary text-white text-xs font-bold rounded-md shadow-md shrink-0">
+                    <span className="material-symbols-outlined text-sm">sync</span>
+                    <span className="font-label-caps text-[10px] sm:text-xs tracking-wider whitespace-nowrap">{saveStatusText}</span>
+                  </div>
+                )}
+                {!saveStatusText && lastSaved && (
+                  <span className="text-[10px] sm:text-[11px] opacity-70 font-data-mono hidden xl:inline whitespace-nowrap">
+                    Synced {lastSaved.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })}
+                  </span>
+                )}
+              </div>
+            </>
           )}
         </div>
       </div>
