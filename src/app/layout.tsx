@@ -34,6 +34,11 @@ const ibmPlexMono = IBM_Plex_Mono({
   display: "swap",
 });
 
+export const viewport = {
+  width: "device-width",
+  initialScale: 1,
+};
+
 export const metadata: Metadata = {
   title: "RingFlow | Real-Time Tournament Floor Management",
   description: "Live tournament rings, match queues, dynamic bracket flow, and spectator dashboard.",
