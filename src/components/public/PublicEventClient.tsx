@@ -4,6 +4,7 @@ import React, { useState, useEffect, useRef, useMemo } from "react";
 import Link from "next/link";
 import { createClient } from "@/utils/supabase/client";
 import { formatDisplayDateWithWeekday } from "@/lib/utils";
+import { PdfViewerModal } from "@/components/ui/PdfViewerModal";
 import "./public-spectator.css";
 
 interface Tournament {
@@ -84,6 +85,7 @@ export default function PublicEventClient({
   const [rings, setRings] = useState<Ring[]>(initialRings);
   const [assignments, setAssignments] = useState<CategoryAssignment[]>(initialAssignments);
   const [flashingMatId, setFlashingMatId] = useState<string | null>(null);
+  const [viewingPdf, setViewingPdf] = useState<{ url: string; title: string } | null>(null);
 
   // Search state
   const [searchQuery, setSearchQuery] = useState("");
@@ -242,7 +244,7 @@ export default function PublicEventClient({
     const fetchAthletes = async () => {
       const { data, error } = await supabase
         .from("athletes")
-        .select("id, name, chest_number, category_id, categories(name)")
+        .select("id, name, chest_number, category_id, categories(id, name, doc_url)")
         .eq("tournament_id", tournament.id)
         .or(`name.ilike.%${cleanQ}%,chest_number.ilike.%${cleanQ}%`)
         .limit(8);
@@ -303,6 +305,45 @@ export default function PublicEventClient({
     return { status: "idle" as const, matLabel, ringId: ring.id };
   };
 
+  const getCategoryDoc = (categoryId?: string, athleteCategory?: any) => {
+    if (athleteCategory) {
+      const catObj = Array.isArray(athleteCategory) ? athleteCategory[0] : athleteCategory;
+      if (catObj?.doc_url) return { docUrl: catObj.doc_url as string, name: catObj.name as string };
+      if (catObj?.name) {
+        const match = categories?.find((c) => c.id === categoryId || c.name === catObj.name);
+        if (match?.doc_url) return { docUrl: match.doc_url as string, name: match.name as string };
+        return { docUrl: null, name: catObj.name as string };
+      }
+    }
+    if (categoryId && categories) {
+      const match = categories.find((c) => c.id === categoryId);
+      if (match) return { docUrl: match.doc_url || null, name: match.name || null };
+    }
+    return { docUrl: null, name: null };
+  };
+
+  const handleAthleteClick = (
+    athlete: AthleteSearchResult,
+    ringId: string | null,
+    docUrl: string | null,
+    categoryName: string
+  ) => {
+    setIsSearchOpen(false);
+    if (docUrl) {
+      setViewingPdf({
+        url: docUrl,
+        title: `${athlete.name} · ${categoryName}`,
+      });
+    }
+    if (ringId) {
+      const card = matCardsRef.current[ringId];
+      if (card) {
+        card.scrollIntoView({ behavior: "smooth", block: "center" });
+        triggerFlash(ringId, 1600);
+      }
+    }
+  };
+
   const selectMatch = (matId: string | null) => {
     setIsSearchOpen(false);
     if (!matId) return;
@@ -326,7 +367,8 @@ export default function PublicEventClient({
       if (activeIndex >= 0 && searchResults[activeIndex]) {
         const athlete = searchResults[activeIndex];
         const { ringId } = getAthleteRingStatus(athlete.category_id);
-        selectMatch(ringId);
+        const { docUrl, name: categoryName } = getCategoryDoc(athlete.category_id, athlete.categories);
+        handleAthleteClick(athlete, ringId, docUrl, categoryName || "Category");
       }
     } else if (e.key === "Escape") {
       setIsSearchOpen(false);
@@ -478,6 +520,8 @@ export default function PublicEventClient({
                 const { status, matLabel, ringId } = getAthleteRingStatus(a.category_id);
                 const meta = statusMeta[status];
                 const parts = matLabel.match(/(Tatami \d+)(.*)/);
+                const { docUrl, name: categoryName } = getCategoryDoc(a.category_id, a.categories);
+                const displayCategoryName = categoryName || "Uncategorized";
 
                 return (
                   <div
@@ -487,20 +531,51 @@ export default function PublicEventClient({
                     aria-selected={activeIndex === i}
                     data-index={i}
                     data-mat-id={ringId || ""}
-                    onClick={() => selectMatch(ringId)}
+                    onClick={() => handleAthleteClick(a, ringId, docUrl, displayCategoryName)}
                   >
-                    <div className="spectator-result-main">
-                      <div className="spectator-result-name-row">
+                    {/* Top Row: Chest & Athlete Name on Left, Status Badge on Right */}
+                    <div className="spectator-result-top">
+                      <div className="spectator-result-name-group">
                         <span className="spectator-result-chest mono">
                           #{a.chest_number || "-"}
                         </span>
                         <span className="spectator-result-name">{a.name}</span>
                       </div>
-                      <div className="spectator-result-division">
-                        {(Array.isArray(a.categories) ? a.categories[0]?.name : a.categories?.name) || "Uncategorized"}
-                      </div>
+                      <span className={`spectator-status ${meta.cls}`}>
+                        <span className="dot"></span>
+                        {meta.label}
+                      </span>
                     </div>
-                    <div className="spectator-result-side">
+
+                    {/* Bottom Row: Category & View Draws on Left, Tatami Mat Info on Right */}
+                    <div className="spectator-result-bottom">
+                      <div className="spectator-result-category-wrap">
+                        <span className="spectator-result-division">
+                          {displayCategoryName}
+                        </span>
+                        {docUrl && (
+                          <button
+                            type="button"
+                            className="spectator-pdf-chip"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setIsSearchOpen(false);
+                              setViewingPdf({
+                                url: docUrl,
+                                title: `${a.name} · ${displayCategoryName}`,
+                              });
+                            }}
+                            title="View category draws PDF"
+                          >
+                            <svg className="spectator-pdf-icon" viewBox="0 0 16 16" fill="none" aria-hidden="true">
+                              <rect x="0.5" y="0.5" width="15" height="15" rx="3" fill="#DC2626" stroke="#B91C1C" strokeWidth="0.5" />
+                              <text x="8" y="11" fill="#FFFFFF" fontSize="6.5" fontWeight="800" textAnchor="middle" fontFamily="system-ui, -apple-system, sans-serif" letterSpacing="0.2">PDF</text>
+                            </svg>
+                            <span className="spectator-draws-link">View Draws</span>
+                          </button>
+                        )}
+                      </div>
+
                       <div className="spectator-result-mat">
                         {parts ? (
                           <>
@@ -511,10 +586,6 @@ export default function PublicEventClient({
                           matLabel
                         )}
                       </div>
-                      <span className={`spectator-status ${meta.cls}`}>
-                        <span className="dot"></span>
-                        {meta.label}
-                      </span>
                     </div>
                   </div>
                 );
@@ -719,6 +790,13 @@ export default function PublicEventClient({
           </p>
         </div>
       </div>
+
+      {/* Floating PDF Viewer Modal */}
+      <PdfViewerModal
+        url={viewingPdf?.url || null}
+        title={viewingPdf?.title}
+        onClose={() => setViewingPdf(null)}
+      />
     </div>
   );
 }
