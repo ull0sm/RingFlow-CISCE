@@ -2,14 +2,27 @@
 
 import React, { useState, useEffect } from "react";
 import Link from "next/link";
-import { usePathname, useParams } from "next/navigation";
+import { usePathname, useParams, useRouter } from "next/navigation";
+import { createClient } from "@/utils/supabase/client";
 import { RingFlowLogo } from "@/components/ui/ringflow-logo";
 
 export default function AdminSidebar() {
   const pathname = usePathname();
   const params = useParams();
-  const id = params.id as string || "123";
+  const router = useRouter();
+  const id = (params.id as string) || "123";
   const [isCollapsed, setIsCollapsed] = useState(false);
+  const [tournamentData, setTournamentData] = useState<{
+    name: string;
+    ringsCount: number;
+    categoriesCount: number;
+    athletesCount: number;
+  }>({
+    name: "Tournament",
+    ringsCount: 0,
+    categoriesCount: 0,
+    athletesCount: 0,
+  });
 
   useEffect(() => {
     const saved = localStorage.getItem("ringflow_sidebar_collapsed");
@@ -26,113 +39,420 @@ export default function AdminSidebar() {
     });
   };
 
-  const navItems = [
-    { name: "Dashboard", href: `/admin/event/${id}/dashboard`, icon: "dashboard" },
-    { name: "Tatami Balancing", href: `/admin/event/${id}/rings/balance`, icon: "balance" },
-    { name: "Categories", href: `/admin/event/${id}/categories`, icon: "category" },
-    { name: "Athletes", href: `/admin/event/${id}/athletes`, icon: "groups" },
-    { name: "Access", href: `/admin/event/${id}/rings`, icon: "key" },
-    { name: "Settings", href: `/admin/event/${id}/settings`, icon: "settings" },
-  ];
+  useEffect(() => {
+    if (!id) return;
+    let isMounted = true;
+    const supabase = createClient();
+
+    const fetchDetails = async () => {
+      try {
+        const { data: tourney } = await supabase
+          .from("tournaments")
+          .select("name")
+          .eq("id", id)
+          .maybeSingle();
+
+        const { count: rings } = await supabase
+          .from("rings")
+          .select("*", { count: "exact", head: true })
+          .eq("tournament_id", id);
+
+        const { count: cats } = await supabase
+          .from("categories")
+          .select("*", { count: "exact", head: true })
+          .eq("tournament_id", id);
+
+        const { count: athletes } = await supabase
+          .from("athletes")
+          .select("*", { count: "exact", head: true })
+          .eq("tournament_id", id);
+
+        if (isMounted) {
+          setTournamentData({
+            name: tourney?.name || "Tournament",
+            ringsCount: rings || 0,
+            categoriesCount: cats || 0,
+            athletesCount: athletes || 0,
+          });
+        }
+      } catch (err) {
+        console.error("Failed to load tournament sidebar stats:", err);
+      }
+    };
+
+    fetchDetails();
+    return () => {
+      isMounted = false;
+    };
+  }, [id]);
 
   return (
     <aside
-      className={`hidden md:flex flex-col sticky top-0 h-screen py-6 space-y-2 bg-surface-container-low border-r border-outline-variant shrink-0 z-40 transition-[width] duration-300 relative ${
-        isCollapsed ? "w-20 px-2" : "w-64 px-4"
+      className={`hidden md:flex flex-col sticky top-0 h-screen bg-white border-r border-[#E7EAEF] shrink-0 z-40 transition-[width] duration-200 select-none relative ${
+        isCollapsed ? "w-[68px]" : "w-[260px]"
       }`}
     >
-      {/* Pop-out black button with white arrow centered on sidebar border */}
+      {/* ─── Prominent Vertically Centered Sticked-out Toggle (< / >) ─── */}
       <button
         onClick={toggleCollapse}
         type="button"
+        aria-label={isCollapsed ? "Expand sidebar" : "Collapse sidebar"}
         title={isCollapsed ? "Expand sidebar" : "Collapse sidebar"}
-        className="absolute top-1/2 -right-4 -translate-y-1/2 w-8 h-8 bg-black border-2 border-white/90 rounded-full shadow-xl flex items-center justify-center text-white hover:scale-110 active:scale-95 transition-all cursor-pointer z-50"
+        className="absolute top-1/2 -right-3.5 -translate-y-1/2 z-50 w-7 h-7 rounded-full bg-white border border-slate-300 shadow-[0_2px_8px_rgba(0,0,0,0.12)] hover:shadow-lg flex items-center justify-center text-slate-700 hover:text-[#0E9C7C] hover:border-[#0E9C7C] hover:scale-110 active:scale-95 transition-all cursor-pointer"
       >
-        <span className="material-symbols-outlined text-[20px] select-none leading-none text-white">
-          {isCollapsed ? "chevron_right" : "chevron_left"}
-        </span>
+        <svg
+          className="w-3.5 h-3.5"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="2.5"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        >
+          {isCollapsed ? <path d="M9 18l6-6-6-6" /> : <path d="M15 18l-6-6 6-6" />}
+        </svg>
       </button>
 
-      {/* Brand Header */}
+      {/* ─── Top Branding & Event Header ─── */}
       {isCollapsed ? (
-        <div className="flex flex-col items-center mb-8">
-          <Link href="/admin" title="RingFlow - Admin Terminal" className="flex items-center justify-center">
-            <RingFlowLogo className="h-8 w-8 text-primary shrink-0" />
+        <div className="h-[60px] border-b border-[#E7EAEF] flex items-center justify-center shrink-0">
+          <Link href="/" title="RingFlow" className="hover:scale-110 transition-transform p-1">
+            <RingFlowLogo className="h-9 w-9 text-[#1B1815] shrink-0" />
           </Link>
         </div>
       ) : (
-        <div className="px-2 mb-8">
-          <Link href="/admin" className="flex items-center gap-2.5 group">
-            <RingFlowLogo className="h-8 w-8 text-primary group-hover:scale-105 transition-transform shrink-0" />
-            <span className="font-headline-sm text-headline-sm font-black text-primary tracking-tight">RingFlow</span>
+        <div className="p-3.5 border-b border-[#E7EAEF] shrink-0 space-y-2.5">
+          {/* RingFlow Brand Row */}
+          <Link
+            href="/"
+            className="flex items-center gap-2.5 group transition-opacity hover:opacity-90 py-0.5"
+          >
+            <RingFlowLogo className="h-8 w-8 text-[#1B1815] shrink-0 group-hover:scale-105 transition-transform" />
+            <span className="font-['Plus_Jakarta_Sans',sans-serif] font-black text-[20px] tracking-tight text-[#0F172A]">
+              RingFlow
+            </span>
           </Link>
-          <p className="text-[10px] font-label-caps text-on-surface-variant uppercase tracking-widest mt-1">Admin Terminal</p>
+
+          {/* Event Name & Live Mats (Below RingFlow branding, no down arrow) */}
+          <div className="pt-2 border-t border-[#F1F5F9]">
+            <Link
+              href={`/admin/event/${id}/dashboard`}
+              className="block group"
+            >
+              <div className="text-[#0F172A] font-bold text-[14.5px] truncate tracking-tight group-hover:text-[#0B7C63] transition-colors">
+                {tournamentData.name}
+              </div>
+            </Link>
+            <div className="flex items-center gap-1.5 mt-1">
+              <span className="relative flex h-2 w-2 shrink-0">
+                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-[#0E9C7C] opacity-75" />
+                <span className="relative inline-flex rounded-full h-2 w-2 bg-[#0E9C7C]" />
+              </span>
+              <span className="text-[#0B7C63] text-[11.5px] font-semibold">Live</span>
+              <span className="text-[#94A3B8] text-[11.5px]">
+                · {tournamentData.ringsCount || 0} mats active
+              </span>
+            </div>
+          </div>
         </div>
       )}
 
-      {/* Navigation */}
-      <nav className="flex-1 space-y-1 overflow-y-auto">
-        {navItems.map((item) => {
-          const isActive = pathname === item.href;
-          return (
+      {/* ─── Navigation Groups ─── */}
+      <nav className="flex-1 overflow-y-auto px-3 py-4 space-y-5">
+        {/* Operations */}
+        <div>
+          {!isCollapsed && (
+            <div className="text-[#94A3B8] text-[11.5px] font-semibold tracking-[0.3px] px-3 pb-2 uppercase">
+              Operations
+            </div>
+          )}
+          <div className={`space-y-1 ${isCollapsed ? "space-y-1.5" : ""}`}>
+            {/* Dashboard */}
             <Link
-              key={item.name}
-              href={item.href}
-              title={item.name}
-              className={`flex items-center rounded-lg font-bold transition-all ${
-                isCollapsed ? "justify-center h-12 w-full" : "gap-3 px-4 py-3"
+              href={`/admin/event/${id}/dashboard`}
+              title="Dashboard"
+              className={`flex items-center gap-3 transition-all ${
+                isCollapsed
+                  ? "w-[44px] h-[44px] mx-auto justify-center rounded-xl"
+                  : "px-3 py-2.5 rounded-lg text-[14.5px]"
               } ${
-                isActive
-                  ? "bg-secondary-container text-on-secondary-container scale-95 duration-200"
-                  : "text-on-surface-variant hover:text-on-surface hover:bg-surface-container-highest"
+                pathname === `/admin/event/${id}/dashboard`
+                  ? "bg-[#E3F6F0] text-[#0B7C63] font-semibold"
+                  : "text-[#334155] hover:bg-[#F1F3F5] font-medium"
               }`}
             >
-              <span className="material-symbols-outlined shrink-0 text-[22px]">{item.icon}</span>
+              <svg
+                className={`w-[22px] h-[22px] shrink-0 ${
+                  pathname === `/admin/event/${id}/dashboard` ? "text-[#0B7C63]" : "text-[#94A3B8]"
+                }`}
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+              >
+                <rect x="3" y="3" width="7" height="9" rx="1.5" />
+                <rect x="14" y="3" width="7" height="5" rx="1.5" />
+                <rect x="14" y="12" width="7" height="9" rx="1.5" />
+                <rect x="3" y="16" width="7" height="5" rx="1.5" />
+              </svg>
+              {!isCollapsed && <span className="flex-1 truncate">Dashboard</span>}
+            </Link>
+
+            {/* Tatami Balancing */}
+            <Link
+              href={`/admin/event/${id}/rings/balance`}
+              title="Tatami Balancing"
+              className={`flex items-center gap-3 transition-all ${
+                isCollapsed
+                  ? "w-[44px] h-[44px] mx-auto justify-center rounded-xl"
+                  : "px-3 py-2.5 rounded-lg text-[14.5px]"
+              } ${
+                pathname.includes("/rings/balance")
+                  ? "bg-[#E3F6F0] text-[#0B7C63] font-semibold"
+                  : "text-[#334155] hover:bg-[#F1F3F5] font-medium"
+              }`}
+            >
+              <svg
+                className={`w-[22px] h-[22px] shrink-0 ${
+                  pathname.includes("/rings/balance") ? "text-[#0B7C63]" : "text-[#94A3B8]"
+                }`}
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+              >
+                <path d="M12 3v18M6 7l-3 6a3 3 0 006 0l-3-6zM18 7l-3 6a3 3 0 006 0l-3-6zM6 7h12" />
+              </svg>
               {!isCollapsed && (
-                <span className="font-label-caps text-label-caps truncate">{item.name}</span>
+                <>
+                  <span className="flex-1 whitespace-nowrap font-medium">Tatami Balancing</span>
+                  <span className="text-[11px] bg-[#E3F6F0] text-[#0B7C63] px-2 py-0.5 rounded-full font-semibold flex items-center gap-1 shrink-0">
+                    <span className="w-1.5 h-1.5 rounded-full bg-[#0E9C7C]" />
+                    {tournamentData.ringsCount || 0}
+                  </span>
+                </>
               )}
             </Link>
-          );
-        })}
+
+            {/* Categories */}
+            <Link
+              href={`/admin/event/${id}/categories`}
+              title="Categories"
+              className={`flex items-center gap-3 transition-all ${
+                isCollapsed
+                  ? "w-[44px] h-[44px] mx-auto justify-center rounded-xl"
+                  : "px-3 py-2.5 rounded-lg text-[14.5px]"
+              } ${
+                pathname.includes("/categories")
+                  ? "bg-[#E3F6F0] text-[#0B7C63] font-semibold"
+                  : "text-[#334155] hover:bg-[#F1F3F5] font-medium"
+              }`}
+            >
+              <svg
+                className={`w-[22px] h-[22px] shrink-0 ${
+                  pathname.includes("/categories") ? "text-[#0B7C63]" : "text-[#94A3B8]"
+                }`}
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+              >
+                <path d="M12 3l9 5-9 5-9-5 9-5zM3 8v8l9 5 9-5V8" />
+              </svg>
+              {!isCollapsed && (
+                <>
+                  <span className="flex-1 whitespace-nowrap font-medium">Categories</span>
+                  <span className="text-[11px] text-[#94A3B8] bg-[#F1F3F5] px-2 py-0.5 rounded-full font-semibold shrink-0">
+                    {tournamentData.categoriesCount || 0}
+                  </span>
+                </>
+              )}
+            </Link>
+
+            {/* Athletes */}
+            <Link
+              href={`/admin/event/${id}/athletes`}
+              title="Athletes"
+              className={`flex items-center gap-3 transition-all ${
+                isCollapsed
+                  ? "w-[44px] h-[44px] mx-auto justify-center rounded-xl"
+                  : "px-3 py-2.5 rounded-lg text-[14.5px]"
+              } ${
+                pathname.includes("/athletes")
+                  ? "bg-[#E3F6F0] text-[#0B7C63] font-semibold"
+                  : "text-[#334155] hover:bg-[#F1F3F5] font-medium"
+              }`}
+            >
+              <svg
+                className={`w-[22px] h-[22px] shrink-0 ${
+                  pathname.includes("/athletes") ? "text-[#0B7C63]" : "text-[#94A3B8]"
+                }`}
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+              >
+                <circle cx="9" cy="8" r="3.2" />
+                <path d="M2.5 20c0-3.5 3-6 6.5-6s6.5 2.5 6.5 6" />
+                <circle cx="18" cy="9" r="2.6" />
+                <path d="M15.5 14c2.8.3 5 2.5 5 6" />
+              </svg>
+              {!isCollapsed && (
+                <>
+                  <span className="flex-1 whitespace-nowrap font-medium">Athletes</span>
+                  <span className="text-[11px] text-[#94A3B8] bg-[#F1F3F5] px-2 py-0.5 rounded-full font-semibold shrink-0">
+                    {tournamentData.athletesCount || 0}
+                  </span>
+                </>
+              )}
+            </Link>
+          </div>
+        </div>
+
+        {/* Administration */}
+        <div>
+          {!isCollapsed && (
+            <div className="text-[#94A3B8] text-[11.5px] font-semibold tracking-[0.3px] px-3 pb-2 uppercase">
+              Administration
+            </div>
+          )}
+          <div className={`space-y-1 ${isCollapsed ? "space-y-1.5" : ""}`}>
+            {/* Access & Keys */}
+            <Link
+              href={`/admin/event/${id}/rings`}
+              title="Access & Keys"
+              className={`flex items-center gap-3 transition-all ${
+                isCollapsed
+                  ? "w-[44px] h-[44px] mx-auto justify-center rounded-xl"
+                  : "px-3 py-2.5 rounded-lg text-[14.5px]"
+              } ${
+                pathname === `/admin/event/${id}/rings`
+                  ? "bg-[#E3F6F0] text-[#0B7C63] font-semibold"
+                  : "text-[#334155] hover:bg-[#F1F3F5] font-medium"
+              }`}
+            >
+              <svg
+                className={`w-[22px] h-[22px] shrink-0 ${
+                  pathname === `/admin/event/${id}/rings` ? "text-[#0B7C63]" : "text-[#94A3B8]"
+                }`}
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+              >
+                <circle cx="8" cy="8" r="4.5" />
+                <path d="M11.3 11.3L21 21M17 17l3-3" />
+              </svg>
+              {!isCollapsed && <span className="flex-1 whitespace-nowrap font-medium">Access &amp; Keys</span>}
+            </Link>
+
+            {/* Settings */}
+            <Link
+              href={`/admin/event/${id}/settings`}
+              title="Settings"
+              className={`flex items-center gap-3 transition-all ${
+                isCollapsed
+                  ? "w-[44px] h-[44px] mx-auto justify-center rounded-xl"
+                  : "px-3 py-2.5 rounded-lg text-[14.5px]"
+              } ${
+                pathname.includes("/settings")
+                  ? "bg-[#E3F6F0] text-[#0B7C63] font-semibold"
+                  : "text-[#334155] hover:bg-[#F1F3F5] font-medium"
+              }`}
+            >
+              <svg
+                className={`w-[22px] h-[22px] shrink-0 ${
+                  pathname.includes("/settings") ? "text-[#0B7C63]" : "text-[#94A3B8]"
+                }`}
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+              >
+                <circle cx="12" cy="12" r="3" />
+                <path d="M19.4 15a1.7 1.7 0 00.3 1.9l.1.1a2 2 0 11-2.8 2.8l-.1-.1a1.7 1.7 0 00-1.9-.3 1.7 1.7 0 00-1 1.6v.2a2 2 0 11-4 0v-.1a1.7 1.7 0 00-1.1-1.6 1.7 1.7 0 00-1.9.3l-.1.1a2 2 0 11-2.8-2.8l.1-.1a1.7 1.7 0 00.3-1.9 1.7 1.7 0 00-1.6-1H4a2 2 0 110-4h.1a1.7 1.7 0 001.6-1 1.7 1.7 0 00-.3-1.9l-.1-.1a2 2 0 112.8-2.8l.1.1a1.7 1.7 0 001.9.3H10a1.7 1.7 0 001-1.6V4a2 2 0 114 0v.1a1.7 1.7 0 001 1.6 1.7 1.7 0 001.9-.3l.1-.1a2 2 0 112.8 2.8l-.1.1a1.7 1.7 0 00-.3 1.9V10a1.7 1.7 0 001.6 1h.2a2 2 0 110 4h-.1a1.7 1.7 0 00-1.6 1z" />
+              </svg>
+              {!isCollapsed && <span className="flex-1 whitespace-nowrap font-medium">Settings</span>}
+            </Link>
+          </div>
+        </div>
       </nav>
 
-      {/* Footer */}
-      <div className="mt-auto pt-4 border-t border-outline-variant space-y-3">
+      {/* ─── Role & Profile Footer (Click to Sign Out) ─── */}
+      <div className="p-3 border-t border-[#E7EAEF] bg-white shrink-0">
         {isCollapsed ? (
-          <>
-            <div
-              title="Team Crux (Tech Ops Lead)"
-              className="h-10 w-10 mx-auto rounded-full bg-white border border-outline-variant flex items-center justify-center overflow-hidden shrink-0 p-1.5 shadow-sm"
+          <button
+            type="button"
+            onClick={async () => {
+              const supabase = createClient();
+              await supabase.auth.signOut();
+              router.push("/login/admin");
+            }}
+            title="Team Crux (Administrator) · Click to sign out"
+            className="w-[42px] h-[42px] mx-auto rounded-xl flex items-center justify-center text-[#64748B] hover:text-red-600 hover:bg-red-50 border border-[#DCE0E7] hover:border-red-200 transition-all cursor-pointer group shadow-2xs"
+          >
+            <svg
+              className="w-5 h-5 group-hover:hidden transition-all"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="1.8"
             >
-              <RingFlowLogo className="w-full h-full text-primary" />
-            </div>
-            <Link
-              href="/login/admin"
-              title="Logout"
-              className="w-full h-10 flex items-center justify-center text-on-surface-variant hover:text-error hover:bg-error-container/10 transition-all rounded-lg"
-            >
-              <span className="material-symbols-outlined text-[20px]">logout</span>
-            </Link>
-          </>
+              <circle cx="12" cy="8" r="3.5" />
+              <path d="M4.5 20c0-4 3.4-7 7.5-7s7.5 3 7.5 7" />
+            </svg>
+            <span className="material-symbols-outlined text-[20px] hidden group-hover:block transition-all">
+              logout
+            </span>
+          </button>
         ) : (
-          <>
-            <div className="flex items-center gap-3 px-2">
-              <div className="h-10 w-10 rounded-full bg-white border border-outline-variant flex items-center justify-center overflow-hidden shrink-0 p-1.5 shadow-sm">
-                <RingFlowLogo className="w-full h-full text-primary" />
+          <button
+            type="button"
+            onClick={async () => {
+              const supabase = createClient();
+              await supabase.auth.signOut();
+              router.push("/login/admin");
+            }}
+            title="Click role to sign out"
+            className="w-full flex items-center gap-3 p-2.5 rounded-xl hover:bg-red-50/70 border border-transparent hover:border-red-200/60 transition-all group cursor-pointer text-left"
+          >
+            <div className="w-[40px] h-[40px] rounded-xl bg-[#F1F3F5] border border-[#DCE0E7] text-[#475569] group-hover:bg-red-100/70 group-hover:text-red-600 group-hover:border-red-200 flex items-center justify-center shrink-0 shadow-2xs transition-colors">
+              <svg
+                className="w-5 h-5"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="1.8"
+              >
+                <circle cx="12" cy="8" r="3.5" />
+                <path d="M4.5 20c0-4 3.4-7 7.5-7s7.5 3 7.5 7" />
+              </svg>
+            </div>
+            <div className="flex-1 min-w-0 leading-tight">
+              <div className="text-[14.5px] font-bold text-[#0F172A] group-hover:text-red-700 truncate transition-colors">
+                Team Crux
               </div>
-              <div className="overflow-hidden min-w-0">
-                <p className="font-body-md font-bold text-sm text-on-surface truncate">Team Crux</p>
-                <p className="text-[10px] text-on-surface-variant uppercase tracking-wider truncate">Tech Ops Lead</p>
+              <div className="text-[12px] text-[#64748B] group-hover:text-red-500 font-medium flex items-center gap-1.5 transition-colors mt-0.5">
+                <span>Administrator</span>
+                <span className="opacity-0 group-hover:opacity-100 text-[11px] text-red-500 font-semibold transition-opacity">
+                  · Sign out
+                </span>
               </div>
             </div>
-            <Link
-              href="/login/admin"
-              className="flex items-center gap-3 px-4 py-2 text-on-surface-variant hover:text-error hover:bg-error-container/10 transition-all rounded-lg"
+            <svg
+              className="w-5 h-5 text-[#94A3B8] group-hover:text-red-600 group-hover:translate-x-0.5 transition-all shrink-0"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="1.8"
+              strokeLinecap="round"
+              strokeLinejoin="round"
             >
-              <span className="material-symbols-outlined">logout</span>
-              <span className="font-label-caps text-label-caps">Logout</span>
-            </Link>
-          </>
+              <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
+              <polyline points="16 17 21 12 16 7" />
+              <line x1="21" y1="12" x2="9" y2="12" />
+            </svg>
+          </button>
         )}
       </div>
     </aside>
