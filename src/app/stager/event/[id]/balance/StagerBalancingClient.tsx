@@ -411,7 +411,7 @@ export default function StagerBalancingClient({
                     e.stopPropagation();
                     setViewingPdf({ url: cat.doc_url!, title: cat.name });
                   }}
-                  title="View student list PDF"
+                  title="View athlete list PDF"
                   className="material-symbols-outlined text-[13px] text-outline hover:text-primary transition-colors shrink-0 cursor-pointer"
                   style={{ fontVariationSettings: "'FILL' 0" }}
                 >
@@ -517,7 +517,7 @@ export default function StagerBalancingClient({
                   e.stopPropagation();
                   setViewingPdf({ url: cat.doc_url!, title: cat.name });
                 }}
-                title="View student list PDF"
+                title="View athlete list PDF"
                 className="material-symbols-outlined text-[13px] text-outline hover:text-primary transition-colors shrink-0 cursor-pointer"
                 style={{ fontVariationSettings: "'FILL' 0" }}
               >
@@ -855,7 +855,7 @@ export default function StagerBalancingClient({
                                     e.stopPropagation();
                                     setViewingPdf({ url: cat.doc_url!, title: cat.name });
                                   }}
-                                  title="View student list PDF"
+                                  title="View athlete list PDF"
                                   className="material-symbols-outlined text-[13px] text-outline hover:text-primary transition-colors shrink-0 cursor-pointer"
                                   style={{ fontVariationSettings: "'FILL' 0" }}
                                 >

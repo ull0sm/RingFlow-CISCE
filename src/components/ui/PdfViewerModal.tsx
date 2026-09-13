@@ -258,7 +258,7 @@ export function PdfViewerModal({ url, title, onClose }: PdfViewerModalProps) {
               description
             </span>
             <h3 className="text-sm sm:text-base font-semibold text-zinc-100 truncate">
-              {title || "Student List PDF"}
+              {title || "Athlete List PDF"}
             </h3>
           </div>
 

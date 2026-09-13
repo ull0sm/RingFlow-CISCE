@@ -378,7 +378,7 @@ export default function CategoriesClient({
         )}
       </div>
 
-      {/* ─── Dedicated Search & Filters Bar (matches Athletes/Students section style) ─── */}
+      {/* ─── Dedicated Search & Filters Bar (matches Athletes section style) ─── */}
       <div className="space-y-3">
         <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 sm:gap-4">
           <div className="relative flex-1">
@@ -512,7 +512,7 @@ export default function CategoriesClient({
                             e.stopPropagation();
                             setViewingPdf({ url: cat.doc_url!, title: cat.name });
                           }}
-                          title="View student list PDF"
+                          title="View athlete list PDF"
                           className="material-symbols-outlined text-[15px] text-outline hover:text-primary transition-colors shrink-0 cursor-pointer"
                           style={{ fontVariationSettings: "'FILL' 0" }}
                         >
@@ -618,7 +618,7 @@ export default function CategoriesClient({
             {/* Header */}
             <div className="p-6 border-b border-outline-variant flex justify-between items-center bg-surface-container-low shrink-0">
               <div>
-                <h2 className="text-xl font-bold text-primary mb-1">Upload Student List PDFs</h2>
+                <h2 className="text-xl font-bold text-primary mb-1">Upload Athlete List PDFs</h2>
                 <p className="text-xs text-on-surface-variant">
                   {pdfResult
                     ? `Completed - ${pdfResult.matched.length} uploaded, ${pdfResult.unmatched.length} unmatched${pdfResult.errors.length > 0 ? `, ${pdfResult.errors.length} errors` : ""
@@ -648,7 +648,7 @@ export default function CategoriesClient({
                               {overwrites.length} {overwrites.length === 1 ? "Category Already Has a PDF" : "Categories Already Have PDFs"}
                             </h4>
                             <p className="text-xs text-amber-800/80 dark:text-amber-300/80 mt-0.5">
-                              The following categories already have a student list attached. Uploading will <strong>overwrite</strong> them. You can preview the existing PDF before confirming:
+                              The following categories already have an athlete list attached. Uploading will <strong>overwrite</strong> them. You can preview the existing PDF before confirming:
                             </p>
                           </div>
                         </div>

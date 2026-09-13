@@ -11,8 +11,8 @@ export default function OrganiserAthletesLoading() {
         {/* Header Block */}
         <div className="flex justify-between items-center">
           <div>
-            <h2 className="font-headline-sm text-headline-sm text-primary">Student Roster</h2>
-            <p className="text-body-sm text-on-surface-variant">View registered  and category assignments.</p>
+            <h2 className="font-headline-sm text-headline-sm text-primary">Athlete Roster</h2>
+            <p className="text-body-sm text-on-surface-variant">View registered athletes and category assignments.</p>
           </div>
         </div>
 
@@ -32,7 +32,7 @@ export default function OrganiserAthletesLoading() {
           </select>
         </div>
 
-        {/* Students Table Skeletons */}
+        {/* Athletes Table Skeletons */}
         <div className="bg-surface-container-lowest border border-outline-variant rounded-lg overflow-hidden shadow-sm">
           <table className="w-full text-left border-collapse">
             <thead className="bg-surface-container-low border-b border-outline-variant">
