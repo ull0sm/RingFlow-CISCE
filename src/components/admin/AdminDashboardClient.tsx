@@ -408,9 +408,9 @@ export default function AdminDashboardClient({
   return (
     <>
       {readOnly ? (
-        <OrganiserHeader title="Overview" eventName={tournament.name} />
+        <OrganiserHeader title="Overview" eventName={tournament.name} tournamentId={tournament.id} />
       ) : (
-        <AdminHeader title="Overview" eventName={tournament.name} />
+        <AdminHeader title="Overview" eventName={tournament.name} tournamentId={tournament.id} />
       )}
       
       {activeAlert && (
@@ -443,7 +443,7 @@ export default function AdminDashboardClient({
       <div className="p-4 sm:p-6 md:p-margin-desktop space-y-6 sm:space-y-8 pb-24 w-full">
         {/* Global Tournament Stats */}
         <section className="grid grid-cols-1 md:grid-cols-3 gap-4 sm:gap-gutter">
-          <div className="bg-surface-container-lowest p-4 sm:p-card-padding border border-outline-variant rounded-lg flex flex-col justify-between shadow-sm hover:shadow transition-shadow">
+          <div className="bg-white p-4 sm:p-card-padding border border-outline-variant rounded-lg flex flex-col justify-between shadow-sm hover:shadow transition-shadow">
             <div className="flex justify-between items-start">
               <span className="font-label-caps text-label-caps text-on-surface-variant">Completed Categories</span>
               <span className="material-symbols-outlined text-secondary">category</span>
@@ -460,7 +460,7 @@ export default function AdminDashboardClient({
             </div>
           </div>
           
-          <div className="bg-surface-container-lowest p-4 sm:p-card-padding border border-outline-variant rounded-lg flex flex-col justify-between shadow-sm hover:shadow transition-shadow">
+          <div className="bg-white p-4 sm:p-card-padding border border-outline-variant rounded-lg flex flex-col justify-between shadow-sm hover:shadow transition-shadow">
             <div className="flex justify-between items-start">
               <span className="font-label-caps text-label-caps text-on-surface-variant">Completed Matches</span>
               <span className="material-symbols-outlined text-on-secondary-fixed-variant" style={{fontVariationSettings: '"FILL" 1'}}>check_circle</span>
@@ -471,7 +471,7 @@ export default function AdminDashboardClient({
             </div>
           </div>
           
-          <div className="bg-surface-container-lowest p-4 sm:p-card-padding border border-outline-variant rounded-lg shadow-sm hover:shadow transition-shadow">
+          <div className="bg-white p-4 sm:p-card-padding border border-outline-variant rounded-lg shadow-sm hover:shadow transition-shadow">
             <div className="flex justify-between items-start">
               <span className="font-label-caps text-label-caps text-on-surface-variant">Overall Progress</span>
               <span className="material-symbols-outlined text-secondary">speed</span>
@@ -502,7 +502,7 @@ export default function AdminDashboardClient({
                 className={`px-3 py-1.5 text-xs font-label-caps font-semibold rounded-md border flex items-center gap-1.5 transition-all cursor-pointer shadow-2xs ${
                   !anyRunning && areAllPaused
                     ? "bg-emerald-50 border-emerald-300 text-emerald-800 hover:bg-emerald-100 font-bold"
-                    : "border-outline-variant bg-surface-container-lowest hover:bg-surface-container text-on-surface"
+                    : "border-outline-variant bg-white hover:bg-surface-container text-on-surface"
                 }`}
               >
                 <span className="material-symbols-outlined text-[16px]">

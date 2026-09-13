@@ -79,25 +79,25 @@ export default async function PublicHome() {
       
       <main className="flex-grow font-['Inter',sans-serif]">
         {/* Hero Section */}
-        <section className="relative min-h-[calc(100svh-4rem)] md:min-h-[calc(100vh-4.5rem)] overflow-hidden bg-[#F5F3EC] border-b border-[#E1DDCF] flex flex-col justify-between md:justify-center py-6 md:py-16 lg:py-20">
+        <section className="relative overflow-hidden bg-[#F5F3EC] border-b border-[#E1DDCF] flex flex-col justify-start pt-4 sm:pt-6 md:pt-10 lg:pt-12 pb-8 sm:pb-10 md:pb-16 lg:pb-20">
           <div className="absolute inset-0 bg-[url('/hero-section.jpg')] bg-cover bg-[position:82%_center] md:bg-center opacity-95" />
           <div className="absolute inset-0 bg-gradient-to-r from-[#F5F3EC] via-[#F5F3EC]/90 to-transparent md:via-[#F5F3EC]/60" />
 
           {/* 📱 MOBILE VIEW ONLY (md:hidden) */}
-          <div className="relative max-w-7xl mx-auto px-6 sm:px-8 w-full pt-3 sm:pt-6 pb-12 sm:pb-14 flex-1 flex flex-col justify-between z-10 md:hidden">
+          <div className="relative max-w-7xl mx-auto px-6 sm:px-8 w-full flex-1 flex flex-col justify-between z-10 md:hidden">
             {/* Top: Header Text */}
-            <div className="max-w-2xl pt-5 sm:pt-6">
-              <h1 className="font-['Plus_Jakarta_Sans',sans-serif] text-[32px] sm:text-[44px] font-black tracking-[-0.03em] leading-[1.08] mb-2 text-[#1B1815]">
+            <div className="max-w-2xl pt-1">
+              <h1 className="font-['Plus_Jakarta_Sans',sans-serif] text-[30px] sm:text-[40px] font-black tracking-[-0.03em] leading-[1.08] mb-2 text-[#1B1815]">
                 Find Your Next Championship
               </h1>
-              <p className="text-[#68645A] font-['Inter',sans-serif] font-normal text-[14px] sm:text-lg max-w-md leading-relaxed">
+              <p className="text-[#68645A] font-['Inter',sans-serif] font-normal text-[14px] sm:text-base max-w-md leading-relaxed">
                 Track live tatami rings, category assignments, and athlete queue status in real time.
               </p>
             </div>
 
             {/* Bullet points: single column with the exact spacing */}
-            <div className="mt-11 sm:mt-10 mb-auto max-w-2xl">
-              <div className="space-y-6 sm:space-y-7 max-w-[270px] sm:max-w-sm">
+            <div className="mt-6 sm:mt-8 mb-6 sm:mb-8 max-w-2xl">
+              <div className="space-y-4 sm:space-y-5 max-w-[280px] sm:max-w-sm">
                 <div className="flex items-center gap-2.5 text-[13.5px] sm:text-[14.5px] text-[#3D3A33] font-medium">
                   <span className="w-1.5 h-1.5 rounded-full bg-[#1B1815] shrink-0" />
                   <span>Live tatami ring status</span>
@@ -134,10 +134,10 @@ export default async function PublicHome() {
             </div>
 
             {/* Bottom: Button positioned right above Explore */}
-            <div className="max-w-2xl w-full flex flex-col items-center pb-3">
+            <div className="max-w-2xl w-full flex flex-col items-center pb-2">
               <Link
                 href="#events"
-                className="w-full sm:w-auto text-center px-8 py-3.5 bg-[#1B1815]/75 hover:bg-[#1B1815]/90 backdrop-blur-md border border-[#F5F3EC]/25 text-[#F5F3EC] font-['Plus_Jakarta_Sans',sans-serif] font-bold text-[15px] rounded-xl transition-all shadow-[0_8px_24px_rgba(27,24,21,0.12)] hover:shadow-[0_12px_28px_rgba(27,24,21,0.2)] inline-block active:scale-[0.98]"
+                className="w-full sm:w-auto text-center px-8 py-3.5 bg-[#1B1815]/85 hover:bg-[#1B1815] backdrop-blur-md border border-[#F5F3EC]/25 text-[#F5F3EC] font-['Plus_Jakarta_Sans',sans-serif] font-bold text-[15px] rounded-xl transition-all shadow-[0_8px_24px_rgba(27,24,21,0.12)] hover:shadow-[0_12px_28px_rgba(27,24,21,0.2)] inline-block active:scale-[0.98]"
               >
                 View Events
               </Link>
@@ -145,9 +145,9 @@ export default async function PublicHome() {
           </div>
 
           {/* 💻 DESKTOP & LAPTOP VIEW ONLY (hidden md:flex) */}
-          <div className="relative max-w-7xl 2xl:max-w-[1560px] mx-auto px-6 md:px-8 lg:px-12 w-full py-8 md:py-12 hidden md:flex md:flex-col md:justify-center z-10">
+          <div className="relative max-w-7xl 2xl:max-w-[1560px] mx-auto px-6 md:px-8 lg:px-12 w-full z-10 hidden md:flex md:flex-col">
             <div className="max-w-3xl">
-              <h1 className="font-['Plus_Jakarta_Sans',sans-serif] text-4xl md:text-5xl lg:text-[54px] xl:text-[62px] font-black tracking-[-0.03em] leading-[1.08] mb-4 text-[#1B1815]">
+              <h1 className="font-['Plus_Jakarta_Sans',sans-serif] text-4xl md:text-5xl lg:text-[54px] xl:text-[60px] font-black tracking-[-0.03em] leading-[1.08] mb-4 text-[#1B1815]">
                 Find Your Next Championship
               </h1>
               <p className="text-[#68645A] font-['Inter',sans-serif] font-normal text-base md:text-lg lg:text-xl max-w-2xl leading-relaxed mb-8">

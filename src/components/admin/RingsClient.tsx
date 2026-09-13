@@ -412,7 +412,7 @@ export default function RingsClient({
                           </span>
                         </div>
                         {ringPendingReqs.map((req) => (
-                          <div key={req.id} className="bg-white p-2.5 rounded border border-amber-300/50 flex items-center justify-between shadow-xs">
+                          <div key={req.id} className="bg-[#FAF9F5] p-2.5 rounded border border-amber-300/50 flex items-center justify-between shadow-xs">
                             <div className="flex flex-col">
                               <span className="text-xs font-bold text-primary">{req.moderator_name}</span>
                               <span className="text-[9px] font-data-mono text-on-surface-variant opacity-70" suppressHydrationWarning>

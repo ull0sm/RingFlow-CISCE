@@ -131,7 +131,7 @@ export default function StagerWaitingRoom() {
               <p className="text-body-lg text-on-surface-variant max-w-xs mx-auto mb-10">
                 Your request to access the Stager Terminal has been sent to the tournament director. Please wait for approval.
               </p>
-              <div className="w-full max-w-xs bg-surface-container-lowest border border-outline-variant rounded-lg p-4 flex items-center gap-3 shadow-xs">
+              <div className="w-full max-w-xs bg-white border border-outline-variant rounded-lg p-4 flex items-center gap-3 shadow-xs">
                 <span className="material-symbols-outlined text-outline">info</span>
                 <span className="text-body-sm text-on-surface-variant text-left">
                   Keep this screen open. You will be redirected automatically once approved.

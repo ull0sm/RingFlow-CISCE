@@ -322,7 +322,7 @@ export default function AthletesClient({
             placeholder="Search by athlete, chest no, or category (e.g. u14_30-35kg, 30)..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            className={`w-full bg-white border rounded-lg pl-9 pr-8 py-2 text-sm outline-none transition-all shadow-2xs ${
+            className={`w-full bg-[#FAF9F5] border rounded-lg pl-9 pr-8 py-2 text-sm outline-none transition-all shadow-2xs ${
               searchQuery.trim()
                 ? "border-[#0E9C7C] ring-2 ring-[#0E9C7C]/20 font-medium text-primary"
                 : "border-outline-variant focus:border-[#0E9C7C]"
@@ -343,7 +343,7 @@ export default function AthletesClient({
         <select 
           value={filterCategoryId}
           onChange={(e) => setFilterCategoryId(e.target.value)}
-          className={`w-full sm:w-64 bg-white border rounded-lg p-2 text-sm outline-none transition-all shadow-2xs cursor-pointer ${
+          className={`w-full sm:w-64 bg-[#FAF9F5] border rounded-lg p-2 text-sm outline-none transition-all shadow-2xs cursor-pointer ${
             filterCategoryId !== "all"
               ? "border-[#0E9C7C] ring-2 ring-[#0E9C7C]/20 font-semibold text-[#0B7C63]"
               : "border-outline-variant focus:border-[#0E9C7C]"
@@ -368,32 +368,29 @@ export default function AthletesClient({
               filter_alt_off
             </span>
             <span className="tracking-wide uppercase">Clear Filters</span>
-            <span className="px-1.5 py-0.5 rounded-full bg-white/25 text-white text-[10px] font-black">
-              {(searchQuery.trim() ? 1 : 0) + (filterCategoryId !== "all" ? 1 : 0)}
-            </span>
           </button>
         )}
       </div>
 
       {/* ─── Active Filter Notification Banner ─── */}
       {hasActiveFilters && (
-        <div className="flex items-center justify-between gap-3 px-3.5 py-2 rounded-lg bg-emerald-50 border border-emerald-200 text-xs text-emerald-900 mb-4 animate-in fade-in">
+        <div className="flex items-center justify-between gap-3 px-3.5 py-2 rounded-lg bg-emerald-50 border border-emerald-200 text-xs text-emerald-900 mb-3 animate-in fade-in">
           <div className="flex items-center gap-2 flex-wrap">
             <span className="font-bold flex items-center gap-1 text-[#0B7C63]">
               <span className="w-2 h-2 rounded-full bg-[#0E9C7C] animate-pulse" />
-              Active Filters:
+              Active Filter:
             </span>
             <span className="text-slate-600">
               Showing <strong>{filteredAthletes.length}</strong> of <strong>{athletes.length}</strong> athletes
             </span>
             {searchQuery.trim() && (
-              <span className="px-2 py-0.5 rounded-md bg-white border border-emerald-200 text-[#0B7C63] font-medium flex items-center gap-1">
+              <span className="px-2 py-0.5 rounded-md bg-[#FAF9F5] border border-emerald-200 text-[#0B7C63] font-medium flex items-center gap-1">
                 Query: &ldquo;{searchQuery}&rdquo;
                 <button type="button" onClick={() => setSearchQuery("")} className="hover:text-red-500 cursor-pointer text-xs">×</button>
               </span>
             )}
             {filterCategoryId !== "all" && (
-              <span className="px-2 py-0.5 rounded-md bg-white border border-emerald-200 text-[#0B7C63] font-medium flex items-center gap-1">
+              <span className="px-2 py-0.5 rounded-md bg-[#FAF9F5] border border-emerald-200 text-[#0B7C63] font-medium flex items-center gap-1">
                 Category: {categories.find(c => c.id === filterCategoryId)?.name || "Uncategorized"}
                 <button type="button" onClick={() => setFilterCategoryId("all")} className="hover:text-red-500 cursor-pointer text-xs">×</button>
               </span>
@@ -433,7 +430,7 @@ export default function AthletesClient({
                 <td className="px-6 py-2"><input value={addForm.school_code} onChange={e => setAddForm({...addForm, school_code: e.target.value})} placeholder="Code" className="w-full p-2 border rounded" /></td>
                 <td className="px-6 py-2"><input value={addForm.sports_id} onChange={e => setAddForm({...addForm, sports_id: e.target.value})} placeholder="Sports ID" className="w-full p-2 border rounded" /></td>
                 <td className="px-6 py-2">
-                  <select value={addForm.category_id} onChange={e => setAddForm({...addForm, category_id: e.target.value})} className="w-full p-2 border rounded bg-white">
+                  <select value={addForm.category_id} onChange={e => setAddForm({...addForm, category_id: e.target.value})} className="w-full p-2 border rounded bg-[#FAF9F5]">
                     {categories.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
                   </select>
                 </td>
@@ -466,7 +463,7 @@ export default function AthletesClient({
                       onChange={(e) => handleUpdateCategory(athlete.id, e.target.value)}
                       onBlur={() => setEditingAthleteId(null)}
                       autoFocus
-                      className="w-full bg-white border border-outline-variant rounded p-1 text-xs outline-none"
+                      className="w-full bg-[#FAF9F5] border border-outline-variant rounded p-1 text-xs outline-none"
                     >
                       <option value="uncategorized">UNCATEGORIZED</option>
                       {categories.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}

@@ -89,7 +89,7 @@ export default function ModeratorRequestsWidget({
       className={`bg-white border rounded-xl shadow-2xs transition-all duration-200 overflow-hidden ${
         pendingRequests.length > 0
           ? "border-amber-400 ring-2 ring-amber-100 shadow-sm"
-          : "border-[#E7EAEF]"
+          : "border-[#E1DDCF]"
       }`}
     >
       {/* ─── Header ─── */}
@@ -97,7 +97,7 @@ export default function ModeratorRequestsWidget({
         role="button"
         onClick={() => setIsExpanded(!isExpanded)}
         className={`w-full px-3.5 py-2.5 flex items-center justify-between cursor-pointer transition-colors select-none ${
-          pendingRequests.length > 0 ? "bg-amber-50/60 hover:bg-amber-50" : "hover:bg-[#F8FAFC]"
+          pendingRequests.length > 0 ? "bg-amber-50/60 hover:bg-amber-50" : "hover:bg-[#ECE9DF]"
         }`}
       >
         <div className="flex items-center gap-2 min-w-0">
@@ -105,12 +105,12 @@ export default function ModeratorRequestsWidget({
             className={`w-6 h-6 rounded-lg flex items-center justify-center shrink-0 ${
               pendingRequests.length > 0
                 ? "bg-amber-500 text-white shadow-xs animate-pulse"
-                : "bg-[#F1F5F9] text-[#64748B]"
+                : "bg-[#ECE9DF] text-[#68645A]"
             }`}
           >
             <span className="material-symbols-outlined text-[15px]">shield_person</span>
           </div>
-          <span className="text-[13px] font-semibold text-[#0F172A] whitespace-nowrap">
+          <span className="text-[13px] font-semibold text-[#1B1815] whitespace-nowrap">
             Moderator Requests
           </span>
           {pendingRequests.length > 0 && (
@@ -120,7 +120,7 @@ export default function ModeratorRequestsWidget({
           )}
         </div>
 
-        <div className="flex items-center text-[#94A3B8] hover:text-[#0F172A] p-0.5 rounded transition-colors shrink-0">
+        <div className="flex items-center text-[#8C877C] hover:text-[#1B1815] p-0.5 rounded transition-colors shrink-0">
           <svg
             className={`w-3.5 h-3.5 transition-transform duration-200 ${
               isExpanded ? "rotate-180" : ""
@@ -137,7 +137,7 @@ export default function ModeratorRequestsWidget({
 
       {/* ─── Expandable Content ─── */}
       {isExpanded && (
-        <div className="p-3.5 border-t border-[#E7EAEF] max-h-[380px] overflow-y-auto space-y-3 bg-[#FCFDFD] animate-in fade-in duration-150">
+        <div className="p-3.5 border-t border-[#E1DDCF] max-h-[380px] overflow-y-auto space-y-3 bg-white animate-in fade-in duration-150">
           {pendingRequests.map((req) => (
             <div
               key={req.id}

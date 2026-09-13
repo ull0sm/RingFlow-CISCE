@@ -4,6 +4,7 @@ import React, { useState, useRef } from "react";
 import { addCategory, updateCategory, deleteCategory, bulkAddCategories } from "@/actions/categories";
 import { uploadCategoryPDFs, PDFUploadResult } from "@/actions/categoryDocs";
 import { CategoryInput } from "@/actions/tournament";
+import { matchesCategorySearch } from "@/lib/searchUtils";
 import * as XLSX from "xlsx";
 import { PdfViewerModal } from "@/components/ui/PdfViewerModal";
 
@@ -54,10 +55,73 @@ export default function CategoriesClient({
     athletes_count: 0
   });
 
+  // Filters and Search State with reload persistence
+  const [searchQuery, setSearchQuery] = useState("");
+  const [isFilterLoaded, setIsFilterLoaded] = useState(false);
+
   // Sync with props
   React.useEffect(() => {
     setCategories(initialCategories);
   }, [initialCategories]);
+
+  // Restore search query on mount from URL search params or sessionStorage
+  React.useEffect(() => {
+    if (typeof window !== "undefined") {
+      const url = new URL(window.location.href);
+      const urlQ = url.searchParams.get("q");
+      const savedQ = sessionStorage.getItem(`ringflow_categories_q_${tournamentId}`);
+      const initialQ = urlQ ?? savedQ ?? "";
+      if (initialQ) setSearchQuery(initialQ);
+      setIsFilterLoaded(true);
+    }
+  }, [tournamentId]);
+
+  // Persist search query changes to URL and sessionStorage
+  React.useEffect(() => {
+    if (!isFilterLoaded) return;
+
+    if (typeof window !== "undefined") {
+      if (searchQuery.trim()) {
+        sessionStorage.setItem(`ringflow_categories_q_${tournamentId}`, searchQuery);
+      } else {
+        sessionStorage.removeItem(`ringflow_categories_q_${tournamentId}`);
+      }
+
+      const url = new URL(window.location.href);
+      if (searchQuery.trim()) {
+        url.searchParams.set("q", searchQuery.trim());
+      } else {
+        url.searchParams.delete("q");
+      }
+
+      window.history.replaceState(null, "", url.toString());
+    }
+  }, [searchQuery, isFilterLoaded, tournamentId]);
+
+  const hasActiveFilters = Boolean(searchQuery.trim());
+
+  const handleClearFilters = () => {
+    setSearchQuery("");
+    if (typeof window !== "undefined") {
+      sessionStorage.removeItem(`ringflow_categories_q_${tournamentId}`);
+      const url = new URL(window.location.href);
+      url.searchParams.delete("q");
+      window.history.replaceState(null, "", url.toString());
+    }
+  };
+
+  const filteredCategories = React.useMemo(() => {
+    if (!searchQuery.trim()) return categories;
+    return categories.filter((cat) => {
+      const q = searchQuery.toLowerCase().trim();
+      const directMatch =
+        cat.name.toLowerCase().includes(q) ||
+        (cat.age_bracket && cat.age_bracket.toLowerCase().includes(q)) ||
+        (cat.weight_class && cat.weight_class.toLowerCase().includes(q));
+      if (directMatch) return true;
+      return matchesCategorySearch(cat, searchQuery);
+    });
+  }, [categories, searchQuery]);
 
   const handleStartAdd = () => {
     setIsAdding(true);
@@ -314,17 +378,92 @@ export default function CategoriesClient({
         )}
       </div>
 
-      <div className="bg-surface-container-lowest border border-outline-variant rounded-lg overflow-hidden shadow-sm">
-        <table className="w-full table-fixed text-left border-collapse">
+      {/* ─── Dedicated Search & Filters Bar (matches Athletes/Students section style) ─── */}
+      <div className="space-y-3">
+        <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 sm:gap-4">
+          <div className="relative flex-1">
+            <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-[18px] text-slate-400 pointer-events-none">
+              search
+            </span>
+            <input 
+              type="text" 
+              placeholder="Search by category name, age bracket, or weight class (e.g. u14, 30-35kg, boys)..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className={`w-full bg-[#FAF9F5] border rounded-lg pl-9 pr-8 py-2 text-sm outline-none transition-all shadow-2xs ${
+                searchQuery.trim()
+                  ? "border-[#0E9C7C] ring-2 ring-[#0E9C7C]/20 font-medium text-primary"
+                  : "border-outline-variant focus:border-[#0E9C7C]"
+              }`}
+            />
+            {searchQuery && (
+              <button
+                type="button"
+                onClick={() => setSearchQuery("")}
+                className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-700 cursor-pointer p-0.5"
+                title="Clear search text"
+              >
+                <span className="material-symbols-outlined text-[16px]">close</span>
+              </button>
+            )}
+          </div>
+
+          {/* Highlighted Clear Filters Button */}
+          {hasActiveFilters && (
+            <button
+              type="button"
+              onClick={handleClearFilters}
+              className="group flex items-center justify-center gap-1.5 px-4 py-2 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs shadow-[0_0_16px_rgba(5,150,105,0.4)] hover:shadow-[0_0_24px_rgba(5,150,105,0.65)] hover:-translate-y-0.5 active:translate-y-0 transition-all duration-200 cursor-pointer shrink-0 animate-in fade-in zoom-in-95"
+              title="Filter is active. Click to clear and view all categories."
+            >
+              <span className="material-symbols-outlined text-[16px] group-hover:rotate-90 transition-transform duration-200">
+                filter_alt_off
+              </span>
+              <span className="tracking-wide uppercase">Clear Filter</span>
+            </button>
+          )}
+        </div>
+
+        {/* Active Filter Notification Banner */}
+        {hasActiveFilters && (
+          <div className="flex items-center justify-between gap-3 px-3.5 py-2 rounded-lg bg-emerald-50 border border-emerald-200 text-xs text-emerald-900 animate-in fade-in">
+            <div className="flex items-center gap-2 flex-wrap">
+              <span className="font-bold flex items-center gap-1 text-[#0B7C63]">
+                <span className="w-2 h-2 rounded-full bg-[#0E9C7C] animate-pulse" />
+                Active Filter:
+              </span>
+              <span className="text-slate-600">
+                Showing <strong>{filteredCategories.length}</strong> of <strong>{categories.length}</strong> categories
+              </span>
+              {searchQuery.trim() && (
+                <span className="px-2 py-0.5 rounded-md bg-[#FAF9F5] border border-emerald-200 text-[#0B7C63] font-medium flex items-center gap-1">
+                  Query: &ldquo;{searchQuery}&rdquo;
+                  <button type="button" onClick={() => setSearchQuery("")} className="hover:text-red-500 cursor-pointer text-xs">×</button>
+                </span>
+              )}
+            </div>
+            <button
+              type="button"
+              onClick={handleClearFilters}
+              className="text-[11px] font-bold text-[#0B7C63] hover:text-emerald-800 underline shrink-0 cursor-pointer"
+            >
+              Clear to view all
+            </button>
+          </div>
+        )}
+      </div>
+
+      <div className="bg-surface-container-lowest border border-outline-variant rounded-lg overflow-x-auto shadow-sm">
+        <table className="w-full table-fixed min-w-[340px] sm:min-w-0 text-left border-collapse">
           <thead className="bg-surface-container-low border-b border-outline-variant">
             <tr>
-              <th className={`${readOnly ? "w-[46%] sm:w-[44%] md:w-[36%]" : "w-[38%] sm:w-[36%] md:w-[30%]"} px-2.5 sm:px-4 md:px-6 py-3 sm:py-4 font-label-caps text-label-caps text-on-surface-variant`}>Name</th>
-              <th className={`${readOnly ? "w-[21%] sm:w-[22%] md:w-[18%]" : "w-[18%] sm:w-[18%] md:w-[15%]"} px-1.5 sm:px-3 md:px-4 py-3 sm:py-4 font-label-caps text-label-caps text-on-surface-variant`}>Age</th>
-              <th className={`${readOnly ? "w-[21%] sm:w-[22%] md:w-[18%]" : "w-[18%] sm:w-[18%] md:w-[15%]"} px-1.5 sm:px-3 md:px-4 py-3 sm:py-4 font-label-caps text-label-caps text-on-surface-variant`}>Weight</th>
-              <th className={`${readOnly ? "w-[12%] sm:w-[12%] md:w-[12%]" : "w-[12%] sm:w-[12%] md:w-[11%]"} px-1 sm:px-2 md:px-4 py-3 sm:py-4 font-label-caps text-label-caps text-on-surface-variant text-center`}>Athletes</th>
+              <th className={`${readOnly ? "w-[40%] sm:w-[42%] md:w-[36%]" : "w-[34%] sm:w-[34%] md:w-[30%]"} px-2.5 sm:px-4 md:px-6 py-3 sm:py-4 font-label-caps text-[11.5px] sm:text-label-caps text-on-surface-variant`}>Name</th>
+              <th className={`${readOnly ? "w-[18%] sm:w-[18%] md:w-[18%]" : "w-[15%] sm:w-[16%] md:w-[15%]"} px-1.5 sm:px-3 md:px-4 py-3 sm:py-4 font-label-caps text-[11.5px] sm:text-label-caps text-on-surface-variant`}>Age</th>
+              <th className={`${readOnly ? "w-[22%] sm:w-[22%] md:w-[18%]" : "w-[18%] sm:w-[18%] md:w-[15%]"} px-1.5 sm:px-3 md:px-4 py-3 sm:py-4 font-label-caps text-[11.5px] sm:text-label-caps text-on-surface-variant`}>Weight</th>
+              <th className={`${readOnly ? "w-[20%] sm:w-[18%] md:w-[12%]" : "w-[18%] sm:w-[16%] md:w-[11%]"} px-1.5 sm:px-2 md:px-4 py-3 sm:py-4 font-label-caps text-[11.5px] sm:text-label-caps text-on-surface-variant text-center whitespace-nowrap`}>Athletes</th>
               <th className="hidden md:table-cell md:w-[16%] px-2 md:px-4 py-3 sm:py-4 font-label-caps text-label-caps text-on-surface-variant text-center">Expected Matches</th>
               {!readOnly && (
-                <th className="w-[14%] sm:w-[16%] md:w-[14%] px-2 sm:px-4 md:px-6 py-3 sm:py-4 font-label-caps text-label-caps text-on-surface-variant text-right">Actions</th>
+                <th className="w-[15%] sm:w-[16%] md:w-[14%] px-2 sm:px-4 md:px-6 py-3 sm:py-4 font-label-caps text-[11.5px] sm:text-label-caps text-on-surface-variant text-right">Actions</th>
               )}
             </tr>
           </thead>
@@ -346,7 +485,7 @@ export default function CategoriesClient({
               </tr>
             )}
 
-            {categories.map((cat) => (
+            {filteredCategories.map((cat) => (
               editingId === cat.id ? (
                 <tr key={cat.id} className="bg-surface-container-low">
                   <td className="px-2.5 sm:px-4 md:px-6 py-2"><input value={editForm.name} onChange={e => setEditForm({ ...editForm, name: e.target.value })} className="w-full p-1.5 sm:p-2 text-xs sm:text-sm border rounded" /></td>
@@ -400,10 +539,10 @@ export default function CategoriesClient({
               )
             ))}
 
-            {!categories || (categories.length === 0 && !isAdding) && (
+            {(!filteredCategories || (filteredCategories.length === 0 && !isAdding)) && (
               <tr>
                 <td colSpan={readOnly ? 5 : 6} className="px-6 py-8 text-center text-on-surface-variant italic">
-                  No categories found.
+                  {searchQuery.trim() ? `No categories match "${searchQuery}".` : "No categories found."}
                 </td>
               </tr>
             )}

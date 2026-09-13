@@ -88,7 +88,7 @@ export default async function OrganiserTournamentSelectionPage() {
           {/* Tournament Grid */}
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-16">
             {tournaments.length === 0 && !organiserErrorStr && (
-              <div className="col-span-full text-center p-12 border border-dashed border-outline-variant rounded-xl text-on-surface-variant bg-surface-container-lowest">
+              <div className="col-span-full text-center p-12 border border-dashed border-outline-variant rounded-xl text-on-surface-variant bg-white">
                 <span className="material-symbols-outlined text-4xl text-outline mb-2">event_busy</span>
                 <p className="font-medium">No tournaments currently available to monitor.</p>
                 <p className="text-xs text-on-surface-variant/70 mt-1">Please check back once tournament administrators initiate an event.</p>
@@ -99,7 +99,7 @@ export default async function OrganiserTournamentSelectionPage() {
               <Link 
                 key={tournament.id} 
                 href={`/organiser/event/${tournament.id}/dashboard`} 
-                className="group bg-surface-container-lowest border border-outline-variant hover:border-secondary transition-all cursor-pointer rounded-xl overflow-hidden flex flex-col shadow-xs hover:shadow-md hover:-translate-y-0.5"
+                className="group bg-white border border-outline-variant hover:border-secondary transition-all cursor-pointer rounded-xl overflow-hidden flex flex-col shadow-xs hover:shadow-md hover:-translate-y-0.5"
               >
                 <div className="p-card-padding flex-grow">
                   <div className="flex justify-between items-start mb-4">

@@ -50,16 +50,16 @@ export default function LiveActivityFeed({
   }, [tournamentId, supabase]);
 
   return (
-    <div className="bg-white border border-[#E7EAEF] rounded-xl shadow-2xs transition-all duration-200 overflow-hidden">
+    <div className="bg-white border border-[#E1DDCF] rounded-xl shadow-2xs transition-all duration-200 overflow-hidden">
       {/* ─── Header ─── */}
       <div
         role="button"
         onClick={() => setIsExpanded(!isExpanded)}
-        className="w-full px-3.5 py-2.5 flex items-center justify-between cursor-pointer hover:bg-[#F8FAFC] transition-colors select-none"
+        className="w-full px-3.5 py-2.5 flex items-center justify-between cursor-pointer hover:bg-[#ECE9DF] transition-colors select-none"
       >
         <div className="flex items-center gap-2 min-w-0">
           <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse shrink-0" />
-          <span className="text-[13px] font-semibold text-[#0F172A] whitespace-nowrap">
+          <span className="text-[13px] font-semibold text-[#1B1815] whitespace-nowrap">
             Live Activity Feed
           </span>
           {logs.length > 0 && (
@@ -69,7 +69,7 @@ export default function LiveActivityFeed({
           )}
         </div>
 
-        <div className="flex items-center text-[#94A3B8] hover:text-[#0F172A] p-0.5 rounded transition-colors shrink-0">
+        <div className="flex items-center text-[#8C877C] hover:text-[#1B1815] p-0.5 rounded transition-colors shrink-0">
           <svg
             className={`w-3.5 h-3.5 transition-transform duration-200 ${
               isExpanded ? "rotate-180" : ""
@@ -86,7 +86,7 @@ export default function LiveActivityFeed({
 
       {/* ─── Expandable Content ─── */}
       {isExpanded && (
-        <div className="p-3.5 border-t border-[#E7EAEF] max-h-[340px] overflow-y-auto space-y-3 bg-[#FCFDFD] animate-in fade-in duration-150">
+        <div className="p-3.5 border-t border-[#E1DDCF] max-h-[340px] overflow-y-auto space-y-3 bg-white animate-in fade-in duration-150">
           {logs.map((log) => {
             let color = "text-primary";
             let bg = "";
