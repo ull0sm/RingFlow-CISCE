@@ -137,7 +137,11 @@ export default function AthletesClient({
       if (searchQuery) {
         const query = searchQuery.toLowerCase().trim();
         const matchesName = athlete.name.toLowerCase().includes(query);
-        const matchesChest = athlete.chest_number?.toLowerCase().includes(query.replace(/^#/, ""));
+        const cleanChestQ = query.replace(/^#/, "").trim();
+        const isNumericChest = /^\d+$/.test(cleanChestQ);
+        const matchesChest = isNumericChest
+          ? athlete.chest_number?.toLowerCase() === cleanChestQ
+          : athlete.chest_number?.toLowerCase().includes(cleanChestQ);
         const matchesSchool = (athlete.school || athlete.dojo)?.toLowerCase().includes(query);
         const matchesSportsId = athlete.sports_id?.toLowerCase().includes(query);
         const matchesCategory = matchesCategorySearch(

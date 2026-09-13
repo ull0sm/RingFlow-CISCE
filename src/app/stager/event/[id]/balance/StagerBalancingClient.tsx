@@ -1,11 +1,16 @@
 "use client";
 
 import React, { useState, useEffect, useCallback } from "react";
+import { useRouter } from "next/navigation";
 import { createClient } from "@/utils/supabase/client";
 import { updateCategoryStagerStatus } from "@/actions/stager";
 import StagerStatusIndicator from "@/components/ui/StagerStatusIndicator";
 import { PdfViewerModal } from "@/components/ui/PdfViewerModal";
 import { SegmentedProgressBar } from "@/components/ui/SegmentedProgressBar";
+import BuiltByCrux from "@/components/layout/BuiltByCrux";
+import HeaderSearchBar from "@/components/layout/HeaderSearchBar";
+import BackNavigationGuard from "@/components/common/BackNavigationGuard";
+import LogoutConfirmModal from "@/components/ui/LogoutConfirmModal";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -61,9 +66,13 @@ export default function StagerBalancingClient({
   initialAssignments,
   completedTimes,
 }: Props) {
+  const router = useRouter();
   const [currentStagerName, setCurrentStagerName] = useState(stagerName);
+  const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
+  const [isLoggingOut, setIsLoggingOut] = useState(false);
   const [viewingPdf, setViewingPdf] = useState<{ url: string; title: string } | null>(null);
   const [historyOpenForRing, setHistoryOpenForRing] = useState<string | null>(null);
+  const [isSearchOpen, setIsSearchOpen] = useState(false);
 
   useEffect(() => {
     if ((!currentStagerName || currentStagerName === "Stager") && typeof window !== "undefined") {
@@ -585,75 +594,105 @@ export default function StagerBalancingClient({
   // ── Main Render ────────────────────────────────────────────────────────────
   return (
     <div className="flex flex-col h-screen overflow-hidden w-full bg-surface">
+      <BackNavigationGuard />
       {/* TopNavBar - Stager Side Header matching Admin/Org Style */}
-      <header className="flex justify-between items-center w-full px-3.5 sm:px-6 h-[60px] bg-[#FAF9F5] border-b border-[#E1DDCF] shrink-0 z-10 gap-2 sm:gap-6">
-        {/* ─── Left: Breadcrumb ─── */}
-        <div className="flex items-center gap-1.5 sm:gap-2 text-[13px] sm:text-[13.5px] min-w-0">
-          <span
-            title={tournamentName}
-            className="text-[#8C877C] font-medium truncate max-w-[70px] min-[360px]:max-w-[95px] sm:max-w-[200px] md:max-w-[260px]"
-          >
-            {tournamentName}
-          </span>
-          <svg
-            className="w-3.5 h-3.5 text-[#8C877C] shrink-0"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="2"
-          >
-            <path d="M9 18l6-6-6-6" />
-          </svg>
-          <span className="text-[#1B1815] font-semibold truncate shrink-0">Tatami Board</span>
-        </div>
-
-        {/* ─── Right: Stager Role Pill + CruxStudios Badge ─── */}
-        <div className="flex items-center gap-2 sm:gap-4 shrink-0">
-          {/* Stager Identity Unified Pill */}
-          <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-[#ECE9DF] border border-[#E1DDCF] shadow-2xs shrink-0 select-none">
-            <span className="relative flex h-2 w-2 shrink-0">
-              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />
-              <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-600" />
+      <header className="flex-shrink-0 bg-[#FAF9F5] border-b border-[#E1DDCF] sticky top-0 z-30">
+        <div className="h-[60px] flex justify-between items-center w-full px-3.5 sm:px-6 gap-2 sm:gap-4">
+          {/* ─── Left: Breadcrumb ─── */}
+          <div className="flex items-center gap-1 sm:gap-2 text-[12.5px] sm:text-[13.5px] min-w-0">
+            <span
+              title={tournamentName}
+              className="text-[#8C877C] font-medium truncate max-w-[55px] min-[360px]:max-w-[80px] min-[420px]:max-w-[130px] sm:max-w-[200px] md:max-w-[260px]"
+            >
+              {tournamentName}
             </span>
-            <span className="text-[9.5px] sm:text-[10px] font-black tracking-wider uppercase text-[#68645A] shrink-0">
-              STAGER
-            </span>
-            <span className="h-3 w-[1px] bg-[#D5D0C0] shrink-0" />
-            <span className="text-[12px] font-bold text-[#1B1815] capitalize truncate max-w-[65px] min-[360px]:max-w-[95px] sm:max-w-[150px] leading-none">
-              {currentStagerName}
+            <svg
+              className="w-3.5 h-3.5 text-[#8C877C] shrink-0"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+            >
+              <path d="M9 18l6-6-6-6" />
+            </svg>
+            <span className="text-[#1B1815] font-semibold truncate shrink-0">
+              <span className="hidden min-[390px]:inline">Tatami </span>Board
             </span>
           </div>
 
-          {/* CruxStudios Badge — matches admin/org style */}
-          <a
-            href="https://cruxstudios.dev"
-            target="_blank"
-            rel="noopener noreferrer"
-            className="group flex items-center text-[#1B1815] transition-all duration-200 shrink-0 py-1 cursor-pointer ml-auto"
-          >
-            <div className="flex flex-col text-left leading-none gap-0.5">
-              <div className="flex items-center gap-1">
-                <span className="font-['Inter',sans-serif] text-[9px] sm:text-[9.5px] font-semibold tracking-[0.06em] uppercase text-[#68645A] group-hover:text-[#00E5FF] group-hover:drop-shadow-[0_0_8px_rgba(0,229,255,0.7)] transition-all duration-200">
-                  Built by
-                </span>
-                <svg
-                  className="w-3 h-3 text-[#8C877C] group-hover:text-[#00E5FF] group-hover:drop-shadow-[0_0_8px_rgba(0,229,255,0.8)] group-hover:translate-x-0.5 group-hover:-translate-y-0.5 transition-all duration-200 shrink-0"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="2.5"
-                >
-                  <path d="M7 17L17 7M17 7H7M17 7V17" />
-                </svg>
-              </div>
-              <img
-                src="/crux-studios.png"
-                alt="Crux Studios"
-                className="h-[15px] sm:h-[17px] w-auto object-contain shrink-0 mix-blend-multiply group-hover:drop-shadow-[0_0_12px_rgba(0,229,255,0.85)] transition-all duration-200"
-              />
-            </div>
-          </a>
+          {/* ─── Center / Action: Small Search Button (with icon & "Search" written) ─── */}
+          {!isSearchOpen && (
+            <button
+              type="button"
+              onClick={() => setIsSearchOpen(true)}
+              className="flex items-center gap-1.5 px-2.5 py-1 sm:px-3 sm:py-1.5 rounded-lg text-[12px] sm:text-[12.5px] font-semibold text-[#68645A] hover:text-[#1B1815] bg-[#ECE9DF] hover:bg-[#E2DFD4] border border-[#E1DDCF] shadow-2xs transition-all cursor-pointer shrink-0 select-none"
+              title="Search athletes & categories"
+            >
+              <svg
+                className="w-3.5 h-3.5 text-[#68645A] shrink-0"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2.2"
+              >
+                <circle cx="11" cy="11" r="7" />
+                <path d="M21 21l-4.3-4.3" />
+              </svg>
+              <span>Search</span>
+            </button>
+          )}
+
+          {/* ─── Right: Stager Role Pill + CruxStudios Badge ─── */}
+          <div className="flex items-center gap-1.5 sm:gap-4 shrink-0 self-stretch">
+            {/* Stager Identity Unified Pill */}
+            <button
+              type="button"
+              onClick={() => setShowLogoutConfirm(true)}
+              title={`${currentStagerName} (Stager) · Click to sign out`}
+              className="flex items-center gap-1 sm:gap-1.5 px-2 sm:px-2.5 py-1 rounded-full bg-[#ECE9DF] hover:bg-red-50 border border-[#E1DDCF] hover:border-red-200 shadow-2xs shrink-0 select-none cursor-pointer transition-colors group"
+            >
+              <span className="relative flex h-2 w-2 shrink-0">
+                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />
+                <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-600" />
+              </span>
+              <span className="text-[9px] sm:text-[10px] font-black tracking-wider uppercase text-[#68645A] group-hover:text-red-600 shrink-0 hidden min-[360px]:inline transition-colors">
+                STAGER
+              </span>
+              <span className="h-3 w-[1px] bg-[#D5D0C0] group-hover:bg-red-200 shrink-0 hidden min-[360px]:inline transition-colors" />
+              <span className="text-[11.5px] sm:text-[12px] font-bold text-[#1B1815] group-hover:text-red-700 capitalize truncate max-w-[50px] min-[360px]:max-w-[75px] sm:max-w-[150px] leading-none transition-colors">
+                {currentStagerName}
+              </span>
+            </button>
+
+            {/* CruxStudios Badge — matches admin/org style */}
+            <BuiltByCrux imageHeightClass="h-[14px] sm:h-[17px]" className="ml-auto shrink-0" />
+          </div>
         </div>
+
+        {/* ─── Pop-down Search Box Below Navbar ─── */}
+        {isSearchOpen && (
+          <div className="border-t border-[#E1DDCF] bg-[#FAF9F5] px-3.5 sm:px-6 py-2 sm:py-2.5 flex items-center shadow-xs animate-in fade-in slide-in-from-top-1 duration-150 relative z-20">
+            <div className="flex-1 max-w-xl mx-auto flex items-center gap-2">
+              <HeaderSearchBar
+                tournamentId={tournamentId}
+                role="stager"
+                autoFocus={true}
+                className="w-full max-w-none"
+              />
+              <button
+                type="button"
+                onClick={() => setIsSearchOpen(false)}
+                className="w-9 h-9 rounded-lg border border-[#E1DDCF] bg-white hover:bg-[#ECE9DF] text-[#68645A] hover:text-[#1B1815] flex items-center justify-center shrink-0 transition-colors shadow-2xs cursor-pointer"
+                title="Close search"
+                aria-label="Close search"
+              >
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" className="w-4 h-4">
+                  <path d="M18 6L6 18M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+          </div>
+        )}
       </header>
 
       {/* Ring Grid */}
@@ -702,7 +741,8 @@ export default function StagerBalancingClient({
             return (
               <div
                 key={ring.id}
-                className="w-[85vw] max-w-[360px] sm:w-80 lg:w-[330px] xl:w-[350px] 2xl:w-[380px] shrink-0 flex flex-col bg-white border border-outline-variant rounded-xl overflow-hidden shadow-sm h-full"
+                id={`ring-card-${ring.id}`}
+                className="w-[85vw] max-w-[360px] sm:w-80 lg:w-[330px] xl:w-[350px] 2xl:w-[380px] shrink-0 flex flex-col bg-white border border-outline-variant rounded-xl overflow-hidden shadow-sm h-full transition-all duration-300"
               >
                 {/* Scoreboard History Header */}
                 <div className="sticky top-0 z-10 px-4 h-[60px] flex items-center justify-between shrink-0 relative transition-all text-white bg-[#1E293B] overflow-visible">
@@ -831,7 +871,8 @@ export default function StagerBalancingClient({
           return (
             <div
               key={ring.id}
-              className="w-[85vw] max-w-[360px] sm:w-80 lg:w-[330px] xl:w-[350px] 2xl:w-[380px] shrink-0 flex flex-col bg-white border border-outline-variant rounded-xl overflow-hidden shadow-sm h-full"
+              id={`ring-card-${ring.id}`}
+              className="w-[85vw] max-w-[360px] sm:w-80 lg:w-[330px] xl:w-[350px] 2xl:w-[380px] shrink-0 flex flex-col bg-white border border-outline-variant rounded-xl overflow-hidden shadow-sm h-full transition-all duration-300"
             >
               {/* Ring Header - Spectator Scoreboard Style */}
               <div className={`px-4 h-[60px] flex items-center justify-between shrink-0 relative transition-all text-white overflow-visible ${ringHeaderBg}`}>
@@ -1010,6 +1051,25 @@ export default function StagerBalancingClient({
         url={viewingPdf?.url || null}
         title={viewingPdf?.title}
         onClose={() => setViewingPdf(null)}
+      />
+
+      <LogoutConfirmModal
+        isOpen={showLogoutConfirm}
+        onClose={() => setShowLogoutConfirm(false)}
+        onConfirm={async () => {
+          setIsLoggingOut(true);
+          try {
+            document.cookie = "stager_token=; path=/; max-age=0; SameSite=Lax";
+            document.cookie = "stager_name=; path=/; max-age=0; SameSite=Lax";
+            router.push("/login/stager");
+          } catch (e) {
+            router.push("/login/stager");
+          }
+        }}
+        isLoggingOut={isLoggingOut}
+        title="Sign Out of Stager Board"
+        message="Are you sure you want to sign out? You will need your stager access code and director approval to regain access."
+        confirmLabel="Sign Out"
       />
     </div>
   );

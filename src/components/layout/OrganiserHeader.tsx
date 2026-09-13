@@ -3,6 +3,7 @@
 import React from "react";
 import { useParams, usePathname } from "next/navigation";
 import HeaderSearchBar from "@/components/layout/HeaderSearchBar";
+import BuiltByCrux from "@/components/layout/BuiltByCrux";
 
 export default function OrganiserHeader({
   title,
@@ -52,44 +53,10 @@ export default function OrganiserHeader({
         )}
 
         {/* ─── Right: Built by Crux Studios Badge ─── */}
-        <div className="flex items-center shrink-0 ml-auto">
-          <a
-            href="https://cruxstudios.dev"
-            target="_blank"
-            rel="noopener noreferrer"
-            className="group flex items-center text-[#0F172A] transition-all duration-200 shrink-0 py-1 cursor-pointer"
-          >
-            <div className="flex flex-col text-left leading-none gap-0.5">
-              <div className="flex items-center gap-1">
-                <span className="font-['Inter',sans-serif] text-[9.5px] font-semibold tracking-[0.06em] uppercase text-[#64748B] group-hover:text-[#00E5FF] group-hover:drop-shadow-[0_0_8px_rgba(0,229,255,0.7)] transition-all duration-200">
-                  Built by
-                </span>
-                <svg
-                  className="w-3 h-3 text-[#94A3B8] group-hover:text-[#00E5FF] group-hover:drop-shadow-[0_0_8px_rgba(0,229,255,0.8)] group-hover:translate-x-0.5 group-hover:-translate-y-0.5 transition-all duration-200 shrink-0"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="2.5"
-                >
-                  <path d="M7 17L17 7M17 7H7M17 7V17" />
-                </svg>
-              </div>
-              <img
-                src="/crux-studios.png"
-                alt="Crux Studios"
-                className="h-[17px] w-auto object-contain shrink-0 mix-blend-multiply group-hover:drop-shadow-[0_0_12px_rgba(0,229,255,0.85)] transition-all duration-200"
-              />
-            </div>
-          </a>
+        <div className="flex items-center shrink-0 ml-auto self-stretch">
+          <BuiltByCrux />
         </div>
       </div>
-
-      {/* ─── Mobile Search Bar: Below the Navbar (Only for org/dashboard) ─── */}
-      {isDashboard && (
-        <div className="md:hidden px-4 pb-3 pt-0.5 border-t border-[#E1DDCF] bg-[#FAF9F5]">
-          <HeaderSearchBar tournamentId={id} role="organiser" className="w-full max-w-none" />
-        </div>
-      )}
     </header>
   );
 }

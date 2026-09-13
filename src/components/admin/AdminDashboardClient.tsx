@@ -3,12 +3,14 @@
 import React, { useState, useEffect } from "react";
 import AdminHeader from "@/components/layout/AdminHeader";
 import OrganiserHeader from "@/components/layout/OrganiserHeader";
+import HeaderSearchBar from "@/components/layout/HeaderSearchBar";
 import RingCard from "@/components/admin/RingCard";
 import LiveActivityFeed from "@/components/admin/LiveActivityFeed";
 import ModeratorRequestsWidget from "@/components/admin/ModeratorRequestsWidget";
 import { createClient } from "@/utils/supabase/client";
 import { toggleRingTimer, setAllRingTimers, resetRingTimer } from "@/actions/rings";
 import OverviewSupportFooter from "@/components/support/OverviewSupportFooter";
+import BackNavigationGuard from "@/components/common/BackNavigationGuard";
 
 export default function AdminDashboardClient({ 
   tournament, 
@@ -407,6 +409,7 @@ export default function AdminDashboardClient({
 
   return (
     <>
+      <BackNavigationGuard />
       {readOnly ? (
         <OrganiserHeader title="Overview" eventName={tournament.name} tournamentId={tournament.id} />
       ) : (
@@ -441,6 +444,17 @@ export default function AdminDashboardClient({
       )}
 
       <div className="p-4 sm:p-6 md:p-margin-desktop space-y-6 sm:space-y-8 pb-24 w-full">
+        {/* Mobile Organiser Search Bar - Detached into Page (Organiser Mobile Only) */}
+        {readOnly && (
+          <div className="md:hidden w-full">
+            <HeaderSearchBar
+              tournamentId={tournament.id}
+              role="organiser"
+              className="w-full max-w-none"
+            />
+          </div>
+        )}
+
         {/* Global Tournament Stats */}
         <section className="grid grid-cols-1 md:grid-cols-3 gap-4 sm:gap-gutter">
           <div className="bg-white p-4 sm:p-card-padding border border-slate-200 rounded-lg flex flex-col justify-between shadow-xs hover:shadow-sm transition-shadow">

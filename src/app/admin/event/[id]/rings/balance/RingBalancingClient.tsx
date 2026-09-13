@@ -9,6 +9,7 @@ import StagerStatusIndicator from "@/components/ui/StagerStatusIndicator";
 import { PdfViewerModal } from "@/components/ui/PdfViewerModal";
 import { SegmentedProgressBar } from "@/components/ui/SegmentedProgressBar";
 import HeaderSearchBar from "@/components/layout/HeaderSearchBar";
+import BuiltByCrux from "@/components/layout/BuiltByCrux";
 
 type Category = {
   id: string;
@@ -859,7 +860,7 @@ export default function RingBalancingClient({
         <div className="flex items-center gap-1.5 sm:gap-2 text-[13px] sm:text-[13.5px] min-w-0">
           <span
             title={tournamentName}
-            className="text-[#8C877C] font-medium truncate max-w-[80px] min-[380px]:max-w-[105px] sm:max-w-[200px] md:max-w-[260px]"
+            className="text-[#8C877C] font-medium truncate max-w-[60px] min-[360px]:max-w-[85px] min-[380px]:max-w-[105px] sm:max-w-[200px] md:max-w-[260px]"
           >
             {tournamentName}
           </span>
@@ -872,7 +873,9 @@ export default function RingBalancingClient({
           >
             <path d="M9 18l6-6-6-6" />
           </svg>
-          <span className="text-[#1B1815] font-semibold truncate shrink-0">Tatami Balancing</span>
+          <span className="text-[#1B1815] font-semibold truncate shrink-0">
+            <span className="hidden min-[400px]:inline">Tatami </span>Balancing
+          </span>
         </div>
 
         {/* Center: Live Interactive Search Bar */}
@@ -881,35 +884,8 @@ export default function RingBalancingClient({
         )}
 
         {/* Right: Built by Crux Studios Badge */}
-        <div className="flex items-center shrink-0 ml-auto">
-          <a
-            href="https://cruxstudios.dev"
-            target="_blank"
-            rel="noopener noreferrer"
-            className="group flex items-center text-[#1B1815] transition-all duration-200 shrink-0 py-1 cursor-pointer"
-          >
-            <div className="flex flex-col text-left leading-none gap-0.5">
-              <div className="flex items-center gap-1">
-                <span className="font-['Inter',sans-serif] text-[9.5px] font-semibold tracking-[0.06em] uppercase text-[#68645A] group-hover:text-[#00E5FF] group-hover:drop-shadow-[0_0_8px_rgba(0,229,255,0.7)] transition-all duration-200">
-                  Built by
-                </span>
-                <svg
-                  className="w-3 h-3 text-[#8C877C] group-hover:text-[#00E5FF] group-hover:drop-shadow-[0_0_8px_rgba(0,229,255,0.8)] group-hover:translate-x-0.5 group-hover:-translate-y-0.5 transition-all duration-200 shrink-0"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="2.5"
-                >
-                  <path d="M7 17L17 7M17 7H7M17 7V17" />
-                </svg>
-              </div>
-              <img
-                src="/crux-studios.png"
-                alt="Crux Studios"
-                className="h-[17px] w-auto object-contain shrink-0 mix-blend-multiply group-hover:drop-shadow-[0_0_12px_rgba(0,229,255,0.85)] transition-all duration-200"
-              />
-            </div>
-          </a>
+        <div className="flex items-center shrink-0 ml-auto self-stretch">
+          <BuiltByCrux />
         </div>
       </header>
 

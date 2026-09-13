@@ -4,34 +4,42 @@ import React, { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/utils/supabase/client";
 import { matchesCategorySearch } from "@/lib/searchUtils";
+import { PdfViewerModal } from "@/components/ui/PdfViewerModal";
+import "@/components/public/public-spectator.css";
 
 interface SearchAthlete {
   id: string;
   name: string;
   chest_number: string | null;
   category_id: string | null;
-  school?: string | null;
   categories?: {
     id?: string;
     name?: string;
     doc_url?: string;
   } | null;
-  tatami?: {
-    matName: string;
-    status: "running" | "paused" | "pending" | "completed" | "unscheduled";
-  };
 }
 
 interface HeaderSearchBarProps {
   tournamentId: string;
-  role: "admin" | "organiser";
+  role: "admin" | "organiser" | "stager";
   className?: string;
+  autoFocus?: boolean;
 }
+
+const statusMeta: Record<string, { label: string; cls: string }> = {
+  run: { label: "LIVE", cls: "spectator-status-run" },
+  pause: { label: "PAUSED", cls: "spectator-status-pause" },
+  queued: { label: "QUEUED", cls: "spectator-status-queued" },
+  completed: { label: "COMPLETED", cls: "spectator-status-completed" },
+  idle: { label: "IDLE", cls: "spectator-status-idle" },
+  unscheduled: { label: "UNSCHEDULED", cls: "spectator-status-unscheduled" },
+};
 
 export default function HeaderSearchBar({
   tournamentId,
   role,
   className = "",
+  autoFocus = false,
 }: HeaderSearchBarProps) {
   const router = useRouter();
   const [query, setQuery] = useState("");
@@ -41,9 +49,21 @@ export default function HeaderSearchBar({
   const [cachedCategories, setCachedCategories] = useState<any[]>([]);
   const [cachedAssignments, setCachedAssignments] = useState<any[]>([]);
   const [cachedRings, setCachedRings] = useState<any[]>([]);
+  const [viewingPdf, setViewingPdf] = useState<{ url: string; title: string } | null>(null);
 
   const containerRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
+
+  // Auto-focus input when requested (e.g. stager popdown open)
+  useEffect(() => {
+    if (autoFocus) {
+      inputRef.current?.focus();
+      const raf = requestAnimationFrame(() => {
+        inputRef.current?.focus();
+      });
+      return () => cancelAnimationFrame(raf);
+    }
+  }, [autoFocus]);
 
   // Load tournament categories, rings and assignments once for fast matching & ring status
   useEffect(() => {
@@ -83,6 +103,40 @@ export default function HeaderSearchBar({
     return () => document.removeEventListener("click", handleDocClick);
   }, []);
 
+  // Compute ring assignment for athlete (same as public side)
+  const getAthleteRingStatus = (categoryId?: string | null) => {
+    if (!categoryId) {
+      return { status: "unscheduled", matLabel: "Not yet allocated" };
+    }
+    const assignment = cachedAssignments.find((a) => a.category_id === categoryId);
+    if (!assignment) {
+      return { status: "unscheduled", matLabel: "Not yet allocated" };
+    }
+    const ring = cachedRings.find((r) => r.id === assignment.ring_id);
+    if (!ring) {
+      return { status: "unscheduled", matLabel: "Not yet allocated" };
+    }
+
+    const ringOrderNum = String(ring.ring_order || 1).padStart(2, "0");
+    const matLabel = ring.mat_name
+      ? `Tatami ${ringOrderNum} · ${ring.mat_name}`
+      : `Tatami ${ringOrderNum}`;
+
+    if (assignment.status === "running") {
+      return { status: "run", matLabel };
+    }
+    if (assignment.status === "paused") {
+      return { status: "pause", matLabel };
+    }
+    if (assignment.status === "pending") {
+      return { status: "queued", matLabel };
+    }
+    if (assignment.status === "completed") {
+      return { status: "completed", matLabel };
+    }
+    return { status: "idle", matLabel };
+  };
+
   // Live search query
   useEffect(() => {
     const trimmed = query.trim();
@@ -95,19 +149,22 @@ export default function HeaderSearchBar({
 
     setIsLoading(true);
     setIsOpen(true);
-    const cleanQ = trimmed.replace(/^#/, "");
+    const cleanQ = trimmed.replace(/^#/, "").trim();
 
     const runSearch = async () => {
       try {
         const supabase = createClient();
-        const sanitizedQ = cleanQ.replace(/[,()]/g, " ").trim();
+        const isNumeric = /^\d+$/.test(cleanQ);
+        const nameFilter = isNumeric
+          ? `name.ilike.%${cleanQ}%,chest_number.eq.${cleanQ}`
+          : `name.ilike.%${cleanQ}%,chest_number.ilike.%${cleanQ}%`;
 
-        // 1. Direct name/chest search
+        // 1. Direct name or exact chest number match
         const directPromise = supabase
           .from("athletes")
-          .select("id, name, chest_number, category_id, dojo, categories(id, name, doc_url)")
+          .select("id, name, chest_number, category_id, categories(id, name, doc_url)")
           .eq("tournament_id", tournamentId)
-          .or(`name.ilike.*${sanitizedQ}*,chest_number.ilike.*${sanitizedQ}*`)
+          .or(nameFilter)
           .limit(25);
 
         // 2. Ensure categories are loaded for category-based matching
@@ -123,8 +180,7 @@ export default function HeaderSearchBar({
           }
         }
 
-        // 3. Category matches (e.g. u14_30-35kg, 30, 14, boys, weight, etc.)
-        // Returns the students in matching categories instead of category items
+        // 3. Category matches (e.g. u14_30-35kg, 30, 45, etc.)
         const matchingCatIds = (categoriesToSearch || [])
           .filter((cat) => matchesCategorySearch(cat, trimmed))
           .map((cat) => cat.id);
@@ -133,7 +189,7 @@ export default function HeaderSearchBar({
         if (matchingCatIds.length > 0) {
           catPromise = supabase
             .from("athletes")
-            .select("id, name, chest_number, category_id, dojo, categories(id, name, doc_url)")
+            .select("id, name, chest_number, category_id, categories(id, name, doc_url)")
             .eq("tournament_id", tournamentId)
             .in("category_id", matchingCatIds.slice(0, 50))
             .limit(40);
@@ -144,47 +200,13 @@ export default function HeaderSearchBar({
           catPromise ? catPromise : Promise.resolve({ data: null, error: null }),
         ]);
 
-        if (directRes?.error) {
-          console.warn("Direct athlete search error:", directRes.error);
-        }
-        if (catRes?.error) {
-          console.warn("Category athlete search error:", catRes.error);
-        }
-
         const combined: SearchAthlete[] = [];
         const seen = new Set<string>();
 
         const appendAthlete = (raw: any) => {
           if (seen.has(raw.id)) return;
           seen.add(raw.id);
-
-          // Resolve ring assignment status
-          let tatami: SearchAthlete["tatami"] = {
-            matName: "Unscheduled",
-            status: "unscheduled",
-          };
-
-          if (raw.category_id) {
-            const assignment = cachedAssignments.find((a) => a.category_id === raw.category_id);
-            if (assignment) {
-              const ring = cachedRings.find((r) => r.id === assignment.ring_id);
-              const orderNum = String(ring?.ring_order || 1).padStart(2, "0");
-              const matLabel = ring?.mat_name
-                ? `Tatami ${orderNum} · ${ring.mat_name}`
-                : `Tatami ${orderNum}`;
-
-              tatami = {
-                matName: matLabel,
-                status: assignment.status || "pending",
-              };
-            }
-          }
-
-          combined.push({
-            ...raw,
-            school: raw.school || raw.dojo,
-            tatami,
-          });
+          combined.push(raw);
         };
 
         if (directRes?.data) {
@@ -205,17 +227,32 @@ export default function HeaderSearchBar({
 
     const debounce = setTimeout(runSearch, 180);
     return () => clearTimeout(debounce);
-  }, [query, tournamentId, cachedCategories, cachedAssignments, cachedRings]);
+  }, [query, tournamentId, cachedCategories]);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!query.trim()) return;
     setIsOpen(false);
+    if (role === "stager") return;
     router.push(`/${role}/event/${tournamentId}/athletes?q=${encodeURIComponent(query.trim())}`);
   };
 
   const handleSelectAthlete = (athlete: SearchAthlete) => {
     setIsOpen(false);
+    if (role === "stager") {
+      if (athlete.category_id) {
+        const assignment = cachedAssignments.find((a) => a.category_id === athlete.category_id);
+        if (assignment?.ring_id) {
+          const el = document.getElementById(`ring-card-${assignment.ring_id}`);
+          if (el) {
+            el.scrollIntoView({ behavior: "smooth", block: "nearest", inline: "center" });
+            el.classList.add("ring-4", "ring-emerald-500/80");
+            setTimeout(() => el.classList.remove("ring-4", "ring-emerald-500/80"), 2500);
+          }
+        }
+      }
+      return;
+    }
     router.push(
       `/${role}/event/${tournamentId}/athletes?q=${encodeURIComponent(athlete.name)}`
     );
@@ -226,7 +263,7 @@ export default function HeaderSearchBar({
       {/* ─── Search Input Field ─── */}
       <form
         onSubmit={handleSubmit}
-        className="w-full flex items-center gap-2 px-3 py-1.5 sm:py-2 border border-[#E1DDCF] rounded-lg text-[13px] bg-white hover:border-[#8C877C] focus-within:border-[#0E9C7C] focus-within:ring-2 focus-within:ring-[#0E9C7C]/20 transition-all shadow-2xs"
+        className="w-full h-10 flex items-center gap-2.5 px-3.5 border border-[#E1DDCF] rounded-lg text-[13px] bg-white hover:border-[#8C877C] focus-within:border-[#0E9C7C] focus-within:ring-2 focus-within:ring-[#0E9C7C]/20 transition-all shadow-2xs"
       >
         <svg
           className="w-4 h-4 text-[#94A3B8] shrink-0"
@@ -241,6 +278,7 @@ export default function HeaderSearchBar({
         <input
           ref={inputRef}
           type="text"
+          autoFocus={autoFocus}
           value={query}
           onChange={(e) => setQuery(e.target.value)}
           onFocus={() => {
@@ -268,95 +306,104 @@ export default function HeaderSearchBar({
         )}
       </form>
 
-      {/* ─── Live Search Results Dropdown ─── */}
+      {/* ─── Live Search Results Dropdown (Exact Public Spectator UI) ─── */}
       {isOpen && (
-        <div className="absolute left-1/2 -translate-x-1/2 top-[calc(100%+6px)] w-[calc(100vw-32px)] sm:w-[480px] max-w-[480px] bg-[#FAF9F5] border border-[#E1DDCF] rounded-xl shadow-[0_12px_32px_rgba(27,24,21,0.12)] overflow-hidden z-50 animate-in fade-in slide-in-from-top-1 duration-150 text-left">
+        <div
+          className="spectator-search-results open !block absolute !left-0 !right-0 !w-full top-[calc(100%+6px)] z-50 text-left shadow-lg !transform-none"
+          style={{ left: 0, right: 0, width: "100%", transform: "none" }}
+          role="listbox"
+        >
           {isLoading ? (
-            <div className="p-4 text-center text-[12.5px] text-[#64748B] flex items-center justify-center gap-2">
-              <span className="w-3.5 h-3.5 rounded-full border-2 border-[#0E9C7C] border-t-transparent animate-spin" />
-              <span>Searching athletes &amp; categories…</span>
-            </div>
+            <div className="spectator-no-results">Searching athletes...</div>
           ) : results.length === 0 ? (
-            <div className="p-4 text-center text-[12.5px] text-[#64748B]">
-              No athletes or categories match &ldquo;{query}&rdquo;
-            </div>
+            <div className="spectator-no-results">No athletes match that search.</div>
           ) : (
-            <>
-              {/* Header Count */}
-              <div className="px-3.5 py-2 bg-[#ECE9DF] border-b border-[#E1DDCF] flex items-center justify-between text-[11px] font-semibold text-[#64748B]">
-                <span>MATCHING ATHLETES ({results.length})</span>
-                <span className="text-[10.5px] text-[#94A3B8]">Category &amp; Name Search</span>
-              </div>
+            results.map((athlete) => {
+              const { status, matLabel } = getAthleteRingStatus(athlete.category_id);
+              const meta = statusMeta[status] || statusMeta.unscheduled;
+              const parts = matLabel.match(/(Tatami \d+)(.*)/);
+              const docUrl =
+                athlete.categories?.doc_url ||
+                cachedCategories.find((c) => c.id === athlete.category_id)?.doc_url;
+              const displayCategoryName =
+                athlete.categories?.name ||
+                cachedCategories.find((c) => c.id === athlete.category_id)?.name ||
+                "Uncategorized";
 
-              {/* List items */}
-              <div className="max-h-[340px] overflow-y-auto divide-y divide-[#E1DDCF]/50">
-                {results.map((athlete) => {
-                  const catName = athlete.categories?.name || "Uncategorized";
-                  const tatami = athlete.tatami;
-
-                  return (
-                    <div
-                      key={athlete.id}
-                      onClick={() => handleSelectAthlete(athlete)}
-                      className="p-2.5 sm:px-3.5 sm:py-2.5 hover:bg-[#F0FDF4] cursor-pointer transition-colors group flex items-center justify-between gap-3"
-                    >
-                      {/* Left: Chest No, Name, Category & School */}
-                      <div className="min-w-0 flex-1">
-                        <div className="flex items-center gap-2">
-                          <span className="font-mono text-[11px] font-bold text-[#64748B] bg-[#F1F5F9] px-1.5 py-0.5 rounded shrink-0">
-                            #{athlete.chest_number || "-"}
-                          </span>
-                          <span className="font-bold text-[13.5px] text-[#0F172A] group-hover:text-[#0B7C63] truncate transition-colors">
-                            {athlete.name}
-                          </span>
-                        </div>
-                        <div className="flex items-center gap-2 mt-1 text-[11.5px] text-[#64748B] truncate">
-                          <span className="px-1.5 py-0.5 rounded bg-[#E3F6F0] text-[#0B7C63] font-semibold text-[10.5px] truncate">
-                            {catName}
-                          </span>
-                          {athlete.school && (
-                            <span className="text-[#94A3B8] truncate">· {athlete.school}</span>
-                          )}
-                        </div>
-                      </div>
-
-                      {/* Right: Tatami & Status */}
-                      <div className="text-right shrink-0">
-                        {tatami?.status === "running" ? (
-                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-semibold bg-emerald-100 text-emerald-800 border border-emerald-300">
-                            <span className="w-1.5 h-1.5 rounded-full bg-emerald-600 animate-pulse" />
-                            {tatami.matName} · LIVE
-                          </span>
-                        ) : tatami?.status === "paused" ? (
-                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-semibold bg-amber-100 text-amber-800 border border-amber-300">
-                            {tatami.matName} · PAUSED
-                          </span>
-                        ) : tatami?.status === "pending" ? (
-                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-semibold bg-slate-100 text-slate-700 border border-slate-200">
-                            {tatami.matName} · QUEUED
-                          </span>
-                        ) : (
-                          <span className="text-[11px] text-[#94A3B8] font-medium">
-                            {tatami?.matName || "Unscheduled"}
-                          </span>
-                        )}
-                      </div>
+              return (
+                <div
+                  key={athlete.id}
+                  onClick={() => handleSelectAthlete(athlete)}
+                  className="spectator-result-row"
+                  role="option"
+                >
+                  {/* Top Row: Chest & Athlete Name on Left, Status Badge on Right */}
+                  <div className="spectator-result-top">
+                    <div className="spectator-result-name-group">
+                      <span className="spectator-result-chest mono">
+                        #{athlete.chest_number || "-"}
+                      </span>
+                      <span className="spectator-result-name">{athlete.name}</span>
                     </div>
-                  );
-                })}
-              </div>
+                    <span className={`spectator-status ${meta.cls}`}>
+                      <span className="dot"></span>
+                      {meta.label}
+                    </span>
+                  </div>
 
-              {/* View all button */}
-              <div
-                onClick={handleSubmit}
-                className="p-2.5 bg-[#F8FAFC] hover:bg-[#F1F5F9] border-t border-[#E2E8F0] text-center text-[12px] font-semibold text-[#0B7C63] cursor-pointer transition-colors flex items-center justify-center gap-1"
-              >
-                <span>View all in Athletes Roster</span>
-                <span className="material-symbols-outlined text-[15px]">arrow_forward</span>
-              </div>
-            </>
+                  {/* Bottom Row: Category & View Draws on Left, Tatami Mat Info on Right */}
+                  <div className="spectator-result-bottom">
+                    <div className="spectator-result-category-wrap">
+                      <span className="spectator-result-division">
+                        {displayCategoryName}
+                      </span>
+                      {docUrl && (
+                        <button
+                          type="button"
+                          className="spectator-pdf-chip"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setViewingPdf({
+                              url: docUrl,
+                              title: `${athlete.name} · ${displayCategoryName}`,
+                            });
+                          }}
+                          title="View category draws PDF"
+                        >
+                          <svg className="spectator-pdf-icon" viewBox="0 0 16 16" fill="none" aria-hidden="true">
+                            <rect x="0.5" y="0.5" width="15" height="15" rx="3" fill="#68645A" stroke="#524F47" strokeWidth="0.5" />
+                            <text x="8" y="11" fill="#FFFFFF" fontSize="6.5" fontWeight="800" textAnchor="middle" fontFamily="system-ui, -apple-system, sans-serif" letterSpacing="0.2">PDF</text>
+                          </svg>
+                          <span className="spectator-draws-link">View Draws</span>
+                        </button>
+                      )}
+                    </div>
+
+                    <div className="spectator-result-mat">
+                      {parts ? (
+                        <>
+                          <strong>{parts[1]}</strong>
+                          {parts[2]}
+                        </>
+                      ) : (
+                        matLabel
+                      )}
+                    </div>
+                  </div>
+                </div>
+              );
+            })
           )}
         </div>
+      )}
+
+      {/* Category Draws PDF Viewer Modal */}
+      {viewingPdf && (
+        <PdfViewerModal
+          url={viewingPdf.url}
+          title={viewingPdf.title}
+          onClose={() => setViewingPdf(null)}
+        />
       )}
     </div>
   );
