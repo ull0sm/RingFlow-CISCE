@@ -301,7 +301,7 @@ export function PdfViewerModal({ url, title, onClose }: PdfViewerModalProps) {
               aria-label="Rotate document 90 degrees"
             >
               <svg
-                className="w-5 h-5"
+                className="w-5 h-5 select-none"
                 viewBox="0 0 24 24"
                 fill="none"
                 stroke="currentColor"
@@ -309,11 +309,23 @@ export function PdfViewerModal({ url, title, onClose }: PdfViewerModalProps) {
                 strokeLinecap="round"
                 strokeLinejoin="round"
               >
-                {/* Document rectangle with an arrow rotating it */}
-                <path d="M7 21h10a2 2 0 0 0 2-2V9.5L14.5 5H7a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2z" />
-                <path d="M14 5v5h5" />
-                <path d="M3 12a9 9 0 0 1 15-6.7L20 7" />
-                <path d="M20 3v4h-4" />
+                {/* Circular clockwise rotation arrow */}
+                <path d="M21 12a9 9 0 1 1-9-9c2.52 0 4.93 1 6.74 2.74L21 8" />
+                <path d="M21 3v5h-5" />
+                {/* 90° label in center */}
+                <text
+                  x="11"
+                  y="13.5"
+                  textAnchor="middle"
+                  dominantBaseline="central"
+                  fontSize="7"
+                  fontWeight="800"
+                  fill="currentColor"
+                  stroke="none"
+                  fontFamily="system-ui, -apple-system, sans-serif"
+                >
+                  90°
+                </text>
               </svg>
             </button>
 
