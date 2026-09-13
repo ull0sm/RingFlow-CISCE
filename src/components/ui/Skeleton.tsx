@@ -56,30 +56,35 @@ export function StatsCardSkeleton({ hasProgress = false }: { hasProgress?: boole
 // 4. Live Ring Status Card Skeleton (Dashboard View)
 export function RingCardSkeleton() {
   return (
-    <div className="bg-surface-container-lowest border-l-4 border-outline p-card-padding border border-outline-variant rounded shadow-sm flex flex-col justify-between h-[230px]">
-      <div>
-        <div className="flex justify-between items-start mb-4">
-          <div className="flex items-center gap-2">
-            <span className="material-symbols-outlined text-outline opacity-40 select-none">drag_indicator</span>
-            <Skeleton className="w-20 h-5" />
-          </div>
-          <Skeleton className="w-14 h-5 rounded" />
+    <div className="relative bg-white border border-[#E1DDCF] rounded-xl overflow-hidden shadow-xs flex flex-col justify-between h-[250px]">
+      <div className="bg-[#59564C]/15 px-5 py-3 h-[56px] flex justify-between items-center">
+        <div className="flex items-center gap-2">
+          <Skeleton className="w-8 h-7" />
+          <Skeleton className="w-16 h-4" />
         </div>
-        
-        <Skeleton className="w-3/4 h-5 mb-3" />
-        
-        <div className="flex justify-between items-center mb-4">
-          <Skeleton className="w-24 h-4" />
-          <Skeleton className="w-12 h-4" />
-        </div>
+        <Skeleton className="w-16 h-4 rounded" />
       </div>
-      
-      <div>
-        <Skeleton className="w-full bg-surface-container h-1 rounded-full mb-4" />
-        
-        <div className="flex justify-between items-center mt-4 pt-4 border-t border-outline-variant">
-          <Skeleton className="w-28 h-4" />
-          <Skeleton className="w-5 h-5 rounded-full" />
+
+      <div className="spectator-notch left top-[49px]" />
+      <div className="spectator-notch right top-[49px]" />
+
+      <div className="p-5 flex-1 flex flex-col justify-between">
+        <div>
+          <Skeleton className="w-3/4 h-5 mb-3" />
+          <div className="flex gap-1 mb-2.5">
+            {Array.from({ length: 10 }).map((_, i) => (
+              <Skeleton key={i} className="flex-1 h-2 rounded-[1.5px]" />
+            ))}
+          </div>
+          <div className="flex justify-between items-center mb-3">
+            <Skeleton className="w-20 h-3" />
+            <Skeleton className="w-8 h-3" />
+          </div>
+        </div>
+
+        <div className="pt-2.5 border-t border-dashed border-[#E1DDCF] flex justify-between items-center">
+          <Skeleton className="w-28 h-3" />
+          <Skeleton className="w-16 h-3" />
         </div>
       </div>
     </div>
@@ -89,22 +94,16 @@ export function RingCardSkeleton() {
 // 5. Live Activity Feed Skeleton
 export function LiveActivityFeedSkeleton() {
   return (
-    <div className="bg-surface-container-lowest border border-outline-variant rounded-xl shadow-sm flex flex-col h-96">
-      <div className="p-4 border-b border-outline-variant bg-surface-container-low flex justify-between items-center shrink-0 rounded-t-xl">
-        <h3 className="font-label-caps text-label-caps text-primary font-bold">Live Activity Feed</h3>
-        <span className="w-2 h-2 rounded-full bg-green-500 animate-pulse"></span>
+    <div className="bg-white border border-[#E7EAEF] rounded-xl shadow-2xs overflow-hidden">
+      <div className="px-3.5 py-2.5 flex items-center justify-between border-b border-[#E7EAEF]">
+        <div className="flex items-center gap-2">
+          <Skeleton className="w-2 h-2 rounded-full" />
+          <Skeleton className="w-28 h-4" />
+        </div>
+        <Skeleton className="w-4 h-4" />
       </div>
-      <div className="p-4 flex-1 overflow-y-auto space-y-4">
-        {[1, 2, 3, 4].map((i) => (
-          <div key={i} className="flex flex-col gap-2">
-            <div className="flex items-center gap-2">
-              <Skeleton className="w-4 h-4 rounded-full" />
-              <Skeleton className="w-16 h-3" />
-            </div>
-            <Skeleton className="w-11/12 h-4" />
-            <Skeleton className="w-5/6 h-3" />
-          </div>
-        ))}
+      <div className="p-6 flex flex-col items-center justify-center">
+        <Skeleton className="w-48 h-3.5" />
       </div>
     </div>
   );
@@ -113,30 +112,18 @@ export function LiveActivityFeedSkeleton() {
 // 6. Moderator Requests Widget Skeleton
 export function ModeratorRequestsSkeleton() {
   return (
-    <div className="bg-surface-container-lowest border border-outline-variant rounded-xl shadow-sm flex flex-col h-96">
-      <div className="p-4 border-b border-outline-variant bg-surface-container-low flex justify-between items-center shrink-0 rounded-t-xl">
-        <h3 className="font-label-caps text-label-caps text-primary font-bold">Moderator Requests</h3>
+    <div className="bg-white border border-[#E7EAEF] rounded-xl shadow-2xs overflow-hidden">
+      <div className="px-3.5 py-2.5 flex items-center justify-between border-b border-[#E7EAEF]">
+        <div className="flex items-center gap-2">
+          <Skeleton className="w-5 h-5 rounded-md" />
+          <Skeleton className="w-32 h-4" />
+        </div>
+        <Skeleton className="w-4 h-4" />
       </div>
-      <div className="p-4 flex-1 overflow-y-auto space-y-3">
-        {[1, 2].map((i) => (
-          <div key={i} className="p-3 border border-outline-variant rounded-lg bg-surface flex flex-col gap-3 shadow-sm">
-            <div className="w-full">
-              <div className="flex justify-between items-start w-full mb-2">
-                <Skeleton className="w-20 h-3" />
-                <Skeleton className="w-12 h-3" />
-              </div>
-              <Skeleton className="w-28 h-4 mb-2" />
-              <div className="bg-surface-container-lowest p-2 rounded border border-outline-variant mt-1 space-y-1.5">
-                <Skeleton className="w-11/12 h-3" />
-                <Skeleton className="w-5/6 h-3" />
-              </div>
-            </div>
-            <div className="flex gap-2">
-              <Skeleton className="flex-1 h-6 rounded" />
-              <Skeleton className="flex-1 h-6 rounded" />
-            </div>
-          </div>
-        ))}
+      <div className="p-6 flex flex-col items-center justify-center">
+        <Skeleton className="w-8 h-8 rounded-full mb-2" />
+        <Skeleton className="w-40 h-4 mb-1.5" />
+        <Skeleton className="w-52 h-3" />
       </div>
     </div>
   );

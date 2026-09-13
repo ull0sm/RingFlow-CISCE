@@ -12,12 +12,15 @@ export default function StagerWaitingRoom() {
   const [status, setStatus] = useState("pending");
 
   const handleApproved = (tournamentId: string, token?: string, stagerName?: string) => {
+    // Also ensure server-side cookie is set via Server Action
+    checkStagerStatus(id).catch(() => {});
+
     const isHttps = typeof window !== "undefined" && window.location.protocol === "https:";
     const secureFlag = isHttps ? "; Secure" : "";
     const tokenValue = token || id;
-    document.cookie = `stager_token=${tokenValue}; path=/; max-age=172800; SameSite=Strict${secureFlag}`;
+    document.cookie = `stager_token=${tokenValue}; path=/; max-age=172800; SameSite=Lax${secureFlag}`;
     if (stagerName) {
-      document.cookie = `stager_name=${encodeURIComponent(stagerName)}; path=/; max-age=172800; SameSite=Strict${secureFlag}`;
+      document.cookie = `stager_name=${encodeURIComponent(stagerName)}; path=/; max-age=172800; SameSite=Lax${secureFlag}`;
     }
 
     setStatus("approved");

@@ -1,4 +1,4 @@
-import React from "react";
+import React, { Suspense } from "react";
 import OrganiserHeader from "@/components/layout/OrganiserHeader";
 import { createClient } from "@/utils/supabase/server";
 import { redirect } from "next/navigation";
@@ -36,12 +36,14 @@ export default async function OrganiserAthletesPage({ params }: { params: Promis
   return (
     <>
       <OrganiserHeader title="Students Roster" eventName={tournament.name} />
-      <AthletesClient 
-        tournamentId={tournamentId} 
-        initialAthletes={validAthletes} 
-        categories={categories || []} 
-        readOnly={true}
-      />
+      <Suspense fallback={<div className="p-8 text-center text-[#64748B]">Loading roster...</div>}>
+        <AthletesClient 
+          tournamentId={tournamentId} 
+          initialAthletes={validAthletes} 
+          categories={categories || []} 
+          readOnly={true}
+        />
+      </Suspense>
     </>
   );
 }
