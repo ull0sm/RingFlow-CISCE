@@ -30,7 +30,7 @@ export function TournamentCardSkeleton() {
 // 3. Stats Card Skeleton (Total Categories, Completed Matches, etc.)
 export function StatsCardSkeleton({ hasProgress = false }: { hasProgress?: boolean }) {
   return (
-    <div className="bg-surface-container-lowest p-card-padding border border-outline-variant rounded-lg flex flex-col justify-between shadow-sm min-h-[142px]">
+    <div className="bg-white p-card-padding border border-slate-200 rounded-lg flex flex-col justify-between shadow-xs min-h-[142px]">
       <div className="flex justify-between items-start">
         <Skeleton className="w-28 h-4" />
         <Skeleton className="w-6 h-6 rounded-full" />
@@ -56,7 +56,7 @@ export function StatsCardSkeleton({ hasProgress = false }: { hasProgress?: boole
 // 4. Live Ring Status Card Skeleton (Dashboard View)
 export function RingCardSkeleton() {
   return (
-    <div className="relative bg-white border border-[#E1DDCF] rounded-xl overflow-hidden shadow-xs flex flex-col justify-between h-[250px]">
+    <div className="relative bg-white border border-slate-200 rounded-xl overflow-hidden shadow-xs flex flex-col justify-between h-[250px]">
       <div className="bg-[#59564C]/15 px-5 py-3 h-[56px] flex justify-between items-center">
         <div className="flex items-center gap-2">
           <Skeleton className="w-8 h-7" />
@@ -82,7 +82,7 @@ export function RingCardSkeleton() {
           </div>
         </div>
 
-        <div className="pt-2.5 border-t border-dashed border-[#E1DDCF] flex justify-between items-center">
+        <div className="pt-2.5 border-t border-dashed border-slate-200 flex justify-between items-center">
           <Skeleton className="w-28 h-3" />
           <Skeleton className="w-16 h-3" />
         </div>

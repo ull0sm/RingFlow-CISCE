@@ -87,7 +87,7 @@ export default function RingCard({
     : `Tatami ${matNum}`;
 
   return (
-    <div className="relative bg-white border border-[#E1DDCF] rounded-xl overflow-hidden shadow-xs hover:shadow-md hover:border-[#A19C90] transition-all flex flex-col justify-between">
+    <div className="relative bg-white border border-slate-200 rounded-xl overflow-hidden shadow-xs hover:shadow-md hover:border-slate-300 transition-all flex flex-col justify-between">
       {/* ─── Top Scoreboard Band ─── */}
       <div
         className={`relative flex items-center justify-between px-4 sm:px-5 py-3 h-[56px] text-white shrink-0 overflow-hidden ${bandBg}`}
@@ -155,7 +155,7 @@ export default function RingCard({
       <div className="spectator-notch right top-[49px]" />
 
       {/* ─── Card Inner Body ─── */}
-      <div className="p-4 sm:p-5 flex-1 flex flex-col justify-between">
+      <div className="p-4 sm:p-5 flex-1 flex flex-col justify-between bg-white">
         <div>
           {isIdle ? (
             <div className="py-2 mb-2">
@@ -191,9 +191,9 @@ export default function RingCard({
                       : "Click to start/resume timer"
                     : undefined
                 }
-                className={`bg-[#FAF9F5] rounded-lg p-3 my-3 border border-[#E1DDCF]/80 transition-all ${
+                className={`bg-white rounded-lg p-3 my-3 border border-slate-200 shadow-2xs transition-all ${
                   !readOnly && onTogglePause
-                    ? "cursor-pointer hover:border-[#A19C90] hover:bg-[#F5F3EC]"
+                    ? "cursor-pointer hover:border-slate-300 hover:bg-slate-50/70"
                     : ""
                 }`}
               >
@@ -210,7 +210,7 @@ export default function RingCard({
                             ? "bg-amber-100 text-amber-800"
                             : diffMinutes <= -1
                             ? "bg-emerald-100 text-emerald-800"
-                            : "bg-[#ECE9DF] text-[#1B1815]"
+                            : "bg-slate-100 text-[#1B1815]"
                         }`}
                       >
                         {diffMinutes >= 1
@@ -240,7 +240,7 @@ export default function RingCard({
         </div>
 
         {/* ─── Footer: Next Division & Estimated Finish ─── */}
-        <div className="pt-2.5 mt-2 border-t border-dashed border-[#E1DDCF] flex justify-between items-baseline gap-2 text-xs">
+        <div className="pt-2.5 mt-2 border-t border-dashed border-slate-200 flex justify-between items-baseline gap-2 text-xs">
           <div className="flex items-baseline gap-1.5 min-w-0 truncate">
             <span className="text-[10px] font-bold tracking-[0.08em] text-[#A19C90] uppercase shrink-0">
               NEXT

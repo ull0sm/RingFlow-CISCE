@@ -50,12 +50,12 @@ export default function LiveActivityFeed({
   }, [tournamentId, supabase]);
 
   return (
-    <div className="bg-white border border-[#E1DDCF] rounded-xl shadow-2xs transition-all duration-200 overflow-hidden">
+    <div className="bg-white border border-slate-200 rounded-xl shadow-2xs transition-all duration-200 overflow-hidden">
       {/* ─── Header ─── */}
       <div
         role="button"
         onClick={() => setIsExpanded(!isExpanded)}
-        className="w-full px-3.5 py-2.5 flex items-center justify-between cursor-pointer hover:bg-[#ECE9DF] transition-colors select-none"
+        className="w-full px-3.5 py-2.5 flex items-center justify-between cursor-pointer hover:bg-slate-50 transition-colors select-none"
       >
         <div className="flex items-center gap-2 min-w-0">
           <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse shrink-0" />

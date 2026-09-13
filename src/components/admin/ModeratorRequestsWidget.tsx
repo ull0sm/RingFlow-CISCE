@@ -89,7 +89,7 @@ export default function ModeratorRequestsWidget({
       className={`bg-white border rounded-xl shadow-2xs transition-all duration-200 overflow-hidden ${
         pendingRequests.length > 0
           ? "border-amber-400 ring-2 ring-amber-100 shadow-sm"
-          : "border-[#E1DDCF]"
+          : "border-slate-200"
       }`}
     >
       {/* ─── Header ─── */}
@@ -97,7 +97,7 @@ export default function ModeratorRequestsWidget({
         role="button"
         onClick={() => setIsExpanded(!isExpanded)}
         className={`w-full px-3.5 py-2.5 flex items-center justify-between cursor-pointer transition-colors select-none ${
-          pendingRequests.length > 0 ? "bg-amber-50/60 hover:bg-amber-50" : "hover:bg-[#ECE9DF]"
+          pendingRequests.length > 0 ? "bg-amber-50/60 hover:bg-amber-50" : "hover:bg-slate-50"
         }`}
       >
         <div className="flex items-center gap-2 min-w-0">
@@ -105,7 +105,7 @@ export default function ModeratorRequestsWidget({
             className={`w-6 h-6 rounded-lg flex items-center justify-center shrink-0 ${
               pendingRequests.length > 0
                 ? "bg-amber-500 text-white shadow-xs animate-pulse"
-                : "bg-[#ECE9DF] text-[#68645A]"
+                : "bg-slate-100 text-[#68645A]"
             }`}
           >
             <span className="material-symbols-outlined text-[15px]">shield_person</span>

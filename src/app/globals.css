@@ -80,7 +80,7 @@ body {
   width: 14px;
   height: 14px;
   border-radius: 50%;
-  background: #F5F3EC;
+  background: var(--background, #FFFFFF);
   z-index: 2;
 }
 
@@ -104,7 +104,7 @@ body {
   flex: 1;
   height: 8px;
   border-radius: 1.5px;
-  background: #ECE9DF;
+  background: #E2E8F0;
   transition: background-color 0.2s ease;
 }
 

@@ -443,7 +443,7 @@ export default function AdminDashboardClient({
       <div className="p-4 sm:p-6 md:p-margin-desktop space-y-6 sm:space-y-8 pb-24 w-full">
         {/* Global Tournament Stats */}
         <section className="grid grid-cols-1 md:grid-cols-3 gap-4 sm:gap-gutter">
-          <div className="bg-white p-4 sm:p-card-padding border border-outline-variant rounded-lg flex flex-col justify-between shadow-sm hover:shadow transition-shadow">
+          <div className="bg-white p-4 sm:p-card-padding border border-slate-200 rounded-lg flex flex-col justify-between shadow-xs hover:shadow-sm transition-shadow">
             <div className="flex justify-between items-start">
               <span className="font-label-caps text-label-caps text-on-surface-variant">Completed Categories</span>
               <span className="material-symbols-outlined text-secondary">category</span>
@@ -460,7 +460,7 @@ export default function AdminDashboardClient({
             </div>
           </div>
           
-          <div className="bg-white p-4 sm:p-card-padding border border-outline-variant rounded-lg flex flex-col justify-between shadow-sm hover:shadow transition-shadow">
+          <div className="bg-white p-4 sm:p-card-padding border border-slate-200 rounded-lg flex flex-col justify-between shadow-xs hover:shadow-sm transition-shadow">
             <div className="flex justify-between items-start">
               <span className="font-label-caps text-label-caps text-on-surface-variant">Completed Matches</span>
               <span className="material-symbols-outlined text-on-secondary-fixed-variant" style={{fontVariationSettings: '"FILL" 1'}}>check_circle</span>
@@ -471,13 +471,13 @@ export default function AdminDashboardClient({
             </div>
           </div>
           
-          <div className="bg-white p-4 sm:p-card-padding border border-outline-variant rounded-lg shadow-sm hover:shadow transition-shadow">
+          <div className="bg-white p-4 sm:p-card-padding border border-slate-200 rounded-lg shadow-xs hover:shadow-sm transition-shadow">
             <div className="flex justify-between items-start">
               <span className="font-label-caps text-label-caps text-on-surface-variant">Overall Progress</span>
               <span className="material-symbols-outlined text-secondary">speed</span>
             </div>
             <div className="mt-6">
-              <div className="w-full bg-surface-container-highest h-2 rounded-full overflow-hidden">
+              <div className="w-full bg-slate-100 border border-slate-200/60 h-2 rounded-full overflow-hidden">
                 <div className="bg-secondary h-full transition-all duration-1000 ease-out" style={{ width: `${Math.min(100, progressPercent)}%` }}></div>
               </div>
               <div className="flex justify-between mt-2">
@@ -502,7 +502,7 @@ export default function AdminDashboardClient({
                 className={`px-3 py-1.5 text-xs font-label-caps font-semibold rounded-md border flex items-center gap-1.5 transition-all cursor-pointer shadow-2xs ${
                   !anyRunning && areAllPaused
                     ? "bg-emerald-50 border-emerald-300 text-emerald-800 hover:bg-emerald-100 font-bold"
-                    : "border-outline-variant bg-white hover:bg-surface-container text-on-surface"
+                    : "border-slate-200 bg-white hover:bg-slate-50 text-on-surface"
                 }`}
               >
                 <span className="material-symbols-outlined text-[16px]">
