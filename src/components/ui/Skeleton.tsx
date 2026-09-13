@@ -216,3 +216,131 @@ export function ModeratorQueueSkeleton() {
     </div>
   );
 }
+
+// 11. Category List Skeleton (Responsive: Mobile Cards on <md, Desktop Table on >=md)
+export function CategoryListSkeleton({ count = 6, readOnly = false }: { count?: number; readOnly?: boolean }) {
+  return (
+    <div>
+      {/* Mobile Card List (< md) */}
+      <div className="md:hidden space-y-3">
+        {Array.from({ length: count }).map((_, i) => (
+          <div
+            key={i}
+            className="p-3.5 bg-surface-container-lowest border border-outline-variant rounded-xl shadow-2xs space-y-2.5"
+          >
+            <div className="flex items-start justify-between gap-3">
+              <div className="space-y-1.5 flex-1">
+                <Skeleton className="h-4 w-3/4 rounded" />
+                <div className="flex items-center gap-2">
+                  <Skeleton className="h-3.5 w-16 rounded" />
+                  <span className="text-outline-variant text-xs">•</span>
+                  <Skeleton className="h-3.5 w-20 rounded" />
+                </div>
+              </div>
+              <Skeleton className="h-5 w-16 rounded-full shrink-0" />
+            </div>
+            <div className="flex items-center justify-between pt-2 border-t border-outline-variant/40 text-xs">
+              <Skeleton className="h-3.5 w-20 rounded" />
+              <Skeleton className="h-3.5 w-16 rounded" />
+            </div>
+          </div>
+        ))}
+      </div>
+
+      {/* Desktop Table (>= md) */}
+      <div className="hidden md:block bg-surface-container-lowest border border-outline-variant rounded-lg overflow-x-auto shadow-sm">
+        <table className="w-full text-left border-collapse table-fixed">
+          <thead className="bg-surface-container-low border-b border-outline-variant">
+            <tr>
+              <th className="px-6 py-4 font-label-caps text-label-caps text-on-surface-variant w-[35%]">Name</th>
+              <th className="px-4 py-4 font-label-caps text-label-caps text-on-surface-variant w-[15%]">Age</th>
+              <th className="px-4 py-4 font-label-caps text-label-caps text-on-surface-variant w-[18%]">Weight</th>
+              <th className="px-4 py-4 font-label-caps text-label-caps text-on-surface-variant text-center w-[16%]">Athletes</th>
+              <th className="px-4 py-4 font-label-caps text-label-caps text-on-surface-variant text-center w-[16%]">Expected Matches</th>
+              {!readOnly && (
+                <th className="px-6 py-4 font-label-caps text-label-caps text-on-surface-variant text-right w-[15%]">Actions</th>
+              )}
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-outline-variant">
+            {Array.from({ length: count }).map((_, i) => (
+              <tr key={i} className="hover:bg-surface-container-low transition-colors">
+                <td className="px-6 py-4"><Skeleton className="h-4.5 w-3/4 rounded" /></td>
+                <td className="px-4 py-4"><Skeleton className="h-4 w-16 rounded" /></td>
+                <td className="px-4 py-4"><Skeleton className="h-4 w-20 rounded" /></td>
+                <td className="px-4 py-4 flex justify-center"><Skeleton className="h-4 w-12 rounded" /></td>
+                <td className="px-4 py-4 text-center"><Skeleton className="h-4 w-10 mx-auto rounded" /></td>
+                {!readOnly && (
+                  <td className="px-6 py-4 text-right"><Skeleton className="h-4 w-12 ml-auto rounded" /></td>
+                )}
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  );
+}
+
+// 12. Athlete List Skeleton (Responsive: Mobile Cards on <md, Desktop Table on >=md)
+export function AthleteListSkeleton({ count = 6, readOnly = false }: { count?: number; readOnly?: boolean }) {
+  return (
+    <div>
+      {/* Mobile Card List (< md) */}
+      <div className="md:hidden space-y-3">
+        {Array.from({ length: count }).map((_, i) => (
+          <div
+            key={i}
+            className="p-3.5 bg-surface-container-lowest border border-outline-variant rounded-xl shadow-2xs space-y-2.5"
+          >
+            <div className="flex items-center justify-between gap-3">
+              <div className="flex items-center gap-2.5 flex-1 min-w-0">
+                <Skeleton className="h-5 w-10 rounded font-data-mono shrink-0" />
+                <Skeleton className="h-4.5 w-40 rounded" />
+              </div>
+              <Skeleton className="h-5 w-16 rounded shrink-0" />
+            </div>
+            <div className="flex items-center justify-between pt-2 border-t border-outline-variant/40 gap-2">
+              <Skeleton className="h-3.5 w-36 rounded" />
+              <Skeleton className="h-4 w-20 rounded-full shrink-0" />
+            </div>
+          </div>
+        ))}
+      </div>
+
+      {/* Desktop Table (>= md) */}
+      <div className="hidden md:block bg-surface-container-lowest border border-outline-variant rounded-lg overflow-x-auto shadow-sm">
+        <table className="w-full text-left border-collapse">
+          <thead className="bg-surface-container-low border-b border-outline-variant">
+            <tr>
+              <th className="px-6 py-4 font-label-caps text-label-caps text-on-surface-variant w-24">Chest No.</th>
+              <th className="px-6 py-4 font-label-caps text-label-caps text-on-surface-variant">Name</th>
+              <th className="px-6 py-4 font-label-caps text-label-caps text-on-surface-variant">School</th>
+              <th className="px-6 py-4 font-label-caps text-label-caps text-on-surface-variant w-28">School Code</th>
+              <th className="px-6 py-4 font-label-caps text-label-caps text-on-surface-variant w-32">Sports ID</th>
+              <th className="px-6 py-4 font-label-caps text-label-caps text-on-surface-variant">Category</th>
+              {!readOnly && (
+                <th className="px-6 py-4 font-label-caps text-label-caps text-on-surface-variant text-right">Actions</th>
+              )}
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-outline-variant">
+            {Array.from({ length: count }).map((_, i) => (
+              <tr key={i} className="hover:bg-surface-container-low transition-colors">
+                <td className="px-6 py-4"><Skeleton className="h-4 w-12 rounded" /></td>
+                <td className="px-6 py-4"><Skeleton className="h-4.5 w-36 rounded" /></td>
+                <td className="px-6 py-4"><Skeleton className="h-4 w-28 rounded" /></td>
+                <td className="px-6 py-4"><Skeleton className="h-4 w-16 rounded" /></td>
+                <td className="px-6 py-4"><Skeleton className="h-4 w-20 rounded" /></td>
+                <td className="px-6 py-4"><Skeleton className="h-4 w-24 rounded" /></td>
+                {!readOnly && (
+                  <td className="px-6 py-4 text-right"><Skeleton className="h-4 w-12 ml-auto rounded" /></td>
+                )}
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  );
+}
