@@ -457,7 +457,7 @@ export default function AdminDashboardClient({
 
         {/* Global Tournament Stats */}
         <section className="grid grid-cols-1 md:grid-cols-3 gap-4 sm:gap-gutter">
-          <div className="bg-white p-4 sm:p-card-padding border border-slate-200 rounded-lg flex flex-col justify-between shadow-xs hover:shadow-sm transition-shadow">
+          <div className="bg-white p-4 sm:p-card-padding border border-[#E1DDCF] hover:border-[#CDC8BA] rounded-lg flex flex-col justify-between shadow-xs hover:shadow-sm transition-all">
             <div className="flex justify-between items-start">
               <span className="font-label-caps text-label-caps text-on-surface-variant">Completed Categories</span>
               <span className="material-symbols-outlined text-secondary">category</span>
@@ -474,7 +474,7 @@ export default function AdminDashboardClient({
             </div>
           </div>
           
-          <div className="bg-white p-4 sm:p-card-padding border border-slate-200 rounded-lg flex flex-col justify-between shadow-xs hover:shadow-sm transition-shadow">
+          <div className="bg-white p-4 sm:p-card-padding border border-[#E1DDCF] hover:border-[#CDC8BA] rounded-lg flex flex-col justify-between shadow-xs hover:shadow-sm transition-all">
             <div className="flex justify-between items-start">
               <span className="font-label-caps text-label-caps text-on-surface-variant">Completed Matches</span>
               <span className="material-symbols-outlined text-on-secondary-fixed-variant" style={{fontVariationSettings: '"FILL" 1'}}>check_circle</span>
@@ -485,13 +485,13 @@ export default function AdminDashboardClient({
             </div>
           </div>
           
-          <div className="bg-white p-4 sm:p-card-padding border border-slate-200 rounded-lg shadow-xs hover:shadow-sm transition-shadow">
+          <div className="bg-white p-4 sm:p-card-padding border border-[#E1DDCF] hover:border-[#CDC8BA] rounded-lg shadow-xs hover:shadow-sm transition-all">
             <div className="flex justify-between items-start">
               <span className="font-label-caps text-label-caps text-on-surface-variant">Overall Progress</span>
               <span className="material-symbols-outlined text-secondary">speed</span>
             </div>
             <div className="mt-6">
-              <div className="w-full bg-slate-100 border border-slate-200/60 h-2 rounded-full overflow-hidden">
+              <div className="w-full bg-slate-100 border border-[#E1DDCF]/70 h-2 rounded-full overflow-hidden">
                 <div className="bg-secondary h-full transition-all duration-1000 ease-out" style={{ width: `${Math.min(100, progressPercent)}%` }}></div>
               </div>
               <div className="flex justify-between mt-2">

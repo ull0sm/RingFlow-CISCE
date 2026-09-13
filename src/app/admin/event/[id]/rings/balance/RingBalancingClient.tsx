@@ -855,7 +855,7 @@ export default function RingBalancingClient({
   return (
     <div className="flex flex-col overflow-hidden w-full h-[calc(100dvh-4rem)] md:h-screen">
       {/* TopNavBar - Shell v2 Header */}
-      <header className="flex justify-between items-center w-full px-4 sm:px-6 h-[60px] bg-[#FAF9F5] border-b border-[#E1DDCF] shrink-0 z-10 gap-3 sm:gap-6">
+      <header className="flex justify-between items-center w-full px-4 sm:px-6 h-[60px] bg-[#FAF9F5] border-b border-[#E1DDCF] shrink-0 z-50 gap-3 sm:gap-6">
         {/* Left: Breadcrumb */}
         <div className="flex items-center gap-1.5 sm:gap-2 text-[13px] sm:text-[13.5px] min-w-0">
           <span
@@ -1002,7 +1002,7 @@ export default function RingBalancingClient({
                       onClick={() => setStatusFilter(tab)}
                       className={`flex-1 border-none py-1 rounded-[5px] text-[11.5px] font-semibold transition-all cursor-pointer capitalize ${
                         statusFilter === tab
-                          ? 'bg-[#FAF9F5] text-[#1B1815] shadow-[0_1px_2px_rgba(27,24,21,0.08)] font-bold'
+                          ? 'bg-white text-[#1B1815] shadow-[0_1px_3px_rgba(27,24,21,0.1)] font-bold'
                           : 'text-[#68645A] hover:text-[#1B1815]'
                       }`}
                     >

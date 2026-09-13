@@ -30,7 +30,7 @@ export function TournamentCardSkeleton() {
 // 3. Stats Card Skeleton (Total Categories, Completed Matches, etc.)
 export function StatsCardSkeleton({ hasProgress = false }: { hasProgress?: boolean }) {
   return (
-    <div className="bg-white p-card-padding border border-slate-200 rounded-lg flex flex-col justify-between shadow-xs min-h-[142px]">
+    <div className="bg-white p-card-padding border border-[#E1DDCF] rounded-lg flex flex-col justify-between shadow-xs min-h-[142px]">
       <div className="flex justify-between items-start">
         <Skeleton className="w-28 h-4" />
         <Skeleton className="w-6 h-6 rounded-full" />

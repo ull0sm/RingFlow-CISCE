@@ -25,7 +25,7 @@ export default function OrganiserHeader({
     : Boolean(id && (pathname?.includes("/dashboard") || title?.toLowerCase() === "overview"));
 
   return (
-    <header className="flex-shrink-0 bg-[#FAF9F5] border-b border-[#E1DDCF] sticky top-0 z-30">
+    <header className="flex-shrink-0 bg-[#FAF9F5] border-b border-[#E1DDCF] sticky top-0 z-50">
       <div className="h-[60px] flex items-center justify-between px-4 sm:px-6 gap-3 sm:gap-6">
         {/* ─── Left: Breadcrumb ─── */}
         <div className="flex items-center gap-1.5 sm:gap-2 text-[13px] sm:text-[13.5px] min-w-0">

@@ -232,12 +232,29 @@ export default function HeaderSearchBar({
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!query.trim()) return;
-    setIsOpen(false);
-    if (role === "stager") return;
-    router.push(`/${role}/event/${tournamentId}/athletes?q=${encodeURIComponent(query.trim())}`);
+    if (results.length > 0) {
+      handleSelectAthlete(results[0]);
+      return;
+    }
   };
 
   const handleSelectAthlete = (athlete: SearchAthlete) => {
+    const docUrl =
+      athlete.categories?.doc_url ||
+      cachedCategories.find((c) => c.id === athlete.category_id)?.doc_url;
+    const displayCategoryName =
+      athlete.categories?.name ||
+      cachedCategories.find((c) => c.id === athlete.category_id)?.name ||
+      "Category";
+
+    if (docUrl) {
+      setViewingPdf({
+        url: docUrl,
+        title: `${athlete.name} · ${displayCategoryName}`,
+      });
+      return;
+    }
+
     setIsOpen(false);
     if (role === "stager") {
       if (athlete.category_id) {
@@ -253,13 +270,10 @@ export default function HeaderSearchBar({
       }
       return;
     }
-    router.push(
-      `/${role}/event/${tournamentId}/athletes?q=${encodeURIComponent(athlete.name)}`
-    );
   };
 
   return (
-    <div ref={containerRef} className={`relative flex-1 max-w-[440px] mx-auto ${className}`}>
+    <div ref={containerRef} className={`relative flex-1 max-w-[440px] mx-auto ${isOpen ? "z-[100]" : ""} ${className}`}>
       {/* ─── Search Input Field ─── */}
       <form
         onSubmit={handleSubmit}
@@ -309,8 +323,8 @@ export default function HeaderSearchBar({
       {/* ─── Live Search Results Dropdown (Exact Public Spectator UI) ─── */}
       {isOpen && (
         <div
-          className="spectator-search-results open !block absolute !left-0 !right-0 !w-full top-[calc(100%+6px)] z-50 text-left shadow-lg !transform-none"
-          style={{ left: 0, right: 0, width: "100%", transform: "none" }}
+          className="spectator-search-results open !block absolute !left-0 !right-0 !w-full top-[calc(100%+6px)] !z-[99999] text-left shadow-2xl !transform-none"
+          style={{ left: 0, right: 0, width: "100%", transform: "none", zIndex: 99999 }}
           role="listbox"
         >
           {isLoading ? (

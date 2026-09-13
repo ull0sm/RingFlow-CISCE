@@ -18,7 +18,7 @@ export default function AdminHeader({
   const id = tournamentId || ((params?.id as string) || "");
 
   return (
-    <header className="flex-shrink-0 bg-[#FAF9F5] border-b border-[#E1DDCF] sticky top-0 z-30">
+    <header className="flex-shrink-0 bg-[#FAF9F5] border-b border-[#E1DDCF] sticky top-0 z-50">
       <div className="h-[60px] flex items-center justify-between px-3.5 sm:px-6 gap-2 sm:gap-6">
         {/* ─── Left: Breadcrumb ─── */}
         <div className="flex items-center gap-1.5 sm:gap-2 text-[13px] sm:text-[13.5px] min-w-0">

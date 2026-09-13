@@ -388,8 +388,8 @@ export default function PublicEventClient({
     docUrl: string | null,
     categoryName: string
   ) => {
-    if (docUrl && isPublicDrawsEnabled) {
-      // Keep search open in background and do not scroll away
+    if (docUrl) {
+      // Keep search open in background and open PDF viewer modal
       setViewingPdf({
         url: docUrl,
         title: `${athlete.name} · ${categoryName}`,
@@ -617,7 +617,7 @@ export default function PublicEventClient({
                         <span className="spectator-result-division">
                           {displayCategoryName}
                         </span>
-                        {docUrl && isPublicDrawsEnabled && (
+                        {docUrl && (
                           <button
                             type="button"
                             className="spectator-pdf-chip"
