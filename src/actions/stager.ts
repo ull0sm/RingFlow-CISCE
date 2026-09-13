@@ -387,7 +387,7 @@ export async function ensureStagerHasAccessToTournament(tournamentId: string) {
   if (user) {
     const { data: admin } = await supabase
       .from("admins")
-      .select("id, full_name, email")
+      .select("id, email")
       .eq("id", user.id)
       .maybeSingle();
 
@@ -403,7 +403,7 @@ export async function ensureStagerHasAccessToTournament(tournamentId: string) {
         const cookieName = cookieStore.get("stager_name")?.value;
         const resolvedName = cookieName
           ? decodeURIComponent(cookieName)
-          : admin.full_name || user.user_metadata?.full_name || user.user_metadata?.name || user.email?.split("@")[0] || "Admin";
+          : user.user_metadata?.full_name || user.user_metadata?.name || user.email?.split("@")[0] || "Admin";
 
         return { role: "admin", id: admin.id, name: resolvedName, tournament };
       }
@@ -447,7 +447,7 @@ export async function ensureStager() {
   if (user) {
     const { data: admin } = await supabase
       .from("admins")
-      .select("id, full_name")
+      .select("id")
       .eq("id", user.id)
       .maybeSingle();
 
@@ -455,7 +455,7 @@ export async function ensureStager() {
       const cookieName = cookieStore.get("stager_name")?.value;
       const adminName = cookieName
         ? decodeURIComponent(cookieName)
-        : admin.full_name || user.user_metadata?.full_name || "Administrator";
+        : user.user_metadata?.full_name || user.user_metadata?.name || "Administrator";
       return { id: admin.id, name: adminName, role: "admin" };
     }
   }
@@ -481,25 +481,51 @@ export async function updateCategoryStagerStatus(
   tournamentId: string,
   newStatus: "calling" | "ready" | null,
   stagerName?: string
-) {
-  // Validate stager has access and get canonical stager name
-  const stagerInfo = await ensureStagerHasAccessToTournament(tournamentId);
-  const effectiveName = stagerName && stagerName !== "Stager"
-    ? stagerName
-    : (stagerInfo.name || "Stager");
+): Promise<{ success: boolean; error?: string }> {
+  try {
+    // Validate stager has access and get canonical stager name
+    let stagerInfo: Awaited<ReturnType<typeof ensureStagerHasAccessToTournament>>;
+    try {
+      stagerInfo = await ensureStagerHasAccessToTournament(tournamentId);
+    } catch (err: any) {
+      return { success: false, error: err?.message || "Unauthorized: Invalid or expired stager session." };
+    }
 
-  const supabase = await createClient();
+    const effectiveName = stagerName && stagerName !== "Stager"
+      ? stagerName
+      : (stagerInfo.name || "Stager");
 
-  const { error } = await supabase
-    .from("category_assignments")
-    .update({
-      stager_status: newStatus,
-      stager_name: newStatus ? effectiveName : null,
-      stager_action_at: newStatus ? new Date().toISOString() : null,
-    })
-    .eq("category_id", categoryId);
+    const supabase = await createClient();
 
-  if (error) throw new Error(error.message);
+    // Verify the category belongs to a ring in this tournament
+    const { data: assignment } = await supabase
+      .from("category_assignments")
+      .select("category_id, ring_id, rings!inner(tournament_id)")
+      .eq("category_id", categoryId)
+      .maybeSingle();
 
-  return { success: true };
+    if (!assignment) {
+      return { success: false, error: "Category is not assigned to any ring yet." };
+    }
+    if ((assignment.rings as any)?.tournament_id !== tournamentId) {
+      return { success: false, error: "Unauthorized: Category does not belong to this tournament." };
+    }
+
+    const { error } = await supabase
+      .from("category_assignments")
+      .update({
+        stager_status: newStatus,
+        stager_name: newStatus ? effectiveName : null,
+        stager_action_at: newStatus ? new Date().toISOString() : null,
+      })
+      .eq("category_id", categoryId);
+
+    if (error) {
+      return { success: false, error: `Failed to update category status: ${error.message || "DB error"}` };
+    }
+
+    return { success: true };
+  } catch (err: any) {
+    return { success: false, error: err?.message || "Unexpected error updating stager status" };
+  }
 }

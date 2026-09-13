@@ -389,7 +389,7 @@ export default function PublicEventClient({
     categoryName: string
   ) => {
     if (docUrl) {
-      // Keep search open in background and open PDF viewer modal
+      setIsSearchOpen(false);
       setViewingPdf({
         url: docUrl,
         title: `${athlete.name} · ${categoryName}`,
@@ -623,6 +623,7 @@ export default function PublicEventClient({
                             className="spectator-pdf-chip"
                             onClick={(e) => {
                               e.stopPropagation();
+                              setIsSearchOpen(false);
                               setViewingPdf({
                                 url: docUrl,
                                 title: `${a.name} · ${displayCategoryName}`,

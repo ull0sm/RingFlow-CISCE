@@ -248,6 +248,7 @@ export default function HeaderSearchBar({
       "Category";
 
     if (docUrl) {
+      setIsOpen(false);
       setViewingPdf({
         url: docUrl,
         title: `${athlete.name} · ${displayCategoryName}`,
@@ -377,6 +378,7 @@ export default function HeaderSearchBar({
                           className="spectator-pdf-chip"
                           onClick={(e) => {
                             e.stopPropagation();
+                            setIsOpen(false);
                             setViewingPdf({
                               url: docUrl,
                               title: `${athlete.name} · ${displayCategoryName}`,

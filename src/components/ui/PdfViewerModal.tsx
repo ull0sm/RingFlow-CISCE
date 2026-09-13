@@ -241,7 +241,7 @@ export function PdfViewerModal({ url, title, onClose }: PdfViewerModalProps) {
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6 bg-black/65 backdrop-blur-sm transition-all animate-in fade-in duration-200"
+      className="fixed inset-0 z-[100000] flex items-center justify-center p-4 sm:p-6 bg-black/65 backdrop-blur-sm transition-all animate-in fade-in duration-200"
       onClick={handleClose}
       aria-modal="true"
       role="dialog"
@@ -300,9 +300,21 @@ export function PdfViewerModal({ url, title, onClose }: PdfViewerModalProps) {
               title="Rotate 90°"
               aria-label="Rotate document 90 degrees"
             >
-              <span className="material-symbols-outlined text-[20px] leading-none select-none">
-                rotate_right
-              </span>
+              <svg
+                className="w-5 h-5"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              >
+                {/* Document rectangle with an arrow rotating it */}
+                <path d="M7 21h10a2 2 0 0 0 2-2V9.5L14.5 5H7a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2z" />
+                <path d="M14 5v5h5" />
+                <path d="M3 12a9 9 0 0 1 15-6.7L20 7" />
+                <path d="M20 3v4h-4" />
+              </svg>
             </button>
 
             {/* Close */}

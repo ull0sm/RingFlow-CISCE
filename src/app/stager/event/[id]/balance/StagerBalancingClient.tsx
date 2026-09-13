@@ -304,7 +304,19 @@ export default function StagerBalancingClient({
       }));
 
       try {
-        await updateCategoryStagerStatus(categoryId, tournamentId, newStatus, currentStagerName);
+        const res = await updateCategoryStagerStatus(categoryId, tournamentId, newStatus, currentStagerName);
+        if (!res.success) {
+          // Rollback on failure
+          setAssignmentsMap((prev) => ({
+            ...prev,
+            [categoryId]: {
+              ...prev[categoryId],
+              stager_status: current?.stager_status ?? null,
+              stager_name: current?.stager_name ?? null,
+            },
+          }));
+          alert(res.error || "Failed to update status.");
+        }
       } catch (err: any) {
         // Rollback on failure
         setAssignmentsMap((prev) => ({

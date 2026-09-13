@@ -564,20 +564,25 @@ export default function RingBalancingClient({
     const payload = Array.from(payloadMap.values());
 
     try {
-      await saveAssignments(tournamentId, payload);
+      const res = await saveAssignments(tournamentId, payload);
+      if (!res.success) {
+        const msg = res.error || "";
+        if (msg.startsWith("RUNNING_CATEGORY_DISPLACED:")) {
+          const catId = msg.replace("RUNNING_CATEGORY_DISPLACED:", "");
+          const catName = initialCategories.find(c => c.id === catId)?.name || "A category";
+          alert(`Cannot save: "${catName}" is currently running on a Tatami.\n\nA running category must stay at the top of its queue. Move it to the first position or wait for the moderator to finish it before saving.`);
+        } else {
+          alert(`Failed to save assignments: ${msg || "Please try again."}`);
+          console.error("Save error:", msg);
+        }
+        return;
+      }
       setLastSaved(new Date());
       setSaveStatusText("Saved!");
       setTimeout(() => setSaveStatusText(null), 2500);
     } catch (err: any) {
-      const msg: string = err?.message || "";
-      if (msg.startsWith("RUNNING_CATEGORY_DISPLACED:")) {
-        const catId = msg.replace("RUNNING_CATEGORY_DISPLACED:", "");
-        const catName = initialCategories.find(c => c.id === catId)?.name || "A category";
-        alert(`Cannot save: "${catName}" is currently running on a Tatami.\n\nA running category must stay at the top of its queue. Move it to the first position or wait for the moderator to finish it before saving.`);
-      } else {
-        alert("Failed to save assignments. Please try again.");
-        console.error(err);
-      }
+      alert(`Failed to save assignments: ${err?.message || "Please try again."}`);
+      console.error(err);
     } finally {
       setIsSaving(false);
     }
@@ -644,35 +649,42 @@ export default function RingBalancingClient({
 
     const payload = Array.from(payloadMap.values());
 
+    const handleAutoSaveError = (msg: string) => {
+      // Rollback UI state if save failed
+      if (prevUnassigned && prevRingQueues) {
+        setUnassigned(prevUnassigned);
+        setRingQueues(prevRingQueues);
+      }
+      if (prevCompletedQueues) {
+        setRingCompletedQueues(prevCompletedQueues);
+      }
+      if (prevAssignmentsMap) {
+        setAssignmentsMap(prevAssignmentsMap);
+      }
+      setSaveStatusText(null);
+
+      if (msg.startsWith("RUNNING_CATEGORY_DISPLACED:")) {
+        const catId = msg.replace("RUNNING_CATEGORY_DISPLACED:", "");
+        const catName = initialCategories.find(c => c.id === catId)?.name || "A category";
+        alert(`Auto-save blocked & reverted: "${catName}" is currently running on a Tatami.\n\nA running category must stay at the top of its queue.`);
+      } else {
+        alert(`Failed to save: ${msg || "Unknown error"}`);
+        console.error("Auto-save error:", msg);
+      }
+    };
+
     saveAssignments(tournamentId, payload)
-      .then(() => {
+      .then((res) => {
+        if (!res.success) {
+          handleAutoSaveError(res.error || "Save operation failed");
+          return;
+        }
         setLastSaved(new Date());
         setSaveStatusText("Auto-saved");
         setTimeout(() => setSaveStatusText(null), 2500);
       })
       .catch((err: any) => {
-        // Rollback UI state if save failed
-        if (prevUnassigned && prevRingQueues) {
-          setUnassigned(prevUnassigned);
-          setRingQueues(prevRingQueues);
-        }
-        if (prevCompletedQueues) {
-          setRingCompletedQueues(prevCompletedQueues);
-        }
-        if (prevAssignmentsMap) {
-          setAssignmentsMap(prevAssignmentsMap);
-        }
-        setSaveStatusText(null);
-
-        const msg: string = err?.message || "";
-        if (msg.startsWith("RUNNING_CATEGORY_DISPLACED:")) {
-          const catId = msg.replace("RUNNING_CATEGORY_DISPLACED:", "");
-          const catName = initialCategories.find(c => c.id === catId)?.name || "A category";
-          alert(`Auto-save blocked & reverted: "${catName}" is currently running on a Tatami.\n\nA running category must stay at the top of its queue.`);
-        } else {
-          alert(`Failed to save: ${msg || "Unknown error"}`);
-          console.error("Auto-save error:", err);
-        }
+        handleAutoSaveError(err?.message || "Unknown error");
       })
       .finally(() => {
         setIsSaving(false);
@@ -897,10 +909,10 @@ export default function RingBalancingClient({
           <section
             className={`h-full flex flex-col bg-surface-container-low shrink-0 relative transition-[width] duration-300 ease-in-out z-20 ${mobileShowPool
                 ? "w-[85vw] max-w-[340px] md:w-80 shadow-lg md:shadow-none p-2 sm:p-4 sm:pr-0"
-                : "w-[10vw] min-w-[36px] md:w-80 overflow-visible cursor-pointer select-none md:p-4 md:pr-0"
+                : "w-[44px] min-w-[44px] md:w-80 overflow-visible cursor-pointer select-none p-1.5 pr-0 md:p-4 md:pr-0"
               }`}
             onClick={!mobileShowPool ? togglePool : undefined}
-            title={!mobileShowPool ? "Expand unassigned categories" : undefined}
+            title={!mobileShowPool ? "Tap or drag to expand categories" : undefined}
           >
             {/* Pop-out black button with white arrow */}
             <button
@@ -909,19 +921,59 @@ export default function RingBalancingClient({
                 togglePool();
               }}
               type="button"
-              title={mobileShowPool ? "Shrink sidebar" : "Expand unassigned categories"}
-              className="md:hidden absolute top-1/2 left-full -translate-x-1/2 -translate-y-1/2 w-9 h-9 bg-black text-white rounded-full shadow-xl hover:scale-110 active:scale-95 transition-all cursor-pointer z-50 flex items-center justify-center border-2 border-white/80"
+              title={mobileShowPool ? "Shrink sidebar" : "Expand categories pool"}
+              className="md:hidden absolute top-1/2 left-full -translate-x-1/2 -translate-y-1/2 w-8 h-8 sm:w-9 sm:h-9 bg-black text-white rounded-full shadow-xl hover:scale-110 active:scale-95 transition-all cursor-pointer z-50 flex items-center justify-center border-2 border-white/90"
             >
-              <span className="material-symbols-outlined text-[22px] select-none leading-none text-white">
+              <span className="material-symbols-outlined text-[20px] sm:text-[22px] select-none leading-none text-white">
                 {mobileShowPool ? "chevron_left" : "chevron_right"}
               </span>
             </button>
 
-            {/* Inner Content Container - Distinct Bordered Card */}
+            {/* Mobile Collapsed Peek Tab (Visible only on mobile when collapsed) */}
+            {!mobileShowPool && (
+              <div className="md:hidden w-full h-full flex flex-col items-center justify-between py-5 bg-white border border-[#E1DDCF] rounded-l-none rounded-r-xl shadow-xs animate-in fade-in duration-200">
+                {/* Top: Category Icon + Count Badge */}
+                <div className="flex flex-col items-center gap-1">
+                  <span className="material-symbols-outlined text-[16px] text-secondary">
+                    category
+                  </span>
+                  <span className="bg-secondary/10 text-secondary text-[9px] font-black px-1.5 py-0.5 rounded-full font-mono leading-none">
+                    {visibleUnassigned.length}
+                  </span>
+                </div>
+
+                {/* Center: Vertical Rotated Label "POOL" + Dots */}
+                <div className="flex flex-col items-center gap-2">
+                  <div className="flex flex-col gap-0.5">
+                    <span className="w-1 h-1 rounded-full bg-[#8C877C]/60" />
+                    <span className="w-1 h-1 rounded-full bg-[#8C877C]/60" />
+                    <span className="w-1 h-1 rounded-full bg-[#8C877C]/60" />
+                  </div>
+                  <span
+                    className="text-[9.5px] font-black tracking-widest text-[#68645A] uppercase select-none"
+                    style={{ writingMode: "vertical-rl", transform: "rotate(180deg)" }}
+                  >
+                    POOL
+                  </span>
+                  <div className="flex flex-col gap-0.5">
+                    <span className="w-1 h-1 rounded-full bg-[#8C877C]/60" />
+                    <span className="w-1 h-1 rounded-full bg-[#8C877C]/60" />
+                    <span className="w-1 h-1 rounded-full bg-[#8C877C]/60" />
+                  </div>
+                </div>
+
+                {/* Bottom: Subtle Drag Cue Icon */}
+                <span className="material-symbols-outlined text-[15px] text-[#A19C90]">
+                  drag_indicator
+                </span>
+              </div>
+            )}
+
+            {/* Inner Content Container - Distinct Bordered Card (Expanded / Desktop) */}
             <div
-              className={`w-full flex flex-col h-full bg-white border border-[#E1DDCF] rounded-xl overflow-hidden shadow-xs transition-opacity duration-200 ${mobileShowPool
-                  ? "opacity-100"
-                  : "opacity-0 md:opacity-100 pointer-events-none md:pointer-events-auto"
+              className={`w-full flex-col h-full bg-white border border-[#E1DDCF] rounded-xl overflow-hidden shadow-xs transition-opacity duration-200 ${mobileShowPool
+                  ? "flex opacity-100"
+                  : "hidden md:flex opacity-100"
                 }`}
             >
               {/* Panel Head - Fixed Height & Sleek */}
