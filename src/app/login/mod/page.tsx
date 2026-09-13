@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, Suspense } from "react";
+import React, { useState, useRef, Suspense } from "react";
 import { useRouter } from "next/navigation";
 import { requestModeratorAccess } from "@/actions/moderator";
 import { Turnstile } from "@marsidev/react-turnstile";
@@ -33,6 +33,7 @@ function ModeratorLoginContent() {
   const [turnstileToken, setTurnstileToken] = useState("");
   const [error, setError] = useState("");
   const [isLoading, setIsLoading] = useState(false);
+  const turnstileRef = useRef<any>(null);
   const router = useRouter();
 
   const handleInput = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -83,7 +84,6 @@ function ModeratorLoginContent() {
         deviceType,
       };
 
-
       const result = await requestModeratorAccess(
         accessCode,
         moderatorName.trim(),
@@ -95,9 +95,13 @@ function ModeratorLoginContent() {
         router.push(`/moderator/waiting/${result.requestId}`);
       } else {
         setError(result.error || "Failed to submit access request.");
+        turnstileRef.current?.reset();
+        setTurnstileToken("");
       }
     } catch (err: any) {
       setError(err.message || "An unexpected error occurred.");
+      turnstileRef.current?.reset();
+      setTurnstileToken("");
     } finally {
       setIsLoading(false);
     }
@@ -168,10 +172,17 @@ function ModeratorLoginContent() {
 
           <div className="flex justify-center min-h-[65px] pt-1">
             <Turnstile
+              ref={turnstileRef}
               siteKey={process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY || ""}
               onSuccess={(token) => {
                 setTurnstileToken(token);
                 setError("");
+              }}
+              onExpire={() => {
+                setTurnstileToken("");
+              }}
+              onError={() => {
+                setTurnstileToken("");
               }}
               options={{
                 theme: "light",

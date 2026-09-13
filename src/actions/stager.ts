@@ -152,6 +152,24 @@ export async function checkStagerStatus(requestId: string) {
     return { status: "expired" };
   }
 
+  if (request.status === "approved" && request.session_token) {
+    const cookieStore = await cookies();
+    cookieStore.set("stager_token", request.session_token, {
+      path: "/",
+      maxAge: 172800, // 48 hours
+      sameSite: "lax",
+      secure: process.env.NODE_ENV === "production",
+    });
+    if (request.stager_name) {
+      cookieStore.set("stager_name", encodeURIComponent(request.stager_name), {
+        path: "/",
+        maxAge: 172800,
+        sameSite: "lax",
+        secure: process.env.NODE_ENV === "production",
+      });
+    }
+  }
+
   return {
     status: request.status,
     sessionToken: request.session_token,

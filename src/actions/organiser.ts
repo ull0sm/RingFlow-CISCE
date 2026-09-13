@@ -114,7 +114,7 @@ export async function checkOrganiserStatus(requestId: string) {
   const supabase = await createClient();
   const { data: request } = await supabase
     .from("organiser_requests")
-    .select("status, session_token, tournament_id, expires_at")
+    .select("status, session_token, tournament_id, expires_at, organiser_name")
     .eq("id", requestId)
     .single();
 
@@ -124,10 +124,22 @@ export async function checkOrganiserStatus(requestId: string) {
     return { status: "expired" };
   }
 
+  if (request.status === "approved") {
+    const tokenValue = request.session_token || requestId;
+    const cookieStore = await cookies();
+    cookieStore.set("org_token", tokenValue, {
+      path: "/",
+      maxAge: 172800,
+      sameSite: "lax",
+      secure: process.env.NODE_ENV === "production",
+    });
+  }
+
   return {
     status: request.status,
     sessionToken: request.session_token,
     tournamentId: request.tournament_id,
+    organiserName: request.organiser_name,
   };
 }
 
