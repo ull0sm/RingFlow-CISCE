@@ -5,6 +5,8 @@ import Link from "next/link";
 import { usePathname, useParams, useRouter } from "next/navigation";
 import { createClient } from "@/utils/supabase/client";
 import { RingFlowLogo } from "@/components/ui/ringflow-logo";
+import LogoutConfirmModal from "@/components/ui/LogoutConfirmModal";
+import { validateOrganiserSessionAction, logoutOrganiser } from "@/actions/organiser";
 
 export default function OrganiserSidebar() {
   const pathname = usePathname();
@@ -12,6 +14,8 @@ export default function OrganiserSidebar() {
   const router = useRouter();
   const id = (params.id as string) || "";
   const [isCollapsed, setIsCollapsed] = useState(false);
+  const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
+  const [isLoggingOut, setIsLoggingOut] = useState(false);
   const [organiserName, setOrganiserName] = useState<string>("Organiser");
   const [tournamentData, setTournamentData] = useState<{
     name: string;
@@ -55,24 +59,22 @@ export default function OrganiserSidebar() {
     };
 
     const checkSession = async (token: string) => {
-      const { data: request, error } = await supabase
-        .from("organiser_requests")
-        .select("status, expires_at, organiser_name")
-        .or(`session_token.eq.${token},id.eq.${token}`)
-        .maybeSingle();
+      try {
+        const res = await validateOrganiserSessionAction(token);
+        if (isCleanedUp) return;
 
-      if (isCleanedUp) return;
-
-      if (
-        error ||
-        !request ||
-        request.status !== "approved" ||
-        (request.expires_at && new Date(request.expires_at).getTime() < Date.now())
-      ) {
-        handleRevoked();
-      } else if (request.organiser_name) {
-        setOrganiserName(request.organiser_name);
-        localStorage.setItem("ringflow_organiser_name", request.organiser_name);
+        if (!res.valid) {
+          // Only revoke if explicitly revoked or expired
+          if (res.reason === "revoked" || res.reason === "expired") {
+            handleRevoked();
+          }
+        } else if (res.organiserName) {
+          setOrganiserName(res.organiserName);
+          localStorage.setItem("ringflow_organiser_name", res.organiserName);
+        }
+      } catch (err) {
+        // Network or client exception: NEVER wipe session on transient error
+        console.warn("Session check error, keeping session intact:", err);
       }
     };
 
@@ -445,10 +447,7 @@ export default function OrganiserSidebar() {
           {isCollapsed ? (
             <button
               type="button"
-              onClick={() => {
-                document.cookie = "org_token=; path=/; max-age=0;";
-                router.push("/login/organiser");
-              }}
+              onClick={() => setShowLogoutConfirm(true)}
               title={`${organiserName || "Organiser"} (Organiser) · Click to sign out`}
               className="w-[42px] h-[42px] mx-auto rounded-xl flex items-center justify-center text-[#64748B] hover:text-red-600 hover:bg-red-50 border border-[#E1DDCF] hover:border-red-200 transition-all cursor-pointer group shadow-2xs"
             >
@@ -469,10 +468,7 @@ export default function OrganiserSidebar() {
           ) : (
             <button
               type="button"
-              onClick={() => {
-                document.cookie = "org_token=; path=/; max-age=0;";
-                router.push("/login/organiser");
-              }}
+              onClick={() => setShowLogoutConfirm(true)}
               title="Click role to sign out"
               className="w-full flex items-center gap-3 p-2.5 rounded-xl hover:bg-red-50/70 border border-transparent hover:border-red-200/60 transition-all group cursor-pointer text-left"
             >
@@ -561,6 +557,27 @@ export default function OrganiserSidebar() {
           );
         })}
       </nav>
+
+      <LogoutConfirmModal
+        isOpen={showLogoutConfirm}
+        onClose={() => setShowLogoutConfirm(false)}
+        onConfirm={async () => {
+          setIsLoggingOut(true);
+          try {
+            await logoutOrganiser();
+            document.cookie = "org_token=; path=/; max-age=0; SameSite=Lax";
+            router.push("/login/organiser");
+          } catch (e) {
+            console.error("Organiser logout error:", e);
+            document.cookie = "org_token=; path=/; max-age=0; SameSite=Lax";
+            router.push("/login/organiser");
+          }
+        }}
+        isLoggingOut={isLoggingOut}
+        title="Sign Out of Organiser Portal"
+        message="Are you sure you want to sign out? You will need your 6-character access code and director approval to regain access."
+        confirmLabel="Sign Out"
+      />
     </>
   );
 }

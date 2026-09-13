@@ -18,14 +18,14 @@ export default function OrganiserWaitingRoom() {
     const isHttps = typeof window !== "undefined" && window.location.protocol === "https:";
     const secureFlag = isHttps ? "; Secure" : "";
     if (token) {
-      document.cookie = `org_token=${token}; path=/; max-age=172800; SameSite=Lax${secureFlag}`;
+      document.cookie = `org_token=${token}; path=/; max-age=604800; SameSite=Lax${secureFlag}`;
     } else {
-      document.cookie = `org_token=${id}; path=/; max-age=172800; SameSite=Lax${secureFlag}`;
+      document.cookie = `org_token=${id}; path=/; max-age=604800; SameSite=Lax${secureFlag}`;
     }
 
     setStatus("approved");
     setTimeout(() => {
-      router.push(`/organiser/event/${tournamentId}/dashboard`);
+      router.replace(`/organiser/event/${tournamentId}/dashboard`);
     }, 1500);
   };
 

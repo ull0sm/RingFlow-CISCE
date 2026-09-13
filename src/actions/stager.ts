@@ -156,14 +156,14 @@ export async function checkStagerStatus(requestId: string) {
     const cookieStore = await cookies();
     cookieStore.set("stager_token", request.session_token, {
       path: "/",
-      maxAge: 172800, // 48 hours
+      maxAge: 604800, // 7 days
       sameSite: "lax",
       secure: process.env.NODE_ENV === "production",
     });
     if (request.stager_name) {
       cookieStore.set("stager_name", encodeURIComponent(request.stager_name), {
         path: "/",
-        maxAge: 172800,
+        maxAge: 604800, // 7 days
         sameSite: "lax",
         secure: process.env.NODE_ENV === "production",
       });

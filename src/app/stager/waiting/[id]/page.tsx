@@ -18,14 +18,14 @@ export default function StagerWaitingRoom() {
     const isHttps = typeof window !== "undefined" && window.location.protocol === "https:";
     const secureFlag = isHttps ? "; Secure" : "";
     const tokenValue = token || id;
-    document.cookie = `stager_token=${tokenValue}; path=/; max-age=172800; SameSite=Lax${secureFlag}`;
+    document.cookie = `stager_token=${tokenValue}; path=/; max-age=604800; SameSite=Lax${secureFlag}`;
     if (stagerName) {
-      document.cookie = `stager_name=${encodeURIComponent(stagerName)}; path=/; max-age=172800; SameSite=Lax${secureFlag}`;
+      document.cookie = `stager_name=${encodeURIComponent(stagerName)}; path=/; max-age=604800; SameSite=Lax${secureFlag}`;
     }
 
     setStatus("approved");
     setTimeout(() => {
-      router.push(`/stager/event/${tournamentId}/balance`);
+      router.replace(`/stager/event/${tournamentId}/balance`);
     }, 1500);
   };
 

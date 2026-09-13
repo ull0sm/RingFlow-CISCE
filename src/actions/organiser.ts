@@ -129,7 +129,7 @@ export async function checkOrganiserStatus(requestId: string) {
     const cookieStore = await cookies();
     cookieStore.set("org_token", tokenValue, {
       path: "/",
-      maxAge: 172800,
+      maxAge: 604800,
       sameSite: "lax",
       secure: process.env.NODE_ENV === "production",
     });
@@ -264,10 +264,10 @@ export async function ensureOrganiserHasAccessToTournament(tournamentId: string)
 
   const { data: request, error } = await supabase
     .from("organiser_requests")
-    .select("id, tournament_id, status, organiser_name, expires_at, tournaments(name)")
-    .eq("session_token", orgToken)
+    .select("id, tournament_id, status, organiser_name, session_token, expires_at, tournaments(name)")
+    .or(`session_token.eq.${orgToken},id.eq.${orgToken}`)
     .eq("status", "approved")
-    .single();
+    .maybeSingle();
 
   if (error || !request) {
     throw new Error("Not authenticated: Invalid or revoked organiser session");
@@ -279,6 +279,18 @@ export async function ensureOrganiserHasAccessToTournament(tournamentId: string)
 
   if (request.tournament_id !== tournamentId) {
     throw new Error("Not authenticated: Not authorized for this tournament");
+  }
+
+  // If token in cookie was request id and session_token is available, sync cookie to session_token
+  if (request.session_token && orgToken !== request.session_token) {
+    try {
+      cookieStore.set("org_token", request.session_token, {
+        path: "/",
+        maxAge: 604800,
+        sameSite: "lax",
+        secure: process.env.NODE_ENV === "production",
+      });
+    } catch (_) {}
   }
 
   return {
@@ -320,19 +332,72 @@ export async function ensureOrganiser() {
 
   const { data: request } = await supabase
     .from("organiser_requests")
-    .select("id, tournament_id, status, organiser_name, expires_at")
-    .eq("session_token", orgToken)
+    .select("id, tournament_id, status, organiser_name, session_token, expires_at")
+    .or(`session_token.eq.${orgToken},id.eq.${orgToken}`)
     .eq("status", "approved")
-    .single();
+    .maybeSingle();
 
   if (!request || (request.expires_at && new Date(request.expires_at).getTime() < Date.now())) {
     throw new Error("Not authenticated");
+  }
+
+  // Synchronize cookie to session_token if needed
+  if (request.session_token && orgToken !== request.session_token) {
+    try {
+      cookieStore.set("org_token", request.session_token, {
+        path: "/",
+        maxAge: 604800,
+        sameSite: "lax",
+        secure: process.env.NODE_ENV === "production",
+      });
+    } catch (_) {}
   }
 
   return {
     id: request.id,
     name: request.organiser_name,
     role: "organiser",
+    tournamentId: request.tournament_id,
+  };
+}
+
+/**
+ * Validates the current organiser session without risk of aggressive client-side deletion.
+ * Returns valid: true on transient database errors to protect user sessions during offline/reconnects.
+ */
+export async function validateOrganiserSessionAction(token?: string) {
+  const cookieStore = await cookies();
+  const orgToken = token || cookieStore.get("org_token")?.value;
+  if (!orgToken) return { valid: false, reason: "missing" };
+
+  const supabase = await createClient();
+  const { data: request, error } = await supabase
+    .from("organiser_requests")
+    .select("id, status, organiser_name, tournament_id, expires_at")
+    .or(`session_token.eq.${orgToken},id.eq.${orgToken}`)
+    .maybeSingle();
+
+  if (error) {
+    // Network or temporary DB error: do NOT revoke session
+    return { valid: true, error: error.message };
+  }
+
+  if (!request) {
+    return { valid: false, reason: "not_found" };
+  }
+
+  if (request.status === "revoked" || request.status === "rejected") {
+    return { valid: false, reason: "revoked" };
+  }
+
+  if (request.expires_at && new Date(request.expires_at).getTime() < Date.now()) {
+    return { valid: false, reason: "expired" };
+  }
+
+  return {
+    valid: true,
+    status: request.status,
+    organiserName: request.organiser_name,
     tournamentId: request.tournament_id,
   };
 }

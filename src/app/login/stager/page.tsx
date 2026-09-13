@@ -1,8 +1,8 @@
 "use client";
 
-import React, { useState, useRef, Suspense } from "react";
+import React, { useState, useRef, useEffect, Suspense } from "react";
 import { useRouter } from "next/navigation";
-import { requestStagerAccess } from "@/actions/stager";
+import { requestStagerAccess, ensureStager } from "@/actions/stager";
 import { Turnstile } from "@marsidev/react-turnstile";
 import { RingFlowLogo } from "@/components/ui/ringflow-logo";
 import { v4 as uuidv4 } from "uuid";
@@ -34,6 +34,19 @@ function StagerLoginContent() {
   const [error, setError] = useState("");
   const turnstileRef = useRef<any>(null);
   const router = useRouter();
+
+  useEffect(() => {
+    // 1. Prefill saved name
+    const savedName = localStorage.getItem("ringflow_stager_name");
+    if (savedName) setStagerName(savedName);
+
+    // 2. Auto-forward if session already active
+    ensureStager().then((res) => {
+      if (res?.tournamentId) {
+        router.replace(`/stager/event/${res.tournamentId}/balance`);
+      }
+    }).catch(() => {});
+  }, [router]);
 
   const handleInput = (e: React.ChangeEvent<HTMLInputElement>) => {
     let val = e.target.value.replace(/[^a-zA-Z0-9]/g, "").toUpperCase();

@@ -5,6 +5,7 @@ import Link from "next/link";
 import { usePathname, useParams, useRouter } from "next/navigation";
 import { createClient } from "@/utils/supabase/client";
 import { RingFlowLogo } from "@/components/ui/ringflow-logo";
+import LogoutConfirmModal from "@/components/ui/LogoutConfirmModal";
 
 export default function AdminSidebar() {
   const pathname = usePathname();
@@ -12,6 +13,8 @@ export default function AdminSidebar() {
   const router = useRouter();
   const id = (params.id as string) || "123";
   const [isCollapsed, setIsCollapsed] = useState(false);
+  const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
+  const [isLoggingOut, setIsLoggingOut] = useState(false);
   const [tournamentData, setTournamentData] = useState<{
     name: string;
     ringsCount: number;
@@ -419,11 +422,7 @@ export default function AdminSidebar() {
           {isCollapsed ? (
             <button
               type="button"
-              onClick={async () => {
-                const supabase = createClient();
-                await supabase.auth.signOut();
-                router.push("/login/admin");
-              }}
+              onClick={() => setShowLogoutConfirm(true)}
               title="Team Crux (Administrator) · Click to sign out"
               className="w-[42px] h-[42px] mx-auto rounded-xl flex items-center justify-center text-[#64748B] hover:text-red-600 hover:bg-red-50 border border-[#E1DDCF] hover:border-red-200 transition-all cursor-pointer group shadow-2xs"
             >
@@ -444,11 +443,7 @@ export default function AdminSidebar() {
           ) : (
             <button
               type="button"
-              onClick={async () => {
-                const supabase = createClient();
-                await supabase.auth.signOut();
-                router.push("/login/admin");
-              }}
+              onClick={() => setShowLogoutConfirm(true)}
               title="Click role to sign out"
               className="w-full flex items-center gap-3 p-2.5 rounded-xl hover:bg-red-50/70 border border-transparent hover:border-red-200/60 transition-all group cursor-pointer text-left"
             >
@@ -541,6 +536,26 @@ export default function AdminSidebar() {
           );
         })}
       </nav>
+
+      <LogoutConfirmModal
+        isOpen={showLogoutConfirm}
+        onClose={() => setShowLogoutConfirm(false)}
+        onConfirm={async () => {
+          setIsLoggingOut(true);
+          try {
+            const supabase = createClient();
+            await supabase.auth.signOut();
+            router.push("/login/admin");
+          } catch (e) {
+            console.error("Sign out error:", e);
+            setIsLoggingOut(false);
+          }
+        }}
+        isLoggingOut={isLoggingOut}
+        title="Sign Out of Admin Console"
+        message="Are you sure you want to sign out? You will need to sign in again with your authorized administrator Google account."
+        confirmLabel="Sign Out"
+      />
     </>
   );
 }

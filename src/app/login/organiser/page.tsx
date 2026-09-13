@@ -1,8 +1,8 @@
 "use client";
 
-import React, { useState, useRef, Suspense } from "react";
+import React, { useState, useRef, useEffect, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { requestOrganiserAccess } from "@/actions/organiser";
+import { requestOrganiserAccess, validateOrganiserSessionAction } from "@/actions/organiser";
 import { Turnstile } from "@marsidev/react-turnstile";
 import { RingFlowLogo } from "@/components/ui/ringflow-logo";
 import { v4 as uuidv4 } from "uuid";
@@ -36,6 +36,21 @@ function OrganiserLoginContent() {
   const turnstileRef = useRef<any>(null);
   const router = useRouter();
   const searchParams = useSearchParams();
+
+  useEffect(() => {
+    // 1. Prefill saved name if available
+    const savedName = localStorage.getItem("ringflow_organiser_name");
+    if (savedName) setOrganiserName(savedName);
+
+    // 2. If already logged in and not explicitly revoked, auto-forward to dashboard
+    if (searchParams.get("reason") !== "revoked") {
+      validateOrganiserSessionAction().then((res) => {
+        if (res.valid && res.tournamentId) {
+          router.replace(`/organiser/event/${res.tournamentId}/dashboard`);
+        }
+      }).catch(() => {});
+    }
+  }, [searchParams, router]);
 
   const handleInput = (e: React.ChangeEvent<HTMLInputElement>) => {
     let val = e.target.value.replace(/[^a-zA-Z0-9]/g, "").toUpperCase();
