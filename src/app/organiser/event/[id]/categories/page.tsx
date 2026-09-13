@@ -10,11 +10,8 @@ export default async function OrganiserCategoriesPage({ params }: { params: Prom
 
   try {
     await ensureOrganiserHasAccessToTournament(tournamentId);
-  } catch (err: any) {
-    if (err.message?.includes("Not authenticated")) {
-      redirect("/login/organiser");
-    }
-    redirect("/organiser");
+  } catch {
+    redirect("/");
   }
 
   const supabase = await createClient();
@@ -27,7 +24,7 @@ export default async function OrganiserCategoriesPage({ params }: { params: Prom
     supabase.from("categories").select("*").eq("tournament_id", tournamentId).order("created_at", { ascending: false })
   ]);
 
-  if (!tournament) redirect("/organiser");
+  if (!tournament) redirect("/");
 
   return (
     <>

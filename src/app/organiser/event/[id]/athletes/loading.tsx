@@ -5,26 +5,26 @@ import { TableRowSkeleton } from "@/components/ui/Skeleton";
 export default function OrganiserAthletesLoading() {
   return (
     <>
-      <OrganiserHeader title="Students Roster" />
-      
+      <OrganiserHeader title="Athletes Roster" />
+
       <div className="p-margin-desktop space-y-8 bg-surface pb-24 w-full">
         {/* Header Block */}
         <div className="flex justify-between items-center">
           <div>
             <h2 className="font-headline-sm text-headline-sm text-primary">Student Roster</h2>
-            <p className="text-body-sm text-on-surface-variant">View registered students and category assignments.</p>
+            <p className="text-body-sm text-on-surface-variant">View registered  and category assignments.</p>
           </div>
         </div>
 
         {/* Filters Shell */}
         <div className="flex gap-4 mb-4 select-none pointer-events-none opacity-60">
-          <input 
-            type="text" 
+          <input
+            type="text"
             placeholder="Search by name or chest no..."
             disabled
             className="flex-1 bg-white border border-outline-variant rounded p-2 text-sm outline-none"
           />
-          <select 
+          <select
             disabled
             className="w-64 bg-white border border-outline-variant rounded p-2 text-sm outline-none"
           >

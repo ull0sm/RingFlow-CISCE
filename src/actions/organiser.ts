@@ -270,10 +270,18 @@ export async function ensureOrganiserHasAccessToTournament(tournamentId: string)
     .maybeSingle();
 
   if (error || !request) {
+    try {
+      cookieStore.delete("org_token");
+      cookieStore.delete("org_name");
+    } catch {}
     throw new Error("Not authenticated: Invalid or revoked organiser session");
   }
 
   if (request.expires_at && new Date(request.expires_at).getTime() < Date.now()) {
+    try {
+      cookieStore.delete("org_token");
+      cookieStore.delete("org_name");
+    } catch {}
     throw new Error("Not authenticated: Organiser session expired");
   }
 
@@ -338,6 +346,10 @@ export async function ensureOrganiser() {
     .maybeSingle();
 
   if (!request || (request.expires_at && new Date(request.expires_at).getTime() < Date.now())) {
+    try {
+      cookieStore.delete("org_token");
+      cookieStore.delete("org_name");
+    } catch {}
     throw new Error("Not authenticated");
   }
 
@@ -383,19 +395,32 @@ export async function validateOrganiserSessionAction(token?: string) {
   }
 
   if (!request) {
+    try {
+      cookieStore.delete("org_token");
+      cookieStore.delete("org_name");
+    } catch {}
     return { valid: false, reason: "not_found" };
   }
 
   if (request.status === "revoked" || request.status === "rejected") {
-    return { valid: false, reason: "revoked" };
+    try {
+      cookieStore.delete("org_token");
+      cookieStore.delete("org_name");
+    } catch {}
+    return { valid: false, reason: "revoked", requestId: request.id };
   }
 
   if (request.expires_at && new Date(request.expires_at).getTime() < Date.now()) {
-    return { valid: false, reason: "expired" };
+    try {
+      cookieStore.delete("org_token");
+      cookieStore.delete("org_name");
+    } catch {}
+    return { valid: false, reason: "expired", requestId: request.id };
   }
 
   return {
     valid: true,
+    requestId: request.id,
     status: request.status,
     organiserName: request.organiser_name,
     tournamentId: request.tournament_id,
@@ -408,5 +433,6 @@ export async function validateOrganiserSessionAction(token?: string) {
 export async function logoutOrganiser() {
   const cookieStore = await cookies();
   cookieStore.delete("org_token");
+  cookieStore.delete("org_name");
   return { success: true };
 }

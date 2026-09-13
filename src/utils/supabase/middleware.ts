@@ -10,10 +10,11 @@ export async function updateSession(request: NextRequest) {
   if (pathname.startsWith('/organiser')) {
     const isWaitingRoom = pathname.startsWith('/organiser/waiting')
     const orgToken = request.cookies.get('org_token')?.value
+    const hasAuthCookie = request.cookies.getAll().some(c => c.name.startsWith('sb-') && c.name.endsWith('-auth-token'))
 
-    if (!isWaitingRoom && !orgToken) {
+    if (!isWaitingRoom && !orgToken && !hasAuthCookie) {
       const url = request.nextUrl.clone()
-      url.pathname = '/login/organiser'
+      url.pathname = '/'
       return NextResponse.redirect(url)
     }
 

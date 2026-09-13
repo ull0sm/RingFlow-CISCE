@@ -298,7 +298,7 @@ export default function SettingsClient({ tournament, initialOrganiserRequests = 
                     </label>
                   </div>
                   <p className="text-body-xs text-on-surface-variant max-w-xl">
-                    When enabled, students and parents searching their name in the live public event dashboard can view their category draw sheet PDF.
+                    When enabled, athletes and parents searching their name in the live public event dashboard can view their category draw sheet PDF.
                     When turned off, draw PDFs remain accessible only to Admin, Organiser, and Stagers.
                   </p>
                 </div>

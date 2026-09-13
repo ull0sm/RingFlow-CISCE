@@ -9,11 +9,8 @@ export default async function OrganiserDashboard({ params }: { params: Promise<{
   
   try {
     await ensureOrganiserHasAccessToTournament(tournamentId);
-  } catch (err: any) {
-    if (err.message?.includes("Not authenticated")) {
-      redirect("/login/organiser");
-    }
-    redirect("/organiser");
+  } catch {
+    redirect("/");
   }
 
   const supabase = await createClient();
@@ -26,7 +23,7 @@ export default async function OrganiserDashboard({ params }: { params: Promise<{
     .single();
 
   if (tournamentError || !tournament) {
-    redirect("/organiser");
+    redirect("/");
   }
 
   // 2. Fetch Categories stats

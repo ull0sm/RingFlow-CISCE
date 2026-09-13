@@ -10,11 +10,8 @@ export default async function OrganiserAthletesPage({ params }: { params: Promis
 
   try {
     await ensureOrganiserHasAccessToTournament(tournamentId);
-  } catch (err: any) {
-    if (err.message?.includes("Not authenticated")) {
-      redirect("/login/organiser");
-    }
-    redirect("/organiser");
+  } catch {
+    redirect("/");
   }
 
   const supabase = await createClient();
@@ -29,18 +26,18 @@ export default async function OrganiserAthletesPage({ params }: { params: Promis
     supabase.from("categories").select("id, name").eq("tournament_id", tournamentId).order("name", { ascending: true })
   ]);
 
-  if (!tournament) redirect("/organiser");
+  if (!tournament) redirect("/");
 
   const validAthletes = athletes || [];
 
   return (
     <>
-      <OrganiserHeader title="Students Roster" eventName={tournament.name} />
+      <OrganiserHeader title="Athletes Roster" eventName={tournament.name} />
       <Suspense fallback={<div className="p-8 text-center text-[#64748B]">Loading roster...</div>}>
-        <AthletesClient 
-          tournamentId={tournamentId} 
-          initialAthletes={validAthletes} 
-          categories={categories || []} 
+        <AthletesClient
+          tournamentId={tournamentId}
+          initialAthletes={validAthletes}
+          categories={categories || []}
           readOnly={true}
         />
       </Suspense>

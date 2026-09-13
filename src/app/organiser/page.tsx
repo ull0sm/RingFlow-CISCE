@@ -10,37 +10,37 @@ export const dynamic = "force-dynamic";
 
 export default async function OrganiserTournamentSelectionPage() {
   let organiser;
-  let organiserErrorStr = "";
-  let tournaments: any[] = [];
 
   try {
     organiser = await ensureOrganiser();
-    if (organiser?.tournamentId) {
-      redirect(`/organiser/event/${organiser.tournamentId}/dashboard`);
-    }
-
-    const supabase = await createClient();
-    let query = supabase.from("tournaments").select("*").order("created_at", { ascending: false });
-
-    if (organiser.role === "admin" && organiser.id) {
-      query = query.eq("admin_id", organiser.id);
-    }
-
-    const { data, error } = await query;
-    if (error) {
-      console.error("Error fetching tournaments for organiser:", error);
-    } else if (data) {
-      tournaments = data;
-    }
-  } catch (err: any) {
-    if (err.digest?.includes("NEXT_REDIRECT")) throw err;
-    console.error("Organiser auth verification error:", err.message);
-    organiserErrorStr = err.message;
-    // If not authenticated, redirect to organiser code login
-    if (err.message.includes("Not authenticated")) {
-      redirect("/login/organiser");
-    }
+  } catch {
+    // If not authenticated or session invalid/revoked, kick out immediately to public home screen
+    redirect("/");
   }
+
+  // If approved organiser for a specific tournament, send directly to their tournament dashboard
+  if (organiser?.tournamentId) {
+    redirect(`/organiser/event/${organiser.tournamentId}/dashboard`);
+  }
+
+  // Strictly admin-only: organisers have zero right to see or select from other tournaments.
+  // If not a registered tournament administrator, kick out to public home screen.
+  if (organiser?.role !== "admin" || !organiser?.id) {
+    redirect("/");
+  }
+
+  const supabase = await createClient();
+  const { data: tournaments, error } = await supabase
+    .from("tournaments")
+    .select("*")
+    .eq("admin_id", organiser.id)
+    .order("created_at", { ascending: false });
+
+  if (error) {
+    console.error("Error fetching tournaments for admin:", error);
+  }
+
+  const tournamentList = tournaments || [];
 
   return (
     <div className="min-h-screen bg-background flex flex-col w-full">
@@ -51,51 +51,36 @@ export default async function OrganiserTournamentSelectionPage() {
           <div className="mb-10">
             <div className="flex items-center gap-2 mb-1">
               <span className="px-2.5 py-0.5 rounded text-[11px] font-label-caps font-bold tracking-wider uppercase bg-primary text-on-primary">
-                Organiser Terminal
+                Administrator View · Organiser Terminal
               </span>
             </div>
             <h1 className="font-headline-lg text-headline-lg text-on-surface">
-              Welcome{organiser?.name ? `, ${organiser.name}` : ""}
+              Welcome, Administrator
             </h1>
             <p className="text-body-sm text-on-surface-variant mt-1">
-              Select an ongoing tournament to monitor live tatamis, category assignments, and student rosters.
+              Select one of your tournaments to preview in organiser view.
             </p>
           </div>
-          
-          {organiserErrorStr && (
-            <div className="mb-8 p-4 bg-error/10 border border-error/20 rounded-lg text-error">
-              <p className="font-bold">Access Denied:</p>
-              <p>{organiserErrorStr}</p>
-              <div className="mt-4">
-                <Link 
-                  href="/login/organiser" 
-                  className="px-4 py-2 bg-error text-white rounded text-xs font-bold inline-block hover:opacity-90"
-                >
-                  Return to Organiser Login
-                </Link>
-              </div>
-            </div>
-          )}
 
           {/* Tournament Section Header */}
           <div className="flex items-center justify-between mb-6">
             <div className="flex items-center gap-3">
               <span className="material-symbols-outlined text-secondary">sports_martial_arts</span>
-              <h3 className="font-headline-sm text-headline-sm text-on-surface">Available Tournaments</h3>
+              <h3 className="font-headline-sm text-headline-sm text-on-surface">Your Tournaments</h3>
             </div>
           </div>
 
           {/* Tournament Grid */}
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-16">
-            {tournaments.length === 0 && !organiserErrorStr && (
+            {tournamentList.length === 0 && (
               <div className="col-span-full text-center p-12 border border-dashed border-outline-variant rounded-xl text-on-surface-variant bg-white">
                 <span className="material-symbols-outlined text-4xl text-outline mb-2">event_busy</span>
-                <p className="font-medium">No tournaments currently available to monitor.</p>
-                <p className="text-xs text-on-surface-variant/70 mt-1">Please check back once tournament administrators initiate an event.</p>
+                <p className="font-medium">No tournaments found.</p>
+                <p className="text-xs text-on-surface-variant/70 mt-1">Create a tournament in the Admin Console to view it here.</p>
               </div>
             )}
             
-            {tournaments.map((tournament) => (
+            {tournamentList.map((tournament) => (
               <Link 
                 key={tournament.id} 
                 href={`/organiser/event/${tournament.id}/dashboard`} 

@@ -55,31 +55,37 @@ export default function OrganiserSidebar() {
 
     const handleRevoked = () => {
       document.cookie = "org_token=; path=/; max-age=0; SameSite=Lax";
-      router.push("/login/organiser?reason=revoked");
+      document.cookie = "org_name=; path=/; max-age=0; SameSite=Lax";
+      try {
+        localStorage.removeItem("ringflow_organiser_name");
+      } catch {}
+      router.replace("/");
     };
+
+    let interval: NodeJS.Timeout | null = null;
+    let channel: ReturnType<typeof supabase.channel> | null = null;
 
     const checkSession = async (token: string) => {
       try {
         const res = await validateOrganiserSessionAction(token);
-        if (isCleanedUp) return;
+        if (isCleanedUp) return null;
 
         if (!res.valid) {
-          // Only revoke if explicitly revoked or expired
-          if (res.reason === "revoked" || res.reason === "expired") {
+          // If revoked, expired, or not found, kick out to public home screen immediately
+          if (res.reason === "revoked" || res.reason === "expired" || res.reason === "not_found") {
             handleRevoked();
           }
         } else if (res.organiserName) {
           setOrganiserName(res.organiserName);
           localStorage.setItem("ringflow_organiser_name", res.organiserName);
         }
+        return res;
       } catch (err) {
         // Network or client exception: NEVER wipe session on transient error
         console.warn("Session check error, keeping session intact:", err);
+        return null;
       }
     };
-
-    let interval: NodeJS.Timeout | null = null;
-    let channel: ReturnType<typeof supabase.channel> | null = null;
 
     const init = async () => {
       if (isCleanedUp) return;
@@ -94,35 +100,40 @@ export default function OrganiserSidebar() {
           : null;
       const token = match ? decodeURIComponent(match[1]) : null;
 
-      // If not logged in as admin and no org token, redirect to login
+      // If not logged in as admin and no org token, kick out to public home screen
       if (!token && !user) {
-        router.push("/login/organiser");
+        handleRevoked();
         return;
       }
 
       if (token) {
-        await checkSession(token);
+        const sessionRes = await checkSession(token);
         if (isCleanedUp) return;
 
+        // Subscribe to changes on the organiser request
+        const requestId = sessionRes?.requestId;
+        const channelName = requestId ? `org_req_${requestId}` : `org_session_${token.slice(0, 8)}`;
+        const filter = requestId ? `id=eq.${requestId}` : `session_token=eq.${token}`;
+
         channel = supabase
-          .channel(`org_session_${token.slice(0, 8)}`)
+          .channel(channelName)
           .on(
             "postgres_changes",
             {
-              event: "UPDATE",
+              event: "*",
               schema: "public",
               table: "organiser_requests",
-              filter: `session_token=eq.${token}`,
+              filter,
             },
-            (payload: { new: Record<string, unknown> }) => {
-              if (payload?.new?.status !== "approved") {
+            (payload: { eventType: string; new: Record<string, unknown> }) => {
+              if (payload.eventType === "DELETE" || payload?.new?.status !== "approved") {
                 handleRevoked();
               }
             }
           )
           .subscribe();
 
-        interval = setInterval(() => checkSession(token), 30000);
+        interval = setInterval(() => checkSession(token), 15000);
       } else if (id) {
         // Fetch the organiser name entered during code entry for this tournament
         const { data: latestReq } = await supabase
@@ -271,7 +282,7 @@ export default function OrganiserSidebar() {
       isLive: false,
     },
     {
-      name: "Students",
+      name: "Athletes",
       href: `/organiser/event/${id}/athletes`,
       icon: (
         <svg className="w-[22px] h-[22px] shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
@@ -289,9 +300,8 @@ export default function OrganiserSidebar() {
   return (
     <>
       <aside
-        className={`hidden md:flex flex-col sticky top-0 h-screen bg-[#FAF9F5] border-r border-[#E1DDCF] shrink-0 z-40 transition-[width] duration-200 select-none relative ${
-          isCollapsed ? "w-[68px]" : "w-[260px]"
-        }`}
+        className={`hidden md:flex flex-col sticky top-0 h-screen bg-[#FAF9F5] border-r border-[#E1DDCF] shrink-0 z-40 transition-[width] duration-200 select-none relative ${isCollapsed ? "w-[68px]" : "w-[260px]"
+          }`}
       >
         {/* ─── Prominent Vertically Centered Sticked-out Toggle (< / >) ─── */}
         <button
@@ -386,17 +396,14 @@ export default function OrganiserSidebar() {
                         setPendingPath(item.href);
                       }}
                       title={item.name}
-                      className={`flex items-center gap-3 transition-all ${
-                        isPending ? "pointer-events-none cursor-wait" : ""
-                      } ${
-                        isCollapsed
+                      className={`flex items-center gap-3 transition-all ${isPending ? "pointer-events-none cursor-wait" : ""
+                        } ${isCollapsed
                           ? "w-[44px] h-[44px] mx-auto justify-center rounded-xl"
                           : "px-3 py-2.5 rounded-lg text-[14.5px]"
-                      } ${
-                        isActive
+                        } ${isActive
                           ? "bg-[#E3F6F0] text-[#0B7C63] font-semibold border border-[#0E9C7C]/30 shadow-2xs"
                           : "text-[#334155] hover:bg-[#ECE9DF]/60 font-medium border border-transparent"
-                      }`}
+                        }`}
                     >
                       {isCollapsed ? (
                         isPending ? (
@@ -529,13 +536,11 @@ export default function OrganiserSidebar() {
                 }
                 setPendingPath(item.href);
               }}
-              className={`flex flex-col items-center justify-center py-1 px-3 rounded-xl transition-all ${
-                isPending ? "pointer-events-none cursor-wait" : ""
-              } ${
-                isActive
+              className={`flex flex-col items-center justify-center py-1 px-3 rounded-xl transition-all ${isPending ? "pointer-events-none cursor-wait" : ""
+                } ${isActive
                   ? "text-[#0B7C63] font-semibold bg-[#E3F6F0] border border-[#0E9C7C]/30 shadow-2xs"
                   : "text-[#64748B] hover:text-[#0F172A] border border-transparent"
-              }`}
+                }`}
             >
               {isPending ? (
                 <span className="w-5 h-5 border-2 border-[#0B7C63] border-t-transparent rounded-full animate-spin my-0.5" />
@@ -544,10 +549,10 @@ export default function OrganiserSidebar() {
                   {item.name === "Dashboard"
                     ? "dashboard"
                     : item.name === "Tatami Balancing"
-                    ? "balance"
-                    : item.name === "Categories"
-                    ? "category"
-                    : "groups"}
+                      ? "balance"
+                      : item.name === "Categories"
+                        ? "category"
+                        : "groups"}
                 </span>
               )}
               <span className="text-[10px] font-medium tracking-tight mt-0.5 whitespace-nowrap">
@@ -566,11 +571,19 @@ export default function OrganiserSidebar() {
           try {
             await logoutOrganiser();
             document.cookie = "org_token=; path=/; max-age=0; SameSite=Lax";
-            router.push("/login/organiser");
+            document.cookie = "org_name=; path=/; max-age=0; SameSite=Lax";
+            try {
+              localStorage.removeItem("ringflow_organiser_name");
+            } catch {}
+            router.replace("/");
           } catch (e) {
             console.error("Organiser logout error:", e);
             document.cookie = "org_token=; path=/; max-age=0; SameSite=Lax";
-            router.push("/login/organiser");
+            document.cookie = "org_name=; path=/; max-age=0; SameSite=Lax";
+            try {
+              localStorage.removeItem("ringflow_organiser_name");
+            } catch {}
+            router.replace("/");
           }
         }}
         isLoggingOut={isLoggingOut}
