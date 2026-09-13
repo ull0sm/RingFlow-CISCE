@@ -100,17 +100,32 @@ export default function HeaderSearchBar({
     const runSearch = async () => {
       try {
         const supabase = createClient();
+        const sanitizedQ = cleanQ.replace(/[,()]/g, " ").trim();
 
         // 1. Direct name/chest search
         const directPromise = supabase
           .from("athletes")
-          .select("id, name, chest_number, category_id, school, categories(id, name, doc_url)")
+          .select("id, name, chest_number, category_id, dojo, categories(id, name, doc_url)")
           .eq("tournament_id", tournamentId)
-          .or(`name.ilike.%${cleanQ}%,chest_number.ilike.%${cleanQ}%`)
-          .limit(20);
+          .or(`name.ilike.*${sanitizedQ}*,chest_number.ilike.*${sanitizedQ}*`)
+          .limit(25);
 
-        // 2. Category matches (e.g. u14_30-35kg, 30, 14, boys, weight, etc.)
-        const matchingCatIds = cachedCategories
+        // 2. Ensure categories are loaded for category-based matching
+        let categoriesToSearch = cachedCategories;
+        if (!categoriesToSearch || categoriesToSearch.length === 0) {
+          const { data: fetchedCats } = await supabase
+            .from("categories")
+            .select("*")
+            .eq("tournament_id", tournamentId);
+          if (fetchedCats && fetchedCats.length > 0) {
+            categoriesToSearch = fetchedCats;
+            setCachedCategories(fetchedCats);
+          }
+        }
+
+        // 3. Category matches (e.g. u14_30-35kg, 30, 14, boys, weight, etc.)
+        // Returns the students in matching categories instead of category items
+        const matchingCatIds = (categoriesToSearch || [])
           .filter((cat) => matchesCategorySearch(cat, trimmed))
           .map((cat) => cat.id);
 
@@ -118,16 +133,23 @@ export default function HeaderSearchBar({
         if (matchingCatIds.length > 0) {
           catPromise = supabase
             .from("athletes")
-            .select("id, name, chest_number, category_id, school, categories(id, name, doc_url)")
+            .select("id, name, chest_number, category_id, dojo, categories(id, name, doc_url)")
             .eq("tournament_id", tournamentId)
-            .in("category_id", matchingCatIds.slice(0, 40))
-            .limit(30);
+            .in("category_id", matchingCatIds.slice(0, 50))
+            .limit(40);
         }
 
         const [directRes, catRes] = await Promise.all([
           directPromise,
           catPromise ? catPromise : Promise.resolve({ data: null, error: null }),
         ]);
+
+        if (directRes?.error) {
+          console.warn("Direct athlete search error:", directRes.error);
+        }
+        if (catRes?.error) {
+          console.warn("Category athlete search error:", catRes.error);
+        }
 
         const combined: SearchAthlete[] = [];
         const seen = new Set<string>();
@@ -160,11 +182,12 @@ export default function HeaderSearchBar({
 
           combined.push({
             ...raw,
+            school: raw.school || raw.dojo,
             tatami,
           });
         };
 
-        if (directRes.data) {
+        if (directRes?.data) {
           for (const item of directRes.data) appendAthlete(item);
         }
         if (catRes?.data) {
@@ -203,7 +226,7 @@ export default function HeaderSearchBar({
       {/* ─── Search Input Field ─── */}
       <form
         onSubmit={handleSubmit}
-        className="w-full flex items-center gap-2 px-3 py-1.5 sm:py-2 border border-[#DCE0E7] rounded-lg text-[13px] bg-[#FBFBFC] hover:border-[#94A3B8] focus-within:border-[#0E9C7C] focus-within:ring-2 focus-within:ring-[#0E9C7C]/20 transition-all shadow-2xs"
+        className="w-full flex items-center gap-2 px-3 py-1.5 sm:py-2 border border-[#E1DDCF] rounded-lg text-[13px] bg-white hover:border-[#8C877C] focus-within:border-[#0E9C7C] focus-within:ring-2 focus-within:ring-[#0E9C7C]/20 transition-all shadow-2xs"
       >
         <svg
           className="w-4 h-4 text-[#94A3B8] shrink-0"
@@ -247,7 +270,7 @@ export default function HeaderSearchBar({
 
       {/* ─── Live Search Results Dropdown ─── */}
       {isOpen && (
-        <div className="absolute left-1/2 -translate-x-1/2 top-[calc(100%+6px)] w-[calc(100vw-32px)] sm:w-[480px] max-w-[480px] bg-white border border-[#E2E8F0] rounded-xl shadow-[0_12px_32px_rgba(15,23,42,0.14)] overflow-hidden z-50 animate-in fade-in slide-in-from-top-1 duration-150 text-left">
+        <div className="absolute left-1/2 -translate-x-1/2 top-[calc(100%+6px)] w-[calc(100vw-32px)] sm:w-[480px] max-w-[480px] bg-[#FAF9F5] border border-[#E1DDCF] rounded-xl shadow-[0_12px_32px_rgba(27,24,21,0.12)] overflow-hidden z-50 animate-in fade-in slide-in-from-top-1 duration-150 text-left">
           {isLoading ? (
             <div className="p-4 text-center text-[12.5px] text-[#64748B] flex items-center justify-center gap-2">
               <span className="w-3.5 h-3.5 rounded-full border-2 border-[#0E9C7C] border-t-transparent animate-spin" />
@@ -260,13 +283,13 @@ export default function HeaderSearchBar({
           ) : (
             <>
               {/* Header Count */}
-              <div className="px-3.5 py-2 bg-[#F8FAFC] border-b border-[#E2E8F0] flex items-center justify-between text-[11px] font-semibold text-[#64748B]">
+              <div className="px-3.5 py-2 bg-[#ECE9DF] border-b border-[#E1DDCF] flex items-center justify-between text-[11px] font-semibold text-[#64748B]">
                 <span>MATCHING ATHLETES ({results.length})</span>
                 <span className="text-[10.5px] text-[#94A3B8]">Category &amp; Name Search</span>
               </div>
 
               {/* List items */}
-              <div className="max-h-[340px] overflow-y-auto divide-y divide-[#F1F5F9]">
+              <div className="max-h-[340px] overflow-y-auto divide-y divide-[#E1DDCF]/50">
                 {results.map((athlete) => {
                   const catName = athlete.categories?.name || "Uncategorized";
                   const tatami = athlete.tatami;

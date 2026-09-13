@@ -7,18 +7,23 @@ import HeaderSearchBar from "@/components/layout/HeaderSearchBar";
 export default function AdminHeader({
   title,
   eventName,
+  tournamentId,
 }: {
   title: string;
   eventName?: string;
+  tournamentId?: string;
 }) {
   const params = useParams();
-  const id = ((params?.id as string) || "");
+  const id = tournamentId || ((params?.id as string) || "");
 
   return (
-    <header className="h-[60px] flex-shrink-0 bg-white border-b border-[#E7EAEF] flex items-center justify-between px-4 sm:px-6 gap-3 sm:gap-6 sticky top-0 z-30">
+    <header className="h-[60px] flex-shrink-0 bg-[#FAF9F5] border-b border-[#E1DDCF] flex items-center justify-between px-4 sm:px-6 gap-3 sm:gap-6 sticky top-0 z-30">
       {/* ─── Left: Breadcrumb ─── */}
-      <div className="flex items-center gap-1.5 sm:gap-2 text-[13.5px] flex-shrink-0 min-w-0">
-        <span className="text-[#94A3B8] font-medium truncate max-w-[120px] sm:max-w-[200px] md:max-w-[260px]">
+      <div className="flex items-center gap-1.5 sm:gap-2 text-[13px] sm:text-[13.5px] min-w-0">
+        <span
+          title={eventName || "RingFlow"}
+          className="text-[#94A3B8] font-medium truncate max-w-[80px] min-[380px]:max-w-[105px] sm:max-w-[200px] md:max-w-[260px]"
+        >
           {eventName || "RingFlow"}
         </span>
         <svg
@@ -30,7 +35,7 @@ export default function AdminHeader({
         >
           <path d="M9 18l6-6-6-6" />
         </svg>
-        <span className="text-[#0F172A] font-semibold truncate">{title}</span>
+        <span className="text-[#0F172A] font-semibold truncate shrink-0">{title}</span>
       </div>
 
       {/* ─── Center: Live Interactive Search Bar ─── */}

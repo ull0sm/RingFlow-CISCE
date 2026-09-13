@@ -215,6 +215,22 @@ export default function OrganiserSidebar() {
     };
   }, [id]);
 
+  const [pendingPath, setPendingPath] = useState<string | null>(null);
+
+  // Clear pending path when route finishes loading and pathname updates
+  useEffect(() => {
+    setPendingPath(null);
+  }, [pathname]);
+
+  // Safety fallback: clear pending after 8s if navigation gets interrupted
+  useEffect(() => {
+    if (!pendingPath) return;
+    const timer = setTimeout(() => {
+      setPendingPath(null);
+    }, 8000);
+    return () => clearTimeout(timer);
+  }, [pendingPath]);
+
   const navItems = [
     {
       name: "Dashboard",
@@ -271,7 +287,7 @@ export default function OrganiserSidebar() {
   return (
     <>
       <aside
-        className={`hidden md:flex flex-col sticky top-0 h-screen bg-white border-r border-[#E7EAEF] shrink-0 z-40 transition-[width] duration-200 select-none relative ${
+        className={`hidden md:flex flex-col sticky top-0 h-screen bg-[#FAF9F5] border-r border-[#E1DDCF] shrink-0 z-40 transition-[width] duration-200 select-none relative ${
           isCollapsed ? "w-[68px]" : "w-[260px]"
         }`}
       >
@@ -281,7 +297,7 @@ export default function OrganiserSidebar() {
           type="button"
           aria-label={isCollapsed ? "Expand sidebar" : "Collapse sidebar"}
           title={isCollapsed ? "Expand sidebar" : "Collapse sidebar"}
-          className="absolute top-1/2 -right-3.5 -translate-y-1/2 z-50 w-7 h-7 rounded-full bg-white border border-slate-300 shadow-[0_2px_8px_rgba(0,0,0,0.12)] hover:shadow-lg flex items-center justify-center text-slate-700 hover:text-[#0E9C7C] hover:border-[#0E9C7C] hover:scale-110 active:scale-95 transition-all cursor-pointer"
+          className="absolute top-1/2 -right-3.5 -translate-y-1/2 z-50 w-7 h-7 rounded-full bg-[#FAF9F5] border border-[#E1DDCF] shadow-[0_2px_8px_rgba(0,0,0,0.10)] hover:shadow-md flex items-center justify-center text-slate-700 hover:text-[#0E9C7C] hover:border-[#0E9C7C] hover:scale-110 active:scale-95 transition-all cursor-pointer"
         >
           <svg
             className="w-3.5 h-3.5"
@@ -298,13 +314,13 @@ export default function OrganiserSidebar() {
 
         {/* ─── Top Branding & Event Header ─── */}
         {isCollapsed ? (
-          <div className="h-[60px] border-b border-[#E7EAEF] flex items-center justify-center shrink-0">
+          <div className="h-[60px] border-b border-[#E1DDCF] flex items-center justify-center shrink-0">
             <Link href="/" title="RingFlow" className="hover:scale-110 transition-transform p-1">
               <RingFlowLogo className="h-9 w-9 text-[#1B1815] shrink-0" />
             </Link>
           </div>
         ) : (
-          <div className="p-3.5 border-b border-[#E7EAEF] shrink-0 space-y-2.5">
+          <div className="p-3.5 border-b border-[#E1DDCF] shrink-0 space-y-2.5">
             {/* RingFlow Brand Row */}
             <Link
               href="/"
@@ -317,7 +333,7 @@ export default function OrganiserSidebar() {
             </Link>
 
             {/* Event Name & Live Mats (Below RingFlow branding, no down arrow) */}
-            <div className="pt-2 border-t border-[#F1F5F9]">
+            <div className="pt-2 border-t border-[#E1DDCF]/60">
               <Link
                 href={`/organiser/event/${id}/dashboard`}
                 className="block group"
@@ -348,45 +364,75 @@ export default function OrganiserSidebar() {
                 Operations
               </div>
             )}
-            <div className={`space-y-1 ${isCollapsed ? "space-y-1.5" : ""}`}>
+            <div className={`space-y-1.5 ${isCollapsed ? "space-y-2" : ""}`}>
               {navItems.map((item) => {
-                const isActive = pathname.startsWith(item.href);
+                const isPending = pendingPath === item.href;
+                const isActive = pendingPath ? isPending : pathname.startsWith(item.href);
+
                 return (
-                  <Link
+                  <div
                     key={item.name}
-                    href={item.href}
-                    title={item.name}
-                    className={`flex items-center gap-3 transition-all ${
-                      isCollapsed
-                        ? "w-[44px] h-[44px] mx-auto justify-center rounded-xl"
-                        : "px-3 py-2.5 rounded-lg text-[14.5px]"
-                    } ${
-                      isActive
-                        ? "bg-[#E3F6F0] text-[#0B7C63] font-semibold"
-                        : "text-[#334155] hover:bg-[#F1F3F5] font-medium"
-                    }`}
+                    className="pb-1.5 border-b border-[#E1DDCF]"
                   >
-                    <span className={isActive ? "text-[#0B7C63]" : "text-[#94A3B8]"}>
-                      {item.icon}
-                    </span>
-                    {!isCollapsed && (
-                      <>
-                        <span className="flex-1 whitespace-nowrap font-medium">{item.name}</span>
-                        {item.count !== null && (
-                          item.isLive ? (
-                            <span className="text-[11px] bg-[#E3F6F0] text-[#0B7C63] px-2 py-0.5 rounded-full font-semibold flex items-center gap-1 shrink-0">
-                              <span className="w-1.5 h-1.5 rounded-full bg-[#0E9C7C]" />
-                              {item.count}
+                    <Link
+                      href={item.href}
+                      onClick={(e) => {
+                        if (pathname.startsWith(item.href)) {
+                          e.preventDefault();
+                          return;
+                        }
+                        setPendingPath(item.href);
+                      }}
+                      title={item.name}
+                      className={`flex items-center gap-3 transition-all ${
+                        isPending ? "pointer-events-none cursor-wait" : ""
+                      } ${
+                        isCollapsed
+                          ? "w-[44px] h-[44px] mx-auto justify-center rounded-xl"
+                          : "px-3 py-2.5 rounded-lg text-[14.5px]"
+                      } ${
+                        isActive
+                          ? "bg-[#E3F6F0] text-[#0B7C63] font-semibold border border-[#0E9C7C]/30 shadow-2xs"
+                          : "text-[#334155] hover:bg-[#ECE9DF]/60 font-medium border border-transparent"
+                      }`}
+                    >
+                      {isCollapsed ? (
+                        isPending ? (
+                          <span className="w-4 h-4 border-2 border-[#0B7C63] border-t-transparent rounded-full animate-spin shrink-0" />
+                        ) : (
+                          <span className={isActive ? "text-[#0B7C63]" : "text-[#94A3B8]"}>
+                            {item.icon}
+                          </span>
+                        )
+                      ) : (
+                        <>
+                          <span className={isActive ? "text-[#0B7C63]" : "text-[#94A3B8]"}>
+                            {item.icon}
+                          </span>
+                          <span className="flex-1 whitespace-nowrap font-medium">{item.name}</span>
+                          {isPending ? (
+                            <span className="flex items-center gap-1.5 text-[11.5px] text-[#0B7C63] font-semibold shrink-0">
+                              <span className="w-3.5 h-3.5 border-2 border-[#0B7C63] border-t-transparent rounded-full animate-spin shrink-0" />
+                              <span className="animate-pulse">Loading...</span>
                             </span>
                           ) : (
-                            <span className="text-[11px] text-[#94A3B8] bg-[#F1F3F5] px-2 py-0.5 rounded-full font-semibold shrink-0">
-                              {item.count}
-                            </span>
-                          )
-                        )}
-                      </>
-                    )}
-                  </Link>
+                            item.count !== null && (
+                              item.isLive ? (
+                                <span className="text-[11px] bg-[#E3F6F0] text-[#0B7C63] px-2 py-0.5 rounded-full font-semibold flex items-center gap-1 shrink-0">
+                                  <span className="w-1.5 h-1.5 rounded-full bg-[#0E9C7C]" />
+                                  {item.count}
+                                </span>
+                              ) : (
+                                <span className="text-[11px] text-[#94A3B8] bg-[#ECE9DF] px-2 py-0.5 rounded-full font-semibold shrink-0">
+                                  {item.count}
+                                </span>
+                              )
+                            )
+                          )}
+                        </>
+                      )}
+                    </Link>
+                  </div>
                 );
               })}
             </div>
@@ -395,7 +441,7 @@ export default function OrganiserSidebar() {
 
         {/* ─── Standard CruxStudios Capsule Footer (Theme Toggle Removed) ─── */}
         {/* ─── Role & Profile Footer (Click to Sign Out) ─── */}
-        <div className="p-3 border-t border-[#E7EAEF] bg-white shrink-0">
+        <div className="p-3 border-t border-[#E1DDCF] bg-[#FAF9F5] shrink-0">
           {isCollapsed ? (
             <button
               type="button"
@@ -404,7 +450,7 @@ export default function OrganiserSidebar() {
                 router.push("/login/organiser");
               }}
               title={`${organiserName || "Organiser"} (Organiser) · Click to sign out`}
-              className="w-[42px] h-[42px] mx-auto rounded-xl flex items-center justify-center text-[#64748B] hover:text-red-600 hover:bg-red-50 border border-[#DCE0E7] hover:border-red-200 transition-all cursor-pointer group shadow-2xs"
+              className="w-[42px] h-[42px] mx-auto rounded-xl flex items-center justify-center text-[#64748B] hover:text-red-600 hover:bg-red-50 border border-[#E1DDCF] hover:border-red-200 transition-all cursor-pointer group shadow-2xs"
             >
               <svg
                 className="w-5 h-5 group-hover:hidden transition-all"
@@ -430,7 +476,7 @@ export default function OrganiserSidebar() {
               title="Click role to sign out"
               className="w-full flex items-center gap-3 p-2.5 rounded-xl hover:bg-red-50/70 border border-transparent hover:border-red-200/60 transition-all group cursor-pointer text-left"
             >
-              <div className="w-[40px] h-[40px] rounded-xl bg-[#F1F3F5] border border-[#DCE0E7] text-[#475569] group-hover:bg-red-100/70 group-hover:text-red-600 group-hover:border-red-200 flex items-center justify-center shrink-0 shadow-2xs transition-colors">
+              <div className="w-[40px] h-[40px] rounded-xl bg-[#ECE9DF] border border-[#E1DDCF] text-[#475569] group-hover:bg-red-100/70 group-hover:text-red-600 group-hover:border-red-200 flex items-center justify-center shrink-0 shadow-2xs transition-colors">
                 <svg
                   className="w-5 h-5"
                   viewBox="0 0 24 24"
@@ -472,28 +518,44 @@ export default function OrganiserSidebar() {
       </aside>
 
       {/* Mobile Bottom Navigation Bar (md:hidden) */}
-      <nav className="md:hidden fixed bottom-0 left-0 w-full bg-white/95 backdrop-blur-md border-t border-[#E7EAEF] z-50 flex items-center justify-around px-2 py-1.5 shadow-[0_-2px_8px_rgba(0,0,0,0.04)]">
+      <nav className="md:hidden fixed bottom-0 left-0 w-full bg-[#FAF9F5]/95 backdrop-blur-md border-t border-[#E1DDCF] z-50 flex items-center justify-around px-2 py-1.5 shadow-[0_-2px_8px_rgba(0,0,0,0.04)]">
         {navItems.map((item) => {
-          const isActive = pathname.startsWith(item.href);
+          const isPending = pendingPath === item.href;
+          const isActive = pendingPath ? isPending : pathname.startsWith(item.href);
           return (
             <Link
               key={item.name}
               href={item.href}
-              className={`flex flex-col items-center justify-center py-1 px-2.5 rounded-lg transition-colors ${
-                isActive ? "text-[#0B7C63] font-semibold" : "text-[#64748B] hover:text-[#0F172A]"
+              onClick={(e) => {
+                if (pathname.startsWith(item.href)) {
+                  e.preventDefault();
+                  return;
+                }
+                setPendingPath(item.href);
+              }}
+              className={`flex flex-col items-center justify-center py-1 px-3 rounded-xl transition-all ${
+                isPending ? "pointer-events-none cursor-wait" : ""
+              } ${
+                isActive
+                  ? "text-[#0B7C63] font-semibold bg-[#E3F6F0] border border-[#0E9C7C]/30 shadow-2xs"
+                  : "text-[#64748B] hover:text-[#0F172A] border border-transparent"
               }`}
             >
-              <span className="material-symbols-outlined text-[20px]">
-                {item.name === "Dashboard"
-                  ? "dashboard"
-                  : item.name === "Tatami Balancing"
-                  ? "balance"
-                  : item.name === "Categories"
-                  ? "category"
-                  : "groups"}
-              </span>
+              {isPending ? (
+                <span className="w-5 h-5 border-2 border-[#0B7C63] border-t-transparent rounded-full animate-spin my-0.5" />
+              ) : (
+                <span className="material-symbols-outlined text-[20px]">
+                  {item.name === "Dashboard"
+                    ? "dashboard"
+                    : item.name === "Tatami Balancing"
+                    ? "balance"
+                    : item.name === "Categories"
+                    ? "category"
+                    : "groups"}
+                </span>
+              )}
               <span className="text-[10px] font-medium tracking-tight mt-0.5 whitespace-nowrap">
-                {item.name}
+                {isPending ? "Loading..." : item.name}
               </span>
             </Link>
           );

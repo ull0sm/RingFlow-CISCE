@@ -37,6 +37,11 @@ export function matchesCategorySearch(
 
   const cleanFullText = fullText.replace(/[^a-z0-9]/g, "");
 
+  // 1. Special case for male/female to prevent substring collision
+  if (q === "male") {
+    return /\bmale\b/i.test(fullText);
+  }
+
   // 1. Direct contains in full text
   if (fullText.includes(q)) return true;
 
