@@ -91,13 +91,14 @@ export function PdfViewerModal({ url, title, onClose }: PdfViewerModalProps) {
     };
   }, [url, onClose]);
 
-  // Clean close: if modal pushed history, pop it so user's back stack stays pristine
+  // Clean close: calls onClose directly and resets history state if needed
   const handleClose = () => {
     if (typeof window !== "undefined" && window.history.state?.pdfModalOpen) {
-      window.history.back();
-    } else {
-      onClose();
+      try {
+        window.history.replaceState(null, "");
+      } catch {}
     }
+    onClose();
   };
 
   // Close on Escape key
@@ -300,33 +301,9 @@ export function PdfViewerModal({ url, title, onClose }: PdfViewerModalProps) {
               title="Rotate 90°"
               aria-label="Rotate document 90 degrees"
             >
-              <svg
-                className="w-5 h-5 select-none"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="2"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-              >
-                {/* Circular clockwise rotation arrow */}
-                <path d="M21 12a9 9 0 1 1-9-9c2.52 0 4.93 1 6.74 2.74L21 8" />
-                <path d="M21 3v5h-5" />
-                {/* 90° label in center */}
-                <text
-                  x="11"
-                  y="13.5"
-                  textAnchor="middle"
-                  dominantBaseline="central"
-                  fontSize="7"
-                  fontWeight="800"
-                  fill="currentColor"
-                  stroke="none"
-                  fontFamily="system-ui, -apple-system, sans-serif"
-                >
-                  90°
-                </text>
-              </svg>
+              <span className="material-symbols-outlined text-[20px] leading-none select-none">
+                rotate_right
+              </span>
             </button>
 
             {/* Close */}
