@@ -629,27 +629,29 @@ export default function StagerBalancingClient({
             href="https://cruxstudios.dev"
             target="_blank"
             rel="noopener noreferrer"
-            className="group flex items-center gap-1.5 sm:gap-2 text-[#1B1815] transition-all duration-200 shrink-0 py-1 cursor-pointer"
+            className="group flex items-center text-[#1B1815] transition-all duration-200 shrink-0 py-1 cursor-pointer ml-auto"
           >
             <div className="flex flex-col text-left leading-none gap-0.5">
-              <span className="font-['Inter',sans-serif] text-[9px] sm:text-[9.5px] font-semibold tracking-[0.06em] uppercase text-[#68645A] group-hover:text-[#00E5FF] group-hover:drop-shadow-[0_0_8px_rgba(0,229,255,0.7)] transition-all duration-200">
-                Built by
-              </span>
+              <div className="flex items-center gap-1">
+                <span className="font-['Inter',sans-serif] text-[9px] sm:text-[9.5px] font-semibold tracking-[0.06em] uppercase text-[#68645A] group-hover:text-[#00E5FF] group-hover:drop-shadow-[0_0_8px_rgba(0,229,255,0.7)] transition-all duration-200">
+                  Built by
+                </span>
+                <svg
+                  className="w-3 h-3 text-[#8C877C] group-hover:text-[#00E5FF] group-hover:drop-shadow-[0_0_8px_rgba(0,229,255,0.8)] group-hover:translate-x-0.5 group-hover:-translate-y-0.5 transition-all duration-200 shrink-0"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2.5"
+                >
+                  <path d="M7 17L17 7M17 7H7M17 7V17" />
+                </svg>
+              </div>
               <img
                 src="/crux-studios.png"
                 alt="Crux Studios"
                 className="h-[15px] sm:h-[17px] w-auto object-contain shrink-0 mix-blend-multiply group-hover:drop-shadow-[0_0_12px_rgba(0,229,255,0.85)] transition-all duration-200"
               />
             </div>
-            <svg
-              className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-[#8C877C] group-hover:text-[#00E5FF] group-hover:drop-shadow-[0_0_8px_rgba(0,229,255,0.8)] group-hover:translate-x-0.5 group-hover:-translate-y-0.5 transition-all duration-200 shrink-0 ml-0.5"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2.5"
-            >
-              <path d="M7 17L17 7M17 7H7M17 7V17" />
-            </svg>
           </a>
         </div>
       </header>
