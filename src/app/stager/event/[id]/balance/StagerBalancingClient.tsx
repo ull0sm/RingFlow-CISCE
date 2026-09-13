@@ -337,15 +337,15 @@ export default function StagerBalancingClient({
           key={cat.id}
           className={`border rounded-xl relative overflow-hidden transition-all bg-white ${
             isPaused
-              ? "border-amber-400/60 border-l-[3.5px] border-l-amber-600 shadow-xs"
+              ? "border-amber-400/80 shadow-xs"
               : isRunning
-              ? "border-emerald-400/60 border-l-[3.5px] border-l-emerald-600 shadow-sm"
-              : "border-blue-400/40 border-l-[3.5px] border-l-blue-600 shadow-xs opacity-90"
+              ? "border-emerald-400/80 shadow-sm"
+              : "border-blue-400/60 shadow-xs opacity-90"
           }`}
         >
           {/* Clean Distinct Top Bar for Category Card */}
-          <div className="px-3 py-2 border-b border-stone-100 flex items-center justify-between bg-stone-50/75">
-            <span className="text-[10px] font-bold tracking-wider uppercase text-stone-600 truncate">
+          <div className="px-3 py-2 border-b border-[#E1DDCF]/60 flex items-center justify-between bg-[#ECE9DF]/60">
+            <span className="text-[10px] font-bold tracking-wider uppercase text-[#68645A] truncate">
               {cat.age_bracket ||
                 (cat.age_min !== null && cat.age_max !== null
                   ? `${cat.age_min}-${cat.age_max}`
@@ -428,14 +428,16 @@ export default function StagerBalancingClient({
                 className={`flex-1 flex items-center justify-center gap-1.5 py-1.5 px-2 rounded text-[10px] font-bold transition-all border whitespace-nowrap select-none cursor-pointer ${
                   stagerStatus === "calling"
                     ? "bg-amber-500 text-white border-amber-500 shadow-sm"
-                    : "bg-amber-100/60 text-amber-800 border-amber-300 hover:bg-amber-200"
+                    : stagerStatus === "ready"
+                ? "bg-white text-[#8C877C] border-[#E1DDCF] opacity-60 hover:opacity-80"
+                : "bg-white text-[#68645A] border-[#E1DDCF] hover:border-amber-400 hover:text-amber-700 hover:bg-amber-50/60"
                 } disabled:opacity-50`}
-                title="Mark as In Progress - notify others you're calling this category"
+                title={stagerStatus === "calling" ? "Currently marked In Progress — tap to clear" : "Mark as In Progress"}
               >
                 {isCallingLoading ? (
                   <span className="w-3 h-3 border-2 border-amber-600 border-t-transparent rounded-full animate-spin shrink-0" />
                 ) : (
-                  <span className="material-symbols-outlined text-[13px] shrink-0">notifications_active</span>
+                  <span className="material-symbols-outlined text-[13px] shrink-0" style={{ fontVariationSettings: stagerStatus === "calling" ? "'FILL' 1" : "'FILL' 0" }}>notifications</span>
                 )}
                 <span className="whitespace-nowrap">{stagerStatus === "calling" ? "In Progress ✓" : "In Progress"}</span>
               </button>
@@ -453,14 +455,16 @@ export default function StagerBalancingClient({
                 className={`flex-1 flex items-center justify-center gap-1.5 py-1.5 px-2 rounded text-[10px] font-bold transition-all border whitespace-nowrap select-none cursor-pointer ${
                   stagerStatus === "ready"
                     ? "bg-green-600 text-white border-green-600 shadow-sm"
-                    : "bg-green-100/60 text-green-800 border-green-300 hover:bg-green-200"
+                : stagerStatus === "calling"
+                ? "bg-white text-[#8C877C] border-[#E1DDCF] opacity-60 hover:opacity-80"
+                : "bg-white text-[#68645A] border-[#E1DDCF] hover:border-green-500 hover:text-green-700 hover:bg-green-50/60"
                 } disabled:opacity-50`}
-                title="Mark as Called - notify others this category is ready"
+                title={stagerStatus === "ready" ? "Currently marked Called — tap to clear" : "Mark as Called"}
               >
                 {isReadyLoading ? (
                   <span className="w-3 h-3 border-2 border-green-600 border-t-transparent rounded-full animate-spin shrink-0" />
                 ) : (
-                  <span className="material-symbols-outlined text-[13px] shrink-0">check_circle</span>
+                  <span className="material-symbols-outlined text-[13px] shrink-0" style={{ fontVariationSettings: stagerStatus === "ready" ? "'FILL' 1" : "'FILL' 0" }}>check_circle</span>
                 )}
                 <span className="whitespace-nowrap">{stagerStatus === "ready" ? "Called ✓" : "Called"}</span>
               </button>
@@ -533,14 +537,16 @@ export default function StagerBalancingClient({
             className={`flex-1 flex items-center justify-center gap-1.5 py-1.5 px-2 rounded text-[10px] font-bold transition-all border whitespace-nowrap select-none cursor-pointer ${
               stagerStatus === "calling"
                 ? "bg-amber-500 text-white border-amber-500 shadow-sm"
-                : "bg-amber-100/60 text-amber-800 border-amber-300 hover:bg-amber-200"
+                : stagerStatus === "ready"
+                ? "bg-[#FAF9F5] text-[#8C877C] border-[#E1DDCF] opacity-60 hover:opacity-80"
+                : "bg-[#FAF9F5] text-[#68645A] border-[#E1DDCF] hover:border-amber-400 hover:text-amber-700 hover:bg-amber-50/60"
             } disabled:opacity-50`}
-            title="Mark as In Progress - notify others you're calling this category"
+            title={stagerStatus === "calling" ? "Currently marked In Progress — tap to clear" : "Mark as In Progress"}
           >
             {isCallingLoading ? (
               <span className="w-3 h-3 border-2 border-amber-600 border-t-transparent rounded-full animate-spin shrink-0" />
             ) : (
-              <span className="material-symbols-outlined text-[13px] shrink-0">notifications_active</span>
+              <span className="material-symbols-outlined text-[13px] shrink-0" style={{ fontVariationSettings: stagerStatus === "calling" ? "'FILL' 1" : "'FILL' 0" }}>notifications</span>
             )}
             <span className="whitespace-nowrap">{stagerStatus === "calling" ? "In Progress ✓" : "In Progress"}</span>
           </button>
@@ -558,14 +564,16 @@ export default function StagerBalancingClient({
             className={`flex-1 flex items-center justify-center gap-1.5 py-1.5 px-2 rounded text-[10px] font-bold transition-all border whitespace-nowrap select-none cursor-pointer ${
               stagerStatus === "ready"
                 ? "bg-green-600 text-white border-green-600 shadow-sm"
-                : "bg-green-100/60 text-green-800 border-green-300 hover:bg-green-200"
+                : stagerStatus === "calling"
+                ? "bg-[#FAF9F5] text-[#8C877C] border-[#E1DDCF] opacity-60 hover:opacity-80"
+                : "bg-[#FAF9F5] text-[#68645A] border-[#E1DDCF] hover:border-green-500 hover:text-green-700 hover:bg-green-50/60"
             } disabled:opacity-50`}
-            title="Mark as Called - notify others this category is ready"
+            title={stagerStatus === "ready" ? "Currently marked Called — tap to clear" : "Mark as Called"}
           >
             {isReadyLoading ? (
               <span className="w-3 h-3 border-2 border-green-600 border-t-transparent rounded-full animate-spin shrink-0" />
             ) : (
-              <span className="material-symbols-outlined text-[13px] shrink-0">check_circle</span>
+              <span className="material-symbols-outlined text-[13px] shrink-0" style={{ fontVariationSettings: stagerStatus === "ready" ? "'FILL' 1" : "'FILL' 0" }}>check_circle</span>
             )}
             <span className="whitespace-nowrap">{stagerStatus === "ready" ? "Called ✓" : "Called"}</span>
           </button>
@@ -577,59 +585,74 @@ export default function StagerBalancingClient({
   // ── Main Render ────────────────────────────────────────────────────────────
   return (
     <div className="flex flex-col h-screen overflow-hidden w-full bg-surface">
-      {/* Top Nav - Slim Low-Profile Header */}
-      <header className="flex justify-between items-center w-full px-3 sm:px-6 h-11 sm:h-12 bg-surface-container-lowest border-b border-outline-variant shrink-0 z-10 gap-2">
-        <div className="flex items-center gap-2 sm:gap-3.5 min-w-0">
-          <span className="text-sm sm:text-base font-black text-primary tracking-tight shrink-0 whitespace-nowrap">Ring Flow</span>
-          <div className="h-3.5 sm:h-4 w-[1px] bg-outline-variant shrink-0" />
-          <div className="flex items-center gap-1.5 sm:gap-2 min-w-0">
-            <h2 className="text-xs sm:text-sm font-bold text-primary whitespace-nowrap">Tatami Board</h2>
-            <span className="text-outline-variant hidden sm:inline text-xs">/</span>
-            <span className="text-on-surface-variant text-[11px] sm:text-xs opacity-70 truncate max-w-[120px] sm:max-w-[200px] md:max-w-none whitespace-nowrap">
-              {tournamentName}
+      {/* TopNavBar - Stager Side Header matching Admin/Org Style */}
+      <header className="flex justify-between items-center w-full px-3.5 sm:px-6 h-[60px] bg-[#FAF9F5] border-b border-[#E1DDCF] shrink-0 z-10 gap-2 sm:gap-6">
+        {/* ─── Left: Breadcrumb ─── */}
+        <div className="flex items-center gap-1.5 sm:gap-2 text-[13px] sm:text-[13.5px] min-w-0">
+          <span
+            title={tournamentName}
+            className="text-[#8C877C] font-medium truncate max-w-[70px] min-[360px]:max-w-[95px] sm:max-w-[200px] md:max-w-[260px]"
+          >
+            {tournamentName}
+          </span>
+          <svg
+            className="w-3.5 h-3.5 text-[#8C877C] shrink-0"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2"
+          >
+            <path d="M9 18l6-6-6-6" />
+          </svg>
+          <span className="text-[#1B1815] font-semibold truncate shrink-0">Tatami Board</span>
+        </div>
+
+        {/* ─── Right: Stager Role Pill + CruxStudios Badge ─── */}
+        <div className="flex items-center gap-2 sm:gap-4 shrink-0">
+          {/* Stager Identity Unified Pill */}
+          <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-[#ECE9DF] border border-[#E1DDCF] shadow-2xs shrink-0 select-none">
+            <span className="relative flex h-2 w-2 shrink-0">
+              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />
+              <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-600" />
+            </span>
+            <span className="text-[9.5px] sm:text-[10px] font-black tracking-wider uppercase text-[#68645A] shrink-0">
+              STAGER
+            </span>
+            <span className="h-3 w-[1px] bg-[#D5D0C0] shrink-0" />
+            <span className="text-[12px] font-bold text-[#1B1815] capitalize truncate max-w-[65px] min-[360px]:max-w-[95px] sm:max-w-[150px] leading-none">
+              {currentStagerName}
             </span>
           </div>
-        </div>
-        <div className="flex items-center gap-2 sm:gap-3 shrink-0">
-          <div className="flex items-center gap-1 px-2 sm:px-2.5 py-0.5 sm:py-1 bg-secondary/10 rounded-full shrink-0">
-            <span className="w-1.5 h-1.5 rounded-full bg-secondary animate-pulse" />
-            <span className="text-[10px] sm:text-xs font-bold text-secondary whitespace-nowrap">STAGER</span>
-          </div>
-          <span className="text-xs sm:text-sm font-medium text-on-surface-variant truncate max-w-[90px] sm:max-w-none whitespace-nowrap">{currentStagerName}</span>
+
+          {/* CruxStudios Badge — matches admin/org style */}
+          <a
+            href="https://cruxstudios.dev"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="group flex items-center gap-1.5 sm:gap-2 text-[#1B1815] transition-all duration-200 shrink-0 py-1 cursor-pointer"
+          >
+            <div className="flex flex-col text-left leading-none gap-0.5">
+              <span className="font-['Inter',sans-serif] text-[9px] sm:text-[9.5px] font-semibold tracking-[0.06em] uppercase text-[#68645A] group-hover:text-[#00E5FF] group-hover:drop-shadow-[0_0_8px_rgba(0,229,255,0.7)] transition-all duration-200">
+                Built by
+              </span>
+              <img
+                src="/crux-studios.png"
+                alt="Crux Studios"
+                className="h-[15px] sm:h-[17px] w-auto object-contain shrink-0 mix-blend-multiply group-hover:drop-shadow-[0_0_12px_rgba(0,229,255,0.85)] transition-all duration-200"
+              />
+            </div>
+            <svg
+              className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-[#8C877C] group-hover:text-[#00E5FF] group-hover:drop-shadow-[0_0_8px_rgba(0,229,255,0.8)] group-hover:translate-x-0.5 group-hover:-translate-y-0.5 transition-all duration-200 shrink-0 ml-0.5"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2.5"
+            >
+              <path d="M7 17L17 7M17 7H7M17 7V17" />
+            </svg>
+          </a>
         </div>
       </header>
-
-      {/* Overview & Info Bar - Slim Responsive */}
-      <div className="bg-primary text-on-primary px-3 sm:px-6 py-1.5 sm:py-2 shrink-0 flex items-center justify-between gap-2 shadow-sm z-10 text-xs text-white/95">
-        <div className="flex items-center gap-1.5 sm:gap-2 min-w-0">
-          <span className="material-symbols-outlined text-[15px] sm:text-[17px] text-amber-300 shrink-0">info</span>
-          <p className="leading-tight text-[10.5px] sm:text-xs truncate sm:whitespace-normal">
-            Use <span className="font-bold text-amber-300">&apos;In Progress&apos;</span> and <span className="font-bold text-emerald-300">&apos;Called&apos;</span> to alert team
-          </p>
-        </div>
-
-        {/* Developed by CruxStudios Badge */}
-        <a
-          href="https://cruxstudios.dev"
-          target="_blank"
-          rel="noopener noreferrer"
-          className="group inline-flex items-center gap-1 sm:gap-1.5 px-2 sm:px-2.5 py-0.5 sm:py-1 rounded-full bg-white/10 hover:bg-white/20 text-[#F5F3EC] border border-white/20 hover:border-cyan-400/60 shadow-xs hover:-translate-y-0.5 transition-all duration-300 shrink-0"
-        >
-          <span className="font-['Inter',sans-serif] font-medium text-[9px] sm:text-[10px] text-white/80 group-hover:text-white transition-colors hidden xs:inline whitespace-nowrap">
-            Developed by
-          </span>
-          <div className="flex items-center gap-1">
-            <img
-              src="https://cruxstudios.dev/favicon.svg"
-              alt="CruxStudios"
-              className="h-3 sm:h-3.5 w-3 sm:w-3.5 drop-shadow-[0_0_6px_rgba(0,229,255,0.7)] group-hover:scale-110 transition-all duration-300"
-            />
-            <span className="font-['Plus_Jakarta_Sans',sans-serif] font-black text-[10px] sm:text-[11px] text-white tracking-tight group-hover:text-[#00E5FF] transition-colors whitespace-nowrap">
-              CruxStudios
-            </span>
-          </div>
-        </a>
-      </div>
 
       {/* Ring Grid */}
       <div className="flex-1 overflow-x-auto bg-surface-container-low flex p-3 sm:p-5 sm:pb-3 gap-3 sm:gap-5 items-start">
@@ -752,8 +775,7 @@ export default function StagerBalancingClient({
                           key={cat.id}
                           className="p-3 bg-white border border-outline-variant rounded-lg flex flex-col gap-1 shadow-sm relative overflow-hidden"
                         >
-                          <div className="absolute top-0 left-0 w-1 h-full bg-green-500"></div>
-                          <div className="flex justify-between items-center ml-2">
+                          <div className="flex justify-between items-center">
                             <span className="text-[10px] font-bold text-secondary uppercase tracking-wider">
                               {cat.age_bracket ||
                                 (cat.age_min !== null && cat.age_max !== null
@@ -769,7 +791,7 @@ export default function StagerBalancingClient({
                               {timeStr}
                             </span>
                           </div>
-                          <div className="flex justify-between items-center ml-2">
+                          <div className="flex justify-between items-center">
                             <h5 className="text-xs font-bold text-primary flex items-center gap-1">
                               {cat.name}
                               {cat.doc_url && (
@@ -788,7 +810,7 @@ export default function StagerBalancingClient({
                               )}
                             </h5>
                           </div>
-                          <div className="flex gap-4 text-[10px] font-data-mono text-outline ml-2">
+                          <div className="flex gap-4 text-[10px] font-data-mono text-outline">
                             <span className="flex items-center gap-1">
                               <span className="material-symbols-outlined text-[12px]">group</span>
                               {cat.athletes_count}
@@ -827,7 +849,7 @@ export default function StagerBalancingClient({
                         ? 'text-rose-200/80' 
                         : 'text-white/70'
                     }`}>
-                      {activeQueue.length} ACTIVE · {completedQueue.length} DONE
+                      {activeQueue.length} QUEUED · {completedQueue.length} DONE
                     </span>
                   </div>
                 </div>
@@ -901,7 +923,7 @@ export default function StagerBalancingClient({
           onClick={() => setConfirmModal(null)}
         >
           <div
-            className="bg-white border border-outline-variant/80 rounded-2xl p-5 w-full max-w-[320px] shadow-2xl space-y-3.5 animate-in zoom-in-95 duration-150 text-center"
+            className="bg-[#FAF9F5] border border-outline-variant/80 rounded-2xl p-5 w-full max-w-[320px] shadow-2xl space-y-3.5 animate-in zoom-in-95 duration-150 text-center"
             onClick={(e) => e.stopPropagation()}
           >
             {/* Minimal Icon */}

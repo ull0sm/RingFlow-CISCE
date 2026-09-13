@@ -854,14 +854,17 @@ export default function RingBalancingClient({
   return (
     <div className="flex flex-col overflow-hidden w-full h-[calc(100dvh-4rem)] md:h-screen">
       {/* TopNavBar - Shell v2 Header */}
-      <header className="flex justify-between items-center w-full px-4 sm:px-6 h-[60px] bg-white border-b border-[#E7EAEF] shrink-0 z-10 gap-3 sm:gap-6">
+      <header className="flex justify-between items-center w-full px-4 sm:px-6 h-[60px] bg-[#FAF9F5] border-b border-[#E1DDCF] shrink-0 z-10 gap-3 sm:gap-6">
         {/* Left: Breadcrumb */}
-        <div className="flex items-center gap-1.5 sm:gap-2 text-[13.5px] flex-shrink-0 min-w-0">
-          <span className="text-[#94A3B8] font-medium truncate max-w-[120px] sm:max-w-[200px] md:max-w-[260px]">
+        <div className="flex items-center gap-1.5 sm:gap-2 text-[13px] sm:text-[13.5px] min-w-0">
+          <span
+            title={tournamentName}
+            className="text-[#8C877C] font-medium truncate max-w-[80px] min-[380px]:max-w-[105px] sm:max-w-[200px] md:max-w-[260px]"
+          >
             {tournamentName}
           </span>
           <svg
-            className="w-3.5 h-3.5 text-[#94A3B8] shrink-0"
+            className="w-3.5 h-3.5 text-[#8C877C] shrink-0"
             viewBox="0 0 24 24"
             fill="none"
             stroke="currentColor"
@@ -869,11 +872,13 @@ export default function RingBalancingClient({
           >
             <path d="M9 18l6-6-6-6" />
           </svg>
-          <span className="text-[#0F172A] font-semibold truncate">Tatami Balancing</span>
+          <span className="text-[#1B1815] font-semibold truncate shrink-0">Tatami Balancing</span>
         </div>
 
         {/* Center: Live Interactive Search Bar */}
-        <HeaderSearchBar tournamentId={tournamentId} role={readOnly ? "organiser" : "admin"} className="hidden md:flex" />
+        {!readOnly && (
+          <HeaderSearchBar tournamentId={tournamentId} role="admin" className="hidden md:flex" />
+        )}
 
         {/* Right: Built by Crux Studios Badge */}
         <div className="flex items-center shrink-0">
@@ -881,10 +886,10 @@ export default function RingBalancingClient({
             href="https://cruxstudios.dev"
             target="_blank"
             rel="noopener noreferrer"
-            className="group flex items-center gap-2 text-[#0F172A] transition-all duration-200 shrink-0 py-1 cursor-pointer"
+            className="group flex items-center gap-2 text-[#1B1815] transition-all duration-200 shrink-0 py-1 cursor-pointer"
           >
             <div className="flex flex-col text-left leading-none gap-0.5">
-              <span className="font-['Inter',sans-serif] text-[9.5px] font-semibold tracking-[0.06em] uppercase text-[#64748B] group-hover:text-[#00E5FF] group-hover:drop-shadow-[0_0_8px_rgba(0,229,255,0.7)] transition-all duration-200">
+              <span className="font-['Inter',sans-serif] text-[9.5px] font-semibold tracking-[0.06em] uppercase text-[#68645A] group-hover:text-[#00E5FF] group-hover:drop-shadow-[0_0_8px_rgba(0,229,255,0.7)] transition-all duration-200">
                 Built by
               </span>
               <img
@@ -894,7 +899,7 @@ export default function RingBalancingClient({
               />
             </div>
             <svg
-              className="w-4 h-4 text-[#94A3B8] group-hover:text-[#00E5FF] group-hover:drop-shadow-[0_0_8px_rgba(0,229,255,0.8)] group-hover:translate-x-0.5 group-hover:-translate-y-0.5 transition-all duration-200 shrink-0 ml-0.5"
+              className="w-4 h-4 text-[#8C877C] group-hover:text-[#00E5FF] group-hover:drop-shadow-[0_0_8px_rgba(0,229,255,0.8)] group-hover:translate-x-0.5 group-hover:-translate-y-0.5 transition-all duration-200 shrink-0 ml-0.5"
               viewBox="0 0 24 24"
               fill="none"
               stroke="currentColor"
@@ -906,99 +911,11 @@ export default function RingBalancingClient({
         </div>
       </header>
 
-      {/* Tournament Overview Bar - Centered Balanced Strip */}
-      <div className="bg-primary text-on-primary px-3 sm:px-6 py-1 sm:py-1.5 shrink-0 shadow-sm z-10 w-full relative">
-        <div className="flex items-center justify-between w-full relative">
-          {/* 3 Stats: Centered in the bar, occupying equal 1/3 space each */}
-          <div className="w-full max-w-xl sm:max-w-2xl lg:max-w-3xl mx-auto grid grid-cols-3 divide-x divide-white/20">
-            {/* Stat 1: Completed Categories */}
-            <div className="flex flex-col items-center justify-center text-center px-2 min-w-0">
-              <span className="text-[8.5px] sm:text-[9.5px] font-label-caps opacity-60 tracking-wider whitespace-nowrap">CATEGORIES</span>
-              <div className="flex items-baseline justify-center gap-1 mt-0.5">
-                <span className="font-data-mono text-xs sm:text-sm font-bold whitespace-nowrap">{completedCategoriesCount} / {totalCategoriesCount}</span>
-                <span className="text-[8px] opacity-60 font-label-caps hidden sm:inline">DONE</span>
-              </div>
-            </div>
-
-            {/* Stat 2: Completed Matches */}
-            <div className="flex flex-col items-center justify-center text-center px-2 min-w-0">
-              <span className="text-[8.5px] sm:text-[9.5px] font-label-caps opacity-60 tracking-wider whitespace-nowrap">MATCHES</span>
-              <div className="flex items-baseline justify-center gap-1 mt-0.5">
-                <span className="font-data-mono text-xs sm:text-sm font-bold whitespace-nowrap">{overallCompletedMatches} / {overallTotalExpectedMatches}</span>
-              </div>
-            </div>
-
-            {/* Stat 3: Overall Progress */}
-            <div className="flex flex-col items-center justify-center text-center px-2 min-w-0">
-              <div className="w-full max-w-[130px] sm:max-w-[160px] flex flex-col items-center">
-                <div className="w-full flex items-center justify-between gap-1.5">
-                  <span className="text-[8.5px] sm:text-[9.5px] font-label-caps opacity-60 tracking-wider whitespace-nowrap">PROGRESS</span>
-                  <span className="font-data-mono text-[11px] sm:text-xs font-bold text-secondary whitespace-nowrap">{overallProgressPct}%</span>
-                </div>
-                <div className="w-full bg-white/20 h-1 sm:h-1.5 rounded-full overflow-hidden mt-0.5">
-                  <div
-                    className="bg-secondary h-full rounded-full transition-all duration-500"
-                    style={{ width: `${Math.min(100, Math.max(0, overallProgressPct))}%` }}
-                  />
-                </div>
-              </div>
-            </div>
-          </div>
-
-          {!readOnly && (
-            <div className="sm:absolute sm:right-0 flex items-center gap-2 sm:gap-3 shrink-0 pl-2">
-              <div className="flex flex-col">
-                <span className="text-[8px] sm:text-[8.5px] font-label-caps opacity-60">SYNC MODE</span>
-                <button
-                  onClick={() => setAutoSave(!autoSave)}
-                  className={`flex items-center gap-1 px-2 py-0.5 rounded text-[11px] font-bold transition-all border ${autoSave
-                      ? 'bg-secondary/20 border-secondary text-white'
-                      : 'bg-white/5 border-outline-variant/40 text-on-primary/70 hover:bg-white/10'
-                    }`}
-                  title="Toggle Auto Sync after drag and drop"
-                >
-                  <span className={`w-1.5 h-1.5 rounded-full ${autoSave ? 'bg-secondary animate-pulse' : 'bg-outline-variant'}`}></span>
-                  <span className="font-label-caps text-[9px] sm:text-[10px] whitespace-nowrap">{autoSave ? "AUTO SYNC" : "MANUAL"}</span>
-                </button>
-              </div>
-
-              {/* Show Save button only when Auto-Save is OFF */}
-              {!autoSave && (
-                <div className="flex flex-col">
-                  <span className="text-[8px] sm:text-[8.5px] font-label-caps opacity-60">ACTIONS</span>
-                  <button
-                    onClick={handleSave}
-                    disabled={isSaving}
-                    className="bg-secondary text-white px-2.5 py-0.5 rounded text-[11px] font-bold hover:opacity-90 disabled:opacity-50 flex items-center gap-1 shadow-xs cursor-pointer whitespace-nowrap"
-                  >
-                    {isSaving && <span className="w-2.5 h-2.5 border-2 border-white border-t-transparent rounded-full animate-spin"></span>}
-                    {isSaving ? "SAVING..." : "SAVE"}
-                  </button>
-                </div>
-              )}
-
-              {/* Design-System Aligned Status Cue */}
-              {saveStatusText && (
-                <div className="flex items-center gap-1 px-2 py-0.5 bg-secondary text-white text-[11px] font-bold rounded shadow-xs shrink-0">
-                  <span className="material-symbols-outlined text-[13px]">sync</span>
-                  <span className="font-label-caps text-[9px] sm:text-[10px] tracking-wider whitespace-nowrap">{saveStatusText}</span>
-                </div>
-              )}
-              {!saveStatusText && lastSaved && (
-                <span className="text-[9px] sm:text-[10px] opacity-70 font-data-mono hidden xl:inline whitespace-nowrap">
-                  Synced {lastSaved.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })}
-                </span>
-              )}
-            </div>
-          )}
-        </div>
-      </div>
-
       <DragDropContext onDragEnd={onDragEnd}>
         {/* Main Content Area */}
         <div className="flex-1 flex overflow-hidden w-full relative">
 
-          {/* Left Sidebar: Category Pool (distinct bordered card matching Tatami board aesthetic) */}
+          {/* Left Sidebar: Category Pool (Full vertical height directly below header) */}
           <section
             className={`h-full flex flex-col bg-surface-container-low shrink-0 relative transition-[width] duration-300 ease-in-out z-20 ${mobileShowPool
                 ? "w-[85vw] max-w-[340px] md:w-80 shadow-lg md:shadow-none p-2 sm:p-4 sm:pr-0"
@@ -1024,18 +941,18 @@ export default function RingBalancingClient({
 
             {/* Inner Content Container - Distinct Bordered Card */}
             <div
-              className={`w-full flex flex-col h-full bg-white border border-[#D8DCE3] rounded-xl overflow-hidden shadow-xs transition-opacity duration-200 ${mobileShowPool
+              className={`w-full flex flex-col h-full bg-white border border-[#E1DDCF] rounded-xl overflow-hidden shadow-xs transition-opacity duration-200 ${mobileShowPool
                   ? "opacity-100"
                   : "opacity-0 md:opacity-100 pointer-events-none md:pointer-events-auto"
                 }`}
             >
               {/* Panel Head - Fixed Height & Sleek */}
-              <div className="flex items-center justify-between px-3 h-[38px] border-b border-[#E7EAEF] bg-white shrink-0">
+              <div className="flex items-center justify-between px-3 h-[38px] border-b border-[#E1DDCF] bg-[#FAF9F5] shrink-0">
                 <div className="flex items-center gap-1.5 min-w-0">
-                  <h3 className="text-[13px] font-bold text-[#0F172A] tracking-tight leading-none">
+                  <h3 className="text-[13px] font-bold text-[#1B1815] tracking-tight leading-none">
                     {statusFilter === "idle" ? "Unassigned" : statusFilter === "queue" ? "In Queue" : "Completed"}
                   </h3>
-                  <span className="bg-[#F1F3F5] text-[#64748B] text-[10px] font-bold px-1.5 py-0.5 rounded-full font-mono leading-none">
+                  <span className="bg-[#ECE9DF] text-[#68645A] text-[10px] font-bold px-1.5 py-0.5 rounded-full font-mono leading-none">
                     {statusFilter === "idle" ? visibleUnassigned.length : statusFilter === "queue" ? queuedCategories.length : allCompletedCategories.length}
                   </span>
                 </div>
@@ -1063,7 +980,7 @@ export default function RingBalancingClient({
                       togglePool();
                     }}
                     type="button"
-                    className="md:hidden p-1 rounded-md text-[#64748B] hover:bg-[#F1F3F5] transition-colors cursor-pointer"
+                    className="md:hidden p-1 rounded-md text-[#68645A] hover:bg-[#ECE9DF] transition-colors cursor-pointer"
                     title="Shrink sidebar"
                   >
                     <span className="material-symbols-outlined text-[16px] leading-none">chevron_left</span>
@@ -1072,10 +989,10 @@ export default function RingBalancingClient({
               </div>
 
               {/* Panel Body: Thinned Search, Segmented Tabs, Filter & Sort Rows */}
-              <div className="px-3 py-2 bg-white border-b border-[#E7EAEF] flex flex-col shrink-0">
+              <div className="px-3 py-2 bg-[#FAF9F5] border-b border-[#E1DDCF] flex flex-col shrink-0">
                 {/* Search Bar - Sleek & Compact */}
-                <div className="flex items-center gap-1.5 px-2.5 py-1.5 border border-[#D8DCE3] rounded-[7px] bg-[#FBFBFC] mb-1.5 focus-within:border-[#0E9C7C] focus-within:ring-1 focus-within:ring-[#0E9C7C]/20 transition-all relative">
-                  <svg className="w-3.5 h-3.5 text-[#94A3B8] shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <div className="flex items-center gap-1.5 px-2.5 py-1.5 border border-[#E1DDCF] rounded-[7px] bg-white mb-1.5 focus-within:border-[#0E9C7C] focus-within:ring-1 focus-within:ring-[#0E9C7C]/20 transition-all relative">
+                  <svg className="w-3.5 h-3.5 text-[#8C877C] shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                     <circle cx="11" cy="11" r="7"/>
                     <path d="M21 21l-4.3-4.3"/>
                   </svg>
@@ -1084,13 +1001,13 @@ export default function RingBalancingClient({
                     placeholder="Search categories…"
                     value={search}
                     onChange={e => setSearch(e.target.value)}
-                    className="border-none outline-none bg-transparent text-[12px] text-[#0F172A] placeholder-[#94A3B8] w-full font-inherit"
+                    className="border-none outline-none bg-transparent text-[12px] text-[#1B1815] placeholder-[#8C877C] w-full font-inherit"
                   />
                   {search && (
                     <button
                       type="button"
                       onClick={() => setSearch("")}
-                      className="text-[#94A3B8] hover:text-[#0F172A] cursor-pointer text-xs p-0.5"
+                      className="text-[#8C877C] hover:text-[#1B1815] cursor-pointer text-xs p-0.5"
                       title="Clear search"
                     >
                       ×
@@ -1099,7 +1016,7 @@ export default function RingBalancingClient({
                 </div>
 
                 {/* Segmented Control - Thin */}
-                <div className="flex bg-[#F1F3F5] rounded-[7px] p-[2px] mb-1.5">
+                <div className="flex bg-[#ECE9DF] rounded-[7px] p-[2px] mb-1.5">
                   {(["idle", "queue", "completed"] as const).map(tab => (
                     <button
                       key={tab}
@@ -1107,8 +1024,8 @@ export default function RingBalancingClient({
                       onClick={() => setStatusFilter(tab)}
                       className={`flex-1 border-none py-1 rounded-[5px] text-[11.5px] font-semibold transition-all cursor-pointer capitalize ${
                         statusFilter === tab
-                          ? 'bg-white text-[#0F172A] shadow-[0_1px_2px_rgba(15,23,42,0.08)] font-bold'
-                          : 'text-[#64748B] hover:text-[#0F172A]'
+                          ? 'bg-[#FAF9F5] text-[#1B1815] shadow-[0_1px_2px_rgba(27,24,21,0.08)] font-bold'
+                          : 'text-[#68645A] hover:text-[#1B1815]'
                       }`}
                     >
                       {tab === "idle" ? "Idle" : tab === "queue" ? "Queue" : "Completed"}
@@ -1123,19 +1040,19 @@ export default function RingBalancingClient({
                     <div className={`grid ${uniqueBelts.length > 0 ? "grid-cols-3" : "grid-cols-2"} gap-1.5`}>
                       {/* Age Column */}
                       <div className="min-w-0">
-                        <label className="text-[9px] font-bold text-[#94A3B8] tracking-[0.3px] mb-0.5 block uppercase leading-none">
+                        <label className="text-[9px] font-bold text-[#8C877C] tracking-[0.3px] mb-0.5 block uppercase leading-none">
                           Age
                         </label>
                         <div className="relative">
                           <select
                             value={ageFilter}
                             onChange={e => setAgeFilter(e.target.value)}
-                            className="appearance-none w-full border border-[#D8DCE3] hover:border-[#94A3B8] rounded-[7px] bg-white py-1 pl-2 pr-5 text-[11.5px] font-medium text-[#0F172A] outline-none transition-colors cursor-pointer truncate"
+                            className="appearance-none w-full border border-[#E1DDCF] hover:border-[#8C877C] rounded-[7px] bg-white py-1 pl-2 pr-5 text-[11.5px] font-medium text-[#1B1815] outline-none transition-colors cursor-pointer truncate"
                           >
                             <option value="">All ages</option>
                             {uniqueAges.map(a => <option key={a as string} value={a as string}>{a}</option>)}
                           </select>
-                          <svg className="w-2.5 h-2.5 text-[#94A3B8] absolute right-1.5 top-1/2 -translate-y-1/2 pointer-events-none" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                          <svg className="w-2.5 h-2.5 text-[#8C877C] absolute right-1.5 top-1/2 -translate-y-1/2 pointer-events-none" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                             <path d="M6 9l6 6 6-6"/>
                           </svg>
                         </div>
@@ -1144,19 +1061,19 @@ export default function RingBalancingClient({
                       {/* Belt Column (if applicable) */}
                       {uniqueBelts.length > 0 && (
                         <div className="min-w-0">
-                          <label className="text-[9px] font-bold text-[#94A3B8] tracking-[0.3px] mb-0.5 block uppercase leading-none">
+                          <label className="text-[9px] font-bold text-[#8C877C] tracking-[0.3px] mb-0.5 block uppercase leading-none">
                             Belt
                           </label>
                           <div className="relative">
                             <select
                               value={beltFilter}
                               onChange={e => setBeltFilter(e.target.value)}
-                              className="appearance-none w-full border border-[#D8DCE3] hover:border-[#94A3B8] rounded-[7px] bg-white py-1 pl-2 pr-5 text-[11.5px] font-medium text-[#0F172A] outline-none transition-colors cursor-pointer truncate"
+                              className="appearance-none w-full border border-[#E1DDCF] hover:border-[#8C877C] rounded-[7px] bg-white py-1 pl-2 pr-5 text-[11.5px] font-medium text-[#1B1815] outline-none transition-colors cursor-pointer truncate"
                             >
                               <option value="">All Belts</option>
                               {uniqueBelts.map(b => <option key={b as string} value={b as string}>{b}</option>)}
                             </select>
-                            <svg className="w-2.5 h-2.5 text-[#94A3B8] absolute right-1.5 top-1/2 -translate-y-1/2 pointer-events-none" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                            <svg className="w-2.5 h-2.5 text-[#8C877C] absolute right-1.5 top-1/2 -translate-y-1/2 pointer-events-none" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                               <path d="M6 9l6 6 6-6"/>
                             </svg>
                           </div>
@@ -1165,19 +1082,19 @@ export default function RingBalancingClient({
 
                       {/* Sex Column */}
                       <div className="min-w-0">
-                        <label className="text-[9px] font-bold text-[#94A3B8] tracking-[0.3px] mb-0.5 block uppercase leading-none">
+                        <label className="text-[9px] font-bold text-[#8C877C] tracking-[0.3px] mb-0.5 block uppercase leading-none">
                           Sex
                         </label>
                         <div className="relative">
                           <select
                             value={sexFilter}
                             onChange={e => setSexFilter(e.target.value)}
-                            className="appearance-none w-full border border-[#D8DCE3] hover:border-[#94A3B8] rounded-[7px] bg-white py-1 pl-2 pr-5 text-[11.5px] font-medium text-[#0F172A] outline-none transition-colors cursor-pointer truncate"
+                            className="appearance-none w-full border border-[#E1DDCF] hover:border-[#8C877C] rounded-[7px] bg-white py-1 pl-2 pr-5 text-[11.5px] font-medium text-[#1B1815] outline-none transition-colors cursor-pointer truncate"
                           >
                             <option value="">Any</option>
                             {uniqueSexes.map(s => <option key={s as string} value={s as string}>{s}</option>)}
                           </select>
-                          <svg className="w-2.5 h-2.5 text-[#94A3B8] absolute right-1.5 top-1/2 -translate-y-1/2 pointer-events-none" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                          <svg className="w-2.5 h-2.5 text-[#8C877C] absolute right-1.5 top-1/2 -translate-y-1/2 pointer-events-none" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                             <path d="M6 9l6 6 6-6"/>
                           </svg>
                         </div>
@@ -1190,13 +1107,13 @@ export default function RingBalancingClient({
                         <select
                           value={sortBy}
                           onChange={e => setSortBy(e.target.value as any)}
-                          className="appearance-none w-full border border-[#D8DCE3] hover:border-[#94A3B8] rounded-[7px] bg-white py-1 pl-2 pr-6 text-[11.5px] font-medium text-[#0F172A] outline-none transition-colors cursor-pointer"
+                          className="appearance-none w-full border border-[#E1DDCF] hover:border-[#8C877C] rounded-[7px] bg-white py-1 pl-2 pr-6 text-[11.5px] font-medium text-[#1B1815] outline-none transition-colors cursor-pointer"
                         >
                           <option value="name">Sort: Name</option>
                           <option value="athletes">Sort: Athletes</option>
                           <option value="weight">Sort: Weight</option>
                         </select>
-                        <svg className="w-3 h-3 text-[#94A3B8] absolute right-2 top-1/2 -translate-y-1/2 pointer-events-none" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                        <svg className="w-3 h-3 text-[#8C877C] absolute right-2 top-1/2 -translate-y-1/2 pointer-events-none" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                           <path d="M6 9l6 6 6-6"/>
                         </svg>
                       </div>
@@ -1204,12 +1121,12 @@ export default function RingBalancingClient({
                       <button
                         type="button"
                         onClick={() => setSortOrder(sortOrder === "asc" ? "desc" : "asc")}
-                        className="flex items-center gap-1 border border-[#D8DCE3] hover:border-[#94A3B8] rounded-[7px] bg-white hover:bg-[#FBFBFC] py-1 px-2 text-[11px] font-bold text-[#0F172A] transition-colors cursor-pointer shrink-0 shadow-2xs"
+                        className="flex items-center gap-1 border border-[#E1DDCF] hover:border-[#8C877C] rounded-[7px] bg-[#FAF9F5] hover:bg-[#ECE9DF] py-1 px-2 text-[11px] font-bold text-[#1B1815] transition-colors cursor-pointer shrink-0 shadow-2xs"
                         title={sortOrder === "asc" ? "Ascending (click for Descending)" : "Descending (click for Ascending)"}
                       >
                         <span className="font-mono">{sortOrder === "asc" ? "ASC" : "DESC"}</span>
                         <svg
-                          className={`w-3 h-3 text-[#64748B] transition-transform duration-200 ${sortOrder === "desc" ? "rotate-180" : ""}`}
+                          className={`w-3 h-3 text-[#68645A] transition-transform duration-200 ${sortOrder === "desc" ? "rotate-180" : ""}`}
                           viewBox="0 0 24 24"
                           fill="none"
                           stroke="currentColor"
@@ -1230,7 +1147,7 @@ export default function RingBalancingClient({
                     <div
                       ref={provided.innerRef}
                       {...provided.droppableProps}
-                      className={`flex-1 overflow-y-auto p-2.5 space-y-2 bg-[#F8FAFC] ${snapshot.isDraggingOver ? 'bg-secondary/5' : ''}`}
+                      className={`flex-1 overflow-y-auto p-2.5 space-y-2 bg-white ${snapshot.isDraggingOver ? 'bg-secondary/5' : ''}`}
                     >
                       {visibleUnassigned.map((cat, index) => (
                         <Draggable key={cat.id} draggableId={cat.id} index={index} isDragDisabled={readOnly}>
@@ -1239,7 +1156,7 @@ export default function RingBalancingClient({
                               ref={provided.innerRef}
                               {...provided.draggableProps}
                               {...provided.dragHandleProps}
-                              className={`p-2.5 bg-white border ${snapshot.isDragging ? 'border-secondary shadow-lg' : 'border-outline-variant/70 shadow-2xs hover:border-slate-300'} rounded-lg ${!readOnly ? 'cursor-grab active:cursor-grabbing' : ''}`}
+                              className={`p-2.5 bg-white border ${snapshot.isDragging ? 'border-secondary shadow-lg' : 'border-outline-variant/70 shadow-2xs hover:border-[#A19C90]'} rounded-lg ${!readOnly ? 'cursor-grab active:cursor-grabbing' : ''}`}
                             >
                               <div className="flex justify-between items-start mb-1.5">
                                 <div className="flex gap-1 flex-wrap">
@@ -1334,7 +1251,7 @@ export default function RingBalancingClient({
                 </Droppable>
               ) : (
                 /* Queue / Completed view: read-only greyed cards (compact) */
-                <div className="flex-1 overflow-y-auto p-2.5 space-y-2 bg-[#F8FAFC]">
+                <div className="flex-1 overflow-y-auto p-2.5 space-y-2 bg-white">
                   {sidebarCategoriesToShow.length === 0 && (
                     Boolean(search.trim()) ? (
                       <div className="flex flex-col items-center justify-center text-center py-5 px-3 bg-rose-50/75 border border-rose-200/80 rounded-xl my-2 mx-1 shadow-2xs">
@@ -1368,7 +1285,9 @@ export default function RingBalancingClient({
                         </div>
                         <div className="text-[11px] text-[#94A3B8] max-w-[200px] leading-snug">
                           {statusFilter === "queue"
-                            ? "Drag categories into a tatami ring to queue them up."
+                            ? readOnly
+                              ? "No categories currently assigned to any tatami."
+                              : "Drag categories into a tatami ring to queue them up."
                             : "Finished categories will appear here once marked completed."}
                         </div>
                       </div>
@@ -1476,14 +1395,115 @@ export default function RingBalancingClient({
             </div>
           </section>
 
-          {/* Horizontal Scrollable Ring Grid */}
-          <section className="flex-1 overflow-x-auto bg-surface-container-low flex p-3 sm:p-5 sm:pb-3 gap-3 sm:gap-5 items-start">
+          {/* Right Workspace: Shrunken & Centered Overview Bar + Ring Grid */}
+          <div className="flex-1 flex flex-col overflow-hidden min-w-0 h-full">
+            {/* Tournament Overview Bar - Shrunken, Centered in Remaining Space with Border Start & End */}
+            <div className="w-full flex items-center justify-center shrink-0 z-10 bg-surface-container-low px-2 sm:px-4">
+              <div className="bg-white border-s border-e border-b border-outline-variant rounded-b-xl shadow-xs px-3 sm:px-6 py-1.5 sm:py-2 w-full max-w-xl sm:max-w-2xl lg:max-w-3xl flex items-center justify-between gap-2 sm:gap-4">
+                {/* 3 Stats: Centered Telemetry */}
+                <div className="flex-1 max-w-xl sm:max-w-2xl lg:max-w-3xl mx-auto grid grid-cols-3 divide-x divide-outline-variant">
+                  {/* Stat 1: Completed Categories */}
+                  <div className="flex flex-col items-center justify-center text-center px-1.5 sm:px-2 min-w-0">
+                    <span className="text-[8.5px] sm:text-[9.5px] font-bold tracking-widest uppercase text-on-surface-variant whitespace-nowrap">Categories</span>
+                    <div className="flex items-baseline justify-center gap-1 mt-0.5">
+                      <span className="font-data-mono text-[13px] sm:text-sm font-black text-on-surface whitespace-nowrap">{completedCategoriesCount}</span>
+                      <span className="text-[11px] font-bold text-outline-variant">/</span>
+                      <span className="font-data-mono text-[12px] sm:text-[13px] font-bold text-on-surface-variant whitespace-nowrap">{totalCategoriesCount}</span>
+                      {completedCategoriesCount === totalCategoriesCount && totalCategoriesCount > 0 && (
+                        <span className="text-[7.5px] font-extrabold uppercase px-1 py-0.2 bg-emerald-50 text-emerald-700 rounded border border-emerald-200 ml-0.5 hidden sm:inline">DONE</span>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Stat 2: Completed Matches */}
+                  <div className="flex flex-col items-center justify-center text-center px-1.5 sm:px-2 min-w-0">
+                    <span className="text-[8.5px] sm:text-[9.5px] font-bold tracking-widest uppercase text-on-surface-variant whitespace-nowrap">Matches</span>
+                    <div className="flex items-baseline justify-center gap-1 mt-0.5">
+                      <span className="font-data-mono text-[13px] sm:text-sm font-black text-on-surface whitespace-nowrap">{overallCompletedMatches}</span>
+                      <span className="text-[11px] font-bold text-outline-variant">/</span>
+                      <span className="font-data-mono text-[12px] sm:text-[13px] font-bold text-on-surface-variant whitespace-nowrap">{overallTotalExpectedMatches}</span>
+                    </div>
+                  </div>
+
+                  {/* Stat 3: Overall Progress */}
+                  <div className="flex flex-col items-center justify-center text-center px-1.5 sm:px-2 min-w-0">
+                    <div className="w-full max-w-[120px] sm:max-w-[150px] flex flex-col items-center">
+                      <div className="w-full flex items-center justify-between gap-1.5">
+                        <span className="text-[8.5px] sm:text-[9.5px] font-bold tracking-widest uppercase text-on-surface-variant whitespace-nowrap">Progress</span>
+                        <span className="font-data-mono text-[11px] sm:text-xs font-black text-secondary whitespace-nowrap">
+                          {overallProgressPct}%
+                        </span>
+                      </div>
+                      <div className="w-full bg-surface-container-highest border border-outline-variant/60 h-1.5 rounded-full overflow-hidden mt-1">
+                        <div
+                          className="h-full bg-secondary rounded-full transition-all duration-700 ease-out"
+                          style={{
+                            width: `${Math.min(100, Math.max(0, overallProgressPct))}%`,
+                          }}
+                        />
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {!readOnly && (
+                  <div className="flex items-center gap-2 sm:gap-3 shrink-0">
+                    <div className="flex flex-col items-start gap-0.5">
+                      <span className="text-[7.5px] sm:text-[8px] font-semibold tracking-widest uppercase text-on-surface-variant">Sync</span>
+                      <button
+                        onClick={() => setAutoSave(!autoSave)}
+                        className={`flex items-center gap-1 px-2 py-0.5 rounded-md text-[11px] font-bold transition-all border ${autoSave
+                            ? 'bg-emerald-50 border-emerald-300 text-emerald-700 hover:bg-emerald-100'
+                            : 'bg-surface-container-lowest border-outline-variant text-on-surface-variant hover:bg-surface-container hover:text-on-surface'
+                          }`}
+                        title="Toggle Auto Sync after drag and drop"
+                      >
+                        <span className={`w-1.5 h-1.5 rounded-full ${autoSave ? 'bg-emerald-500' : 'bg-outline'}`}></span>
+                        <span className="text-[9px] sm:text-[10px] whitespace-nowrap font-bold tracking-wide">{autoSave ? "AUTO" : "MANUAL"}</span>
+                      </button>
+                    </div>
+
+                    {/* Save button only when Auto-Save is OFF */}
+                    {!autoSave && (
+                      <div className="flex flex-col items-start gap-0.5">
+                        <span className="text-[7.5px] sm:text-[8px] font-semibold tracking-widest uppercase text-on-surface-variant">Actions</span>
+                        <button
+                          onClick={handleSave}
+                          disabled={isSaving}
+                          className="bg-secondary hover:bg-secondary/90 text-white px-2.5 py-0.5 rounded-md text-[10px] sm:text-[11px] font-bold disabled:opacity-50 flex items-center gap-1 cursor-pointer whitespace-nowrap transition-colors"
+                        >
+                          {isSaving && <span className="w-2.5 h-2.5 border-2 border-white border-t-transparent rounded-full animate-spin"></span>}
+                          {isSaving ? "Save" : "Save"}
+                        </button>
+                      </div>
+                    )}
+
+                    {/* Save status cue */}
+                    {saveStatusText && (
+                      <div className="flex items-center gap-1 px-2 py-0.5 bg-secondary/10 border border-secondary/30 text-secondary text-[11px] font-bold rounded-md shadow-xs shrink-0">
+                        <span className="material-symbols-outlined text-[13px]">sync</span>
+                        <span className="text-[9px] sm:text-[10px] tracking-wider whitespace-nowrap font-bold">{saveStatusText}</span>
+                      </div>
+                    )}
+                    {!saveStatusText && lastSaved && (
+                      <span className="text-[9px] sm:text-[10px] text-on-surface-variant font-data-mono hidden xl:inline whitespace-nowrap">
+                        Synced {lastSaved.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })}
+                      </span>
+                    )}
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* Horizontal Scrollable Ring Grid */}
+            <section className="flex-1 overflow-x-auto bg-surface-container-low flex p-3 sm:p-5 sm:pb-3 gap-3 sm:gap-5 items-start">
             {initialRings.map(ring => {
               const overloaded = isOverloaded(ring.id);
               const isHistoryView = historyOpenForRing === ring.id;
 
               // Derive live status of this Tatami
               const ringCats = ringQueues[ring.id] || [];
+              const completedCats = ringCompletedQueues[ring.id] || [];
               const runningCat = ringCats.find(c => assignmentsMap[c.id]?.status === 'running');
               const pausedCat = !runningCat ? ringCats.find(c => assignmentsMap[c.id]?.status === 'paused') : null;
               const isRingRunning = Boolean(runningCat);
@@ -1571,8 +1591,7 @@ export default function RingBalancingClient({
                           const timeStr = rawTime ? new Date(rawTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : 'Completed';
                           return (
                             <div key={cat.id} className="p-3 bg-surface-container-lowest border border-outline-variant rounded-lg flex flex-col gap-1 shadow-sm relative overflow-hidden">
-                              <div className="absolute top-0 left-0 w-1 h-full bg-green-500"></div>
-                              <div className="flex justify-between items-center ml-2">
+                              <div className="flex justify-between items-center">
                                 <span className="text-[10px] font-bold text-secondary uppercase tracking-wider">
                                   {(cat.age_bracket || (cat.age_min !== null && cat.age_max !== null ? `${cat.age_min}-${cat.age_max}` : ""))} | {cat.weight_class || cat.belt || "-"}
                                 </span>
@@ -1581,7 +1600,7 @@ export default function RingBalancingClient({
                                   {timeStr}
                                 </span>
                               </div>
-                              <div className="flex justify-between items-center ml-2">
+                              <div className="flex justify-between items-center">
                                 <h5 className="text-xs font-bold text-primary flex items-center gap-1">
                                   {cat.name}
                                   {cat.doc_url && (
@@ -1613,7 +1632,7 @@ export default function RingBalancingClient({
                                   )}
                                 </div>
                               </div>
-                              <div className="flex gap-4 text-[10px] font-data-mono text-outline ml-2">
+                              <div className="flex gap-4 text-[10px] font-data-mono text-outline">
                                 <span className="flex items-center gap-1"><span className="material-symbols-outlined text-[12px]">group</span> {cat.athletes_count}</span>
                                 <span>{cat.expected_matches} Matches</span>
                               </div>
@@ -1629,7 +1648,7 @@ export default function RingBalancingClient({
               return (
                 <div key={ring.id} className="w-[85vw] max-w-[360px] md:w-80 lg:w-[330px] xl:w-[350px] 2xl:w-[380px] shrink-0 flex flex-col bg-white border border-outline-variant rounded-xl overflow-hidden shadow-sm h-full">
                   {/* Header Droppable Shortcut Target - Spectator Scoreboard Style */}
-                  <Droppable droppableId={`header_${ring.id}`}>
+                  <Droppable droppableId={`header_${ring.id}`} isDropDisabled={readOnly}>
                     {(providedHeader, snapshotHeader) => (
                       <div
                         ref={providedHeader.innerRef}
@@ -1652,15 +1671,13 @@ export default function RingBalancingClient({
                               {formattedRingName}
                             </h4>
                             <span className={`text-[8.5px] font-bold tracking-wider uppercase leading-none mt-0.5 ${
-                              overloaded 
-                                ? 'text-red-200' 
-                                : isRingRunning 
+                              isRingRunning 
                                 ? 'text-emerald-200/90' 
                                 : isRingPaused 
                                 ? 'text-rose-200/80' 
                                 : 'text-white/70'
                             }`}>
-                              {overloaded ? "OVERLOADED (>6H)" : isRingRunning ? "OPTIMUM CAPACITY" : ringStatusText}
+                              {ringCats.length} QUEUED · {completedCats.length} DONE
                             </span>
                           </div>
                         </div>
@@ -1722,7 +1739,7 @@ export default function RingBalancingClient({
                   </div>
 
                   {/* Queue Droppable */}
-                  <Droppable droppableId={ring.id}>
+                  <Droppable droppableId={ring.id} isDropDisabled={readOnly}>
                     {(provided, snapshot) => (
                       <div
                         className={`flex-1 overflow-y-auto p-3 space-y-3 ${snapshot.isDraggingOver ? 'bg-secondary/5' : ''}`}
@@ -1752,15 +1769,15 @@ export default function RingBalancingClient({
                                     {...provided.dragHandleProps}
                                     className={`border rounded-xl relative overflow-hidden transition-all bg-white ${
                                       isPaused
-                                        ? 'border-amber-400/60 border-l-[3.5px] border-l-amber-600 shadow-xs'
+                                        ? 'border-amber-400/80 shadow-xs'
                                         : isRunning
-                                        ? 'border-emerald-400/60 border-l-[3.5px] border-l-emerald-600 shadow-sm'
-                                        : 'border-blue-400/40 border-l-[3.5px] border-l-blue-600 shadow-xs opacity-90'
+                                        ? 'border-emerald-400/80 shadow-sm'
+                                        : 'border-blue-400/60 shadow-xs opacity-90'
                                     } ${!readOnly ? 'cursor-grab active:cursor-grabbing' : ''}`}
                                   >
                                     {/* Clean Distinct Top Bar for Category Card */}
-                                    <div className="px-3 py-2 border-b border-stone-100 flex items-center justify-between bg-stone-50/75">
-                                      <span className="text-[10px] font-bold tracking-wider uppercase text-stone-600 truncate">
+                                    <div className="px-3 py-2 border-b border-[#E1DDCF]/60 flex items-center justify-between bg-[#ECE9DF]/60">
+                                      <span className="text-[10px] font-bold tracking-wider uppercase text-[#68645A] truncate">
                                         {(cat.age_bracket || (cat.age_min !== null && cat.age_max !== null ? `${cat.age_min}-${cat.age_max}` : ""))} | {cat.weight_class || cat.belt || "-"}
                                       </span>
                                       <div className="flex items-center gap-1.5 shrink-0">
@@ -1879,9 +1896,13 @@ export default function RingBalancingClient({
                         ))}
                         {(!ringQueues[ring.id] || ringQueues[ring.id].length === 0) && (
                           <div className="flex-1 flex flex-col items-center justify-center py-8 px-4 text-center border-2 border-dashed border-outline-variant/60 rounded-xl my-2 text-outline/60">
-                            <span className="material-symbols-outlined text-3xl mb-1 text-outline/40">low_priority</span>
+                            <span className="material-symbols-outlined text-3xl mb-1 text-outline/40">
+                              {readOnly ? "hourglass_empty" : "low_priority"}
+                            </span>
                             <span className="text-[12px] font-semibold text-[#8C877C]">Tatami Idle</span>
-                            <span className="text-[10px] text-[#A19C90] mt-0.5">Drag categories here to assign</span>
+                            <span className="text-[10px] text-[#A19C90] mt-0.5">
+                              {readOnly ? "No categories assigned" : "Drag categories here to assign"}
+                            </span>
                           </div>
                         )}
                         {provided.placeholder}
@@ -1893,6 +1914,7 @@ export default function RingBalancingClient({
             })}
           </section>
         </div>
+      </div>
       </DragDropContext>
 
 
