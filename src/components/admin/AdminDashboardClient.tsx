@@ -488,39 +488,58 @@ export default function AdminDashboardClient({
           </div>
         </section>
 
-        <div className={readOnly ? "space-y-4" : "grid grid-cols-1 xl:grid-cols-4 gap-8"}>
+        {/* Section Heading & Global Pace Controls */}
+        <div className="flex flex-wrap items-center justify-between gap-2 mb-4">
+          <div className="flex items-center gap-3">
+            <h3 className="font-headline-sm text-headline-sm text-primary font-bold">
+              Live Tatami Status & Pace
+            </h3>
+            {!readOnly && rings.length > 0 && (
+              <button
+                type="button"
+                onClick={toggleAllPace}
+                title={anyRunning ? "Pause all tatami timers" : "Resume all tatami timers"}
+                className={`px-3 py-1.5 text-xs font-label-caps font-semibold rounded-md border flex items-center gap-1.5 transition-all cursor-pointer shadow-2xs ${
+                  !anyRunning && areAllPaused
+                    ? "bg-emerald-50 border-emerald-300 text-emerald-800 hover:bg-emerald-100 font-bold"
+                    : "border-outline-variant bg-surface-container-lowest hover:bg-surface-container text-on-surface"
+                }`}
+              >
+                <span className="material-symbols-outlined text-[16px]">
+                  {anyRunning ? "pause" : "play_arrow"}
+                </span>
+                <span>{anyRunning ? "Pause All Tatamis" : "Resume All Tatamis"}</span>
+              </button>
+            )}
+          </div>
+          <div className="flex items-center gap-1.5 text-xs font-label-caps text-on-surface-variant">
+            <span
+              className={`w-2 h-2 rounded-full ${
+                anyRunning
+                  ? "bg-secondary animate-pulse"
+                  : areAllPaused
+                  ? "bg-amber-500"
+                  : "bg-outline"
+              }`}
+            />
+            <span>
+              {anyRunning
+                ? "Realtime Pace Tracking"
+                : areAllPaused
+                ? "Pace Tracking Paused"
+                : "Pace Tracking Ready"}
+            </span>
+          </div>
+        </div>
+
+        <div className={readOnly ? "space-y-4" : "grid grid-cols-1 xl:grid-cols-4 gap-8 items-start"}>
           {/* Unified Tatamis Grid Overview */}
-          <div className={`${readOnly ? "w-full" : "xl:col-span-3"} space-y-4`}>
-            <div className="flex flex-wrap items-center justify-between gap-2">
-              <div className="flex items-center gap-3">
-                <h3 className="font-headline-sm text-headline-sm text-primary font-bold">
-                  Live Tatami Status & Pace
-                </h3>
-                {!readOnly && rings.length > 0 && (
-                  <button
-                    type="button"
-                    onClick={toggleAllPace}
-                    title={anyRunning ? "Pause all tatami timers" : "Resume all tatami timers"}
-                    className={`px-3 py-1.5 text-xs font-label-caps font-semibold rounded-md border flex items-center gap-1.5 transition-all cursor-pointer shadow-2xs ${
-                      !anyRunning && areAllPaused
-                        ? "bg-emerald-50 border-emerald-300 text-emerald-800 hover:bg-emerald-100 font-bold"
-                        : "border-outline-variant bg-surface-container-lowest hover:bg-surface-container text-on-surface"
-                    }`}
-                  >
-                    <span className="material-symbols-outlined text-[16px]">
-                      {anyRunning ? "pause" : "play_arrow"}
-                    </span>
-                    <span>{anyRunning ? "Pause All Tatamis" : "Resume All Tatamis"}</span>
-                  </button>
-                )}
-              </div>
-              <div className="flex items-center gap-1.5 text-xs font-label-caps text-on-surface-variant">
-                <span className={`w-2 h-2 rounded-full ${anyRunning ? "bg-secondary animate-pulse" : areAllPaused ? "bg-amber-500" : "bg-outline"}`} />
-                <span>{anyRunning ? "Realtime Pace Tracking" : areAllPaused ? "Pace Tracking Paused" : "Pace Tracking Ready"}</span>
-              </div>
-            </div>
-            
-            <div className={`grid grid-cols-1 md:grid-cols-2 ${readOnly ? "xl:grid-cols-3 2xl:grid-cols-4" : "xl:grid-cols-2 2xl:grid-cols-3"} gap-5`}>
+          <div className={readOnly ? "w-full" : "xl:col-span-3"}>
+            <div
+              className={`grid grid-cols-1 md:grid-cols-2 ${
+                readOnly ? "xl:grid-cols-3 2xl:grid-cols-4" : "xl:grid-cols-2 2xl:grid-cols-3"
+              } gap-5`}
+            >
               {rings.map((ring) => {
                 const ringAssignments = assignments.filter((a) => a.ring_id === ring.id) || [];
                 const activeAssignment =
@@ -573,6 +592,8 @@ export default function AdminDashboardClient({
                     name={ring.name.replace(/Ring/i, "Tatami")}
                     status={status as any}
                     categoryName={categoryName}
+                    nextCategoryName={nextAssignment?.categories?.name}
+                    ringOrder={ring.ring_order}
                     currentMatch={currentMatch}
                     totalMatches={totalMatchesForRing}
                     totalExpectedMatches={totalExpectedMatches}
@@ -592,15 +613,15 @@ export default function AdminDashboardClient({
           </div>
 
           {!readOnly && (
-            <div className="space-y-8">
+            <div className="space-y-3.5">
               <LiveActivityFeed tournamentId={tournament.id} initialLogs={logs} rings={rings} />
               <ModeratorRequestsWidget tournamentId={tournament.id} initialRequests={initialModRequests} readOnly={readOnly} />
             </div>
           )}
         </div>
 
-        {/* Support & Crux Contact Desk - Admin only */}
-        {!readOnly && <OverviewSupportFooter />}
+        {/* Support & Crux Contact Desk */}
+        <OverviewSupportFooter />
       </div>
     </>
   );

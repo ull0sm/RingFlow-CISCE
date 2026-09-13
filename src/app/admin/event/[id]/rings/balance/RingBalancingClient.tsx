@@ -1,11 +1,14 @@
 "use client";
 
 import React, { useState, useEffect, useCallback } from "react";
+import { useRouter } from "next/navigation";
 import { DragDropContext, Droppable, Draggable, DropResult } from "@hello-pangea/dnd";
 import { saveAssignments } from "@/actions/balancing";
 import { createClient } from "@/utils/supabase/client";
 import StagerStatusIndicator from "@/components/ui/StagerStatusIndicator";
 import { PdfViewerModal } from "@/components/ui/PdfViewerModal";
+import { SegmentedProgressBar } from "@/components/ui/SegmentedProgressBar";
+import HeaderSearchBar from "@/components/layout/HeaderSearchBar";
 
 type Category = {
   id: string;
@@ -58,6 +61,7 @@ export default function RingBalancingClient({
   completedTimes,
   readOnly = false,
 }: Props) {
+  const router = useRouter();
   // State structure:
   // We need a list for "unassigned" and a list for each ring.
   const [unassigned, setUnassigned] = useState<Category[]>([]);
@@ -82,7 +86,7 @@ export default function RingBalancingClient({
   // Revert category confirmation state
   const [pendingRevertCategory, setPendingRevertCategory] = useState<{ ringId: string; ringName: string; category: Category } | null>(null);
 
-  // Filter & Sort State
+  // Filter & Sort State with reload persistence
   const [search, setSearch] = useState("");
   const [beltFilter, setBeltFilter] = useState("");
   const [ageFilter, setAgeFilter] = useState("");
@@ -91,6 +95,39 @@ export default function RingBalancingClient({
   const [sortOrder, setSortOrder] = useState<"asc" | "desc">("desc");
   const [statusFilter, setStatusFilter] = useState<"idle" | "queue" | "completed">("idle");
   const [mobileShowPool, setMobileShowPool] = useState(false);
+  const [isBalanceFilterLoaded, setIsBalanceFilterLoaded] = useState(false);
+
+  // Restore filter & sort state across reloads
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    try {
+      const saved = sessionStorage.getItem(`ringflow_balance_filters_${tournamentId}`);
+      if (saved) {
+        const p = JSON.parse(saved);
+        if (p.search !== undefined) setSearch(p.search);
+        if (p.beltFilter !== undefined) setBeltFilter(p.beltFilter);
+        if (p.ageFilter !== undefined) setAgeFilter(p.ageFilter);
+        if (p.sexFilter !== undefined) setSexFilter(p.sexFilter);
+        if (p.sortBy !== undefined) setSortBy(p.sortBy);
+        if (p.sortOrder !== undefined) setSortOrder(p.sortOrder);
+        if (p.statusFilter !== undefined) setStatusFilter(p.statusFilter);
+      }
+    } catch (e) {
+      console.error("Failed to restore balance filters", e);
+    }
+    setIsBalanceFilterLoaded(true);
+  }, [tournamentId]);
+
+  // Persist filter changes across reloads
+  useEffect(() => {
+    if (!isBalanceFilterLoaded || typeof window === "undefined") return;
+    try {
+      const filters = { search, beltFilter, ageFilter, sexFilter, sortBy, sortOrder, statusFilter };
+      sessionStorage.setItem(`ringflow_balance_filters_${tournamentId}`, JSON.stringify(filters));
+    } catch (e) {
+      console.error("Failed to persist balance filters", e);
+    }
+  }, [search, beltFilter, ageFilter, sexFilter, sortBy, sortOrder, statusFilter, isBalanceFilterLoaded, tournamentId]);
 
   // Toggle pool with mobile back button / history integration
   const togglePool = useCallback(() => {
@@ -816,41 +853,48 @@ export default function RingBalancingClient({
 
   return (
     <div className="flex flex-col overflow-hidden w-full h-[calc(100dvh-4rem)] md:h-screen">
-      {/* TopNavBar - Slim Low-Profile Header */}
-      <header className="flex justify-between items-center w-full px-3 sm:px-6 h-11 sm:h-12 bg-surface-container-lowest border-b border-outline-variant shrink-0 z-10 gap-2">
-        <div className="flex items-center gap-2 sm:gap-3.5 min-w-0 pr-1">
-          <span className="text-sm sm:text-base font-black text-primary tracking-tight shrink-0 whitespace-nowrap">Ring Flow</span>
-          <div className="h-3.5 sm:h-4 w-[1px] bg-outline-variant shrink-0"></div>
-          <div className="flex items-center gap-1 sm:gap-2 min-w-0">
-            <h2 className="text-xs sm:text-sm font-bold text-primary whitespace-nowrap">Tatami Balancing</h2>
-            <span className="text-outline-variant shrink-0 hidden xs:inline text-xs">/</span>
-            <span className="text-on-surface-variant text-[11px] sm:text-xs opacity-70 truncate max-w-[80px] sm:max-w-[200px] md:max-w-none whitespace-nowrap hidden xs:inline">{tournamentName}</span>
-          </div>
+      {/* TopNavBar - Shell v2 Header */}
+      <header className="flex justify-between items-center w-full px-4 sm:px-6 h-[60px] bg-white border-b border-[#E7EAEF] shrink-0 z-10 gap-3 sm:gap-6">
+        {/* Left: Breadcrumb */}
+        <div className="flex items-center gap-1.5 sm:gap-2 text-[13.5px] flex-shrink-0 min-w-0">
+          <span className="text-[#94A3B8] font-medium truncate max-w-[120px] sm:max-w-[200px] md:max-w-[260px]">
+            {tournamentName}
+          </span>
+          <svg
+            className="w-3.5 h-3.5 text-[#94A3B8] shrink-0"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2"
+          >
+            <path d="M9 18l6-6-6-6" />
+          </svg>
+          <span className="text-[#0F172A] font-semibold truncate">Tatami Balancing</span>
         </div>
 
-        {/* Developed by CruxStudios Badge - Compact */}
+        {/* Center: Live Interactive Search Bar */}
+        <HeaderSearchBar tournamentId={tournamentId} role={readOnly ? "organiser" : "admin"} className="hidden md:flex" />
+
+        {/* Right: Built by Crux Studios Badge */}
         <div className="flex items-center shrink-0">
           <a
             href="https://cruxstudios.dev"
             target="_blank"
             rel="noopener noreferrer"
-            className="group inline-flex items-center gap-1.5 px-2.5 py-0.5 sm:py-1 rounded-full bg-[#1B1815] hover:bg-black text-[#F5F3EC] border border-[#E1DDCF]/40 hover:border-cyan-400/60 shadow-[0_1px_4px_rgba(27,24,21,0.08)] hover:shadow-[0_0_12px_rgba(0,229,255,0.2)] hover:-translate-y-0.5 transition-all duration-300"
+            className="group flex items-center gap-2 text-[#0F172A] transition-all duration-200 shrink-0 py-1 cursor-pointer"
           >
-            <span className="font-['Inter',sans-serif] font-medium text-[9px] sm:text-[10px] text-[#F5F3EC]/90 group-hover:text-white transition-colors hidden sm:inline whitespace-nowrap">
-              Developed by
-            </span>
-            <div className="flex items-center gap-1">
-              <img
-                src="https://cruxstudios.dev/favicon.svg"
-                alt="CruxStudios"
-                className="h-3 sm:h-3.5 w-3 sm:w-3.5 drop-shadow-[0_0_4px_rgba(0,229,255,0.6)] group-hover:scale-110 group-hover:rotate-6 transition-all duration-300"
-              />
-              <span className="font-['Plus_Jakarta_Sans',sans-serif] font-bold text-[10px] sm:text-[11px] text-white tracking-tight group-hover:text-[#00E5FF] transition-colors whitespace-nowrap">
-                CruxStudios
+            <div className="flex flex-col text-left leading-none gap-0.5">
+              <span className="font-['Inter',sans-serif] text-[9.5px] font-semibold tracking-[0.06em] uppercase text-[#64748B] group-hover:text-[#00E5FF] group-hover:drop-shadow-[0_0_8px_rgba(0,229,255,0.7)] transition-all duration-200">
+                Built by
               </span>
+              <img
+                src="/crux-studios.png"
+                alt="Crux Studios"
+                className="h-[17px] w-auto object-contain shrink-0 mix-blend-multiply group-hover:drop-shadow-[0_0_12px_rgba(0,229,255,0.85)] transition-all duration-200"
+              />
             </div>
             <svg
-              className="w-2.5 h-2.5 text-[#F5F3EC]/80 group-hover:text-[#00E5FF] group-hover:translate-x-0.5 group-hover:-translate-y-0.5 transition-all duration-300 hidden md:block"
+              className="w-4 h-4 text-[#94A3B8] group-hover:text-[#00E5FF] group-hover:drop-shadow-[0_0_8px_rgba(0,229,255,0.8)] group-hover:translate-x-0.5 group-hover:-translate-y-0.5 transition-all duration-200 shrink-0 ml-0.5"
               viewBox="0 0 24 24"
               fill="none"
               stroke="currentColor"
@@ -954,11 +998,11 @@ export default function RingBalancingClient({
         {/* Main Content Area */}
         <div className="flex-1 flex overflow-hidden w-full relative">
 
-          {/* Left Sidebar: Category Pool (expands inline; shrinks to 10% peek on mobile with > arrow) */}
+          {/* Left Sidebar: Category Pool (distinct bordered card matching Tatami board aesthetic) */}
           <section
-            className={`h-full flex flex-col bg-surface-container-lowest border-r border-outline-variant shrink-0 relative transition-[width] duration-300 ease-in-out z-20 ${mobileShowPool
-                ? "w-[85vw] max-w-[340px] md:w-80 shadow-lg md:shadow-none"
-                : "w-[10vw] min-w-[36px] md:w-80 overflow-visible bg-surface-container-low/70 hover:bg-surface-container-low cursor-pointer select-none"
+            className={`h-full flex flex-col bg-surface-container-low shrink-0 relative transition-[width] duration-300 ease-in-out z-20 ${mobileShowPool
+                ? "w-[85vw] max-w-[340px] md:w-80 shadow-lg md:shadow-none p-2 sm:p-4 sm:pr-0"
+                : "w-[10vw] min-w-[36px] md:w-80 overflow-visible cursor-pointer select-none md:p-4 md:pr-0"
               }`}
             onClick={!mobileShowPool ? togglePool : undefined}
             title={!mobileShowPool ? "Expand unassigned categories" : undefined}
@@ -978,112 +1022,201 @@ export default function RingBalancingClient({
               </span>
             </button>
 
-            {/* Inner Content Container */}
+            {/* Inner Content Container - Distinct Bordered Card */}
             <div
-              className={`w-80 max-w-[85vw] md:max-w-none flex flex-col h-full transition-opacity duration-200 ${mobileShowPool
-                  ? "opacity-100 overflow-y-auto"
-                  : "opacity-0 md:opacity-100 pointer-events-none md:pointer-events-auto overflow-hidden"
+              className={`w-full flex flex-col h-full bg-white border border-[#D8DCE3] rounded-xl overflow-hidden shadow-xs transition-opacity duration-200 ${mobileShowPool
+                  ? "opacity-100"
+                  : "opacity-0 md:opacity-100 pointer-events-none md:pointer-events-auto"
                 }`}
             >
-              <div className="p-4 border-b border-outline-variant bg-surface-container-low flex flex-col gap-3 shrink-0">
-                <div className="flex justify-between items-center">
-                  <h3 className="font-label-caps text-label-caps text-primary">
-                    {statusFilter === "idle" ? `Unassigned (${visibleUnassigned.length})` : statusFilter === "queue" ? `In Queue (${queuedCategories.length})` : `Completed (${allCompletedCategories.length})`}
+              {/* Panel Head - Fixed Height & Sleek */}
+              <div className="flex items-center justify-between px-3 h-[38px] border-b border-[#E7EAEF] bg-white shrink-0">
+                <div className="flex items-center gap-1.5 min-w-0">
+                  <h3 className="text-[13px] font-bold text-[#0F172A] tracking-tight leading-none">
+                    {statusFilter === "idle" ? "Unassigned" : statusFilter === "queue" ? "In Queue" : "Completed"}
                   </h3>
-                  <div className="flex items-center gap-2">
+                  <span className="bg-[#F1F3F5] text-[#64748B] text-[10px] font-bold px-1.5 py-0.5 rounded-full font-mono leading-none">
+                    {statusFilter === "idle" ? visibleUnassigned.length : statusFilter === "queue" ? queuedCategories.length : allCompletedCategories.length}
+                  </span>
+                </div>
+
+                <div className="flex items-center gap-1.5 shrink-0">
+                  {/* Glowing emerald Clear Filters button - fixed height so header never expands vertically */}
+                  {Boolean(search.trim() || beltFilter || ageFilter || sexFilter) && (
                     <button
+                      type="button"
                       onClick={() => {
                         setSearch(""); setBeltFilter(""); setAgeFilter(""); setSexFilter("");
                       }}
-                      className="text-[10px] text-secondary hover:underline"
-                    >Clear Filters</button>
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        togglePool();
-                      }}
-                      className="md:hidden p-1 rounded-md text-on-surface-variant hover:bg-surface-container-high transition-colors"
-                      title="Shrink sidebar"
+                      className="inline-flex items-center gap-1 px-2 h-[22px] rounded-md bg-emerald-600 hover:bg-emerald-700 text-white font-semibold text-[10px] leading-none shadow-[0_0_8px_rgba(5,150,105,0.35)] transition-all cursor-pointer"
+                      title="Clear active filters"
                     >
-                      <span className="material-symbols-outlined text-[18px] leading-none">chevron_left</span>
+                      <span className="material-symbols-outlined text-[12px] leading-none">filter_alt_off</span>
+                      <span className="leading-none whitespace-nowrap">Clear filters</span>
                     </button>
-                  </div>
+                  )}
+
+                  {/* Mobile collapse button */}
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      togglePool();
+                    }}
+                    type="button"
+                    className="md:hidden p-1 rounded-md text-[#64748B] hover:bg-[#F1F3F5] transition-colors cursor-pointer"
+                    title="Shrink sidebar"
+                  >
+                    <span className="material-symbols-outlined text-[16px] leading-none">chevron_left</span>
+                  </button>
+                </div>
+              </div>
+
+              {/* Panel Body: Thinned Search, Segmented Tabs, Filter & Sort Rows */}
+              <div className="px-3 py-2 bg-white border-b border-[#E7EAEF] flex flex-col shrink-0">
+                {/* Search Bar - Sleek & Compact */}
+                <div className="flex items-center gap-1.5 px-2.5 py-1.5 border border-[#D8DCE3] rounded-[7px] bg-[#FBFBFC] mb-1.5 focus-within:border-[#0E9C7C] focus-within:ring-1 focus-within:ring-[#0E9C7C]/20 transition-all relative">
+                  <svg className="w-3.5 h-3.5 text-[#94A3B8] shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                    <circle cx="11" cy="11" r="7"/>
+                    <path d="M21 21l-4.3-4.3"/>
+                  </svg>
+                  <input
+                    type="text"
+                    placeholder="Search categories…"
+                    value={search}
+                    onChange={e => setSearch(e.target.value)}
+                    className="border-none outline-none bg-transparent text-[12px] text-[#0F172A] placeholder-[#94A3B8] w-full font-inherit"
+                  />
+                  {search && (
+                    <button
+                      type="button"
+                      onClick={() => setSearch("")}
+                      className="text-[#94A3B8] hover:text-[#0F172A] cursor-pointer text-xs p-0.5"
+                      title="Clear search"
+                    >
+                      ×
+                    </button>
+                  )}
                 </div>
 
-                {/* Status Filter Tabs */}
-                <div className="flex rounded-lg overflow-hidden border border-outline-variant bg-surface-container-high">
+                {/* Segmented Control - Thin */}
+                <div className="flex bg-[#F1F3F5] rounded-[7px] p-[2px] mb-1.5">
                   {(["idle", "queue", "completed"] as const).map(tab => (
                     <button
                       key={tab}
+                      type="button"
                       onClick={() => setStatusFilter(tab)}
-                      className={`flex-1 py-1.5 text-[10px] font-bold uppercase tracking-wide transition-colors ${statusFilter === tab
-                          ? 'bg-primary text-on-primary'
-                          : 'text-on-surface-variant hover:bg-surface-container'
-                        }`}
+                      className={`flex-1 border-none py-1 rounded-[5px] text-[11.5px] font-semibold transition-all cursor-pointer capitalize ${
+                        statusFilter === tab
+                          ? 'bg-white text-[#0F172A] shadow-[0_1px_2px_rgba(15,23,42,0.08)] font-bold'
+                          : 'text-[#64748B] hover:text-[#0F172A]'
+                      }`}
                     >
-                      {tab}
+                      {tab === "idle" ? "Idle" : tab === "queue" ? "Queue" : "Completed"}
                     </button>
                   ))}
                 </div>
 
-                {/* Search */}
-                <input
-                  type="text"
-                  placeholder="Search categories..."
-                  value={search}
-                  onChange={e => setSearch(e.target.value)}
-                  className="w-full bg-white border border-outline-variant rounded p-2 text-xs outline-none focus:border-secondary"
-                />
-
-                {/* Filters (only for idle) */}
+                {/* Filters & Sort (Active on Idle tab) */}
                 {statusFilter === "idle" && (
-                  <div className="flex gap-2 flex-wrap">
-                    {uniqueBelts.length > 0 && (
-                      <select
-                        value={beltFilter}
-                        onChange={e => setBeltFilter(e.target.value)}
-                        className="flex-1 min-w-[70px] bg-white border border-outline-variant rounded p-1 text-[10px] outline-none"
-                      >
-                        <option value="">All Belts</option>
-                        {uniqueBelts.map(b => <option key={b as string} value={b as string}>{b}</option>)}
-                      </select>
-                    )}
+                  <div className="space-y-1.5 animate-in fade-in duration-150">
+                    {/* Filter Row: Age and Sex (and Belt if available) */}
+                    <div className={`grid ${uniqueBelts.length > 0 ? "grid-cols-3" : "grid-cols-2"} gap-1.5`}>
+                      {/* Age Column */}
+                      <div className="min-w-0">
+                        <label className="text-[9px] font-bold text-[#94A3B8] tracking-[0.3px] mb-0.5 block uppercase leading-none">
+                          Age
+                        </label>
+                        <div className="relative">
+                          <select
+                            value={ageFilter}
+                            onChange={e => setAgeFilter(e.target.value)}
+                            className="appearance-none w-full border border-[#D8DCE3] hover:border-[#94A3B8] rounded-[7px] bg-white py-1 pl-2 pr-5 text-[11.5px] font-medium text-[#0F172A] outline-none transition-colors cursor-pointer truncate"
+                          >
+                            <option value="">All ages</option>
+                            {uniqueAges.map(a => <option key={a as string} value={a as string}>{a}</option>)}
+                          </select>
+                          <svg className="w-2.5 h-2.5 text-[#94A3B8] absolute right-1.5 top-1/2 -translate-y-1/2 pointer-events-none" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                            <path d="M6 9l6 6 6-6"/>
+                          </svg>
+                        </div>
+                      </div>
 
-                    {uniqueAges.length > 0 && (
-                      <select
-                        value={ageFilter}
-                        onChange={e => setAgeFilter(e.target.value)}
-                        className="flex-1 min-w-[70px] bg-white border border-outline-variant rounded p-1 text-[10px] outline-none"
-                      >
-                        <option value="">Age</option>
-                        {uniqueAges.map(a => <option key={a as string} value={a as string}>{a}</option>)}
-                      </select>
-                    )}
+                      {/* Belt Column (if applicable) */}
+                      {uniqueBelts.length > 0 && (
+                        <div className="min-w-0">
+                          <label className="text-[9px] font-bold text-[#94A3B8] tracking-[0.3px] mb-0.5 block uppercase leading-none">
+                            Belt
+                          </label>
+                          <div className="relative">
+                            <select
+                              value={beltFilter}
+                              onChange={e => setBeltFilter(e.target.value)}
+                              className="appearance-none w-full border border-[#D8DCE3] hover:border-[#94A3B8] rounded-[7px] bg-white py-1 pl-2 pr-5 text-[11.5px] font-medium text-[#0F172A] outline-none transition-colors cursor-pointer truncate"
+                            >
+                              <option value="">All Belts</option>
+                              {uniqueBelts.map(b => <option key={b as string} value={b as string}>{b}</option>)}
+                            </select>
+                            <svg className="w-2.5 h-2.5 text-[#94A3B8] absolute right-1.5 top-1/2 -translate-y-1/2 pointer-events-none" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                              <path d="M6 9l6 6 6-6"/>
+                            </svg>
+                          </div>
+                        </div>
+                      )}
 
-                    <select
-                      value={sexFilter}
-                      onChange={e => setSexFilter(e.target.value)}
-                      className="min-w-[60px] bg-white border border-outline-variant rounded p-1 text-[10px] outline-none"
-                    >
-                      <option value="">Sex</option>
-                      {uniqueSexes.map(s => <option key={s as string} value={s as string}>{s}</option>)}
-                    </select>
+                      {/* Sex Column */}
+                      <div className="min-w-0">
+                        <label className="text-[9px] font-bold text-[#94A3B8] tracking-[0.3px] mb-0.5 block uppercase leading-none">
+                          Sex
+                        </label>
+                        <div className="relative">
+                          <select
+                            value={sexFilter}
+                            onChange={e => setSexFilter(e.target.value)}
+                            className="appearance-none w-full border border-[#D8DCE3] hover:border-[#94A3B8] rounded-[7px] bg-white py-1 pl-2 pr-5 text-[11.5px] font-medium text-[#0F172A] outline-none transition-colors cursor-pointer truncate"
+                          >
+                            <option value="">Any</option>
+                            {uniqueSexes.map(s => <option key={s as string} value={s as string}>{s}</option>)}
+                          </select>
+                          <svg className="w-2.5 h-2.5 text-[#94A3B8] absolute right-1.5 top-1/2 -translate-y-1/2 pointer-events-none" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                            <path d="M6 9l6 6 6-6"/>
+                          </svg>
+                        </div>
+                      </div>
+                    </div>
 
-                    <div className="w-full flex gap-2">
-                      <select
-                        value={sortBy}
-                        onChange={e => setSortBy(e.target.value as any)}
-                        className="flex-1 bg-white border border-outline-variant rounded p-1 text-[10px] outline-none"
-                      >
-                        <option value="name">Sort: Name</option>
-                        <option value="athletes">Sort: Athletes</option>
-                        <option value="weight">Sort: Weight</option>
-                      </select>
+                    {/* Sort Row: Shortened Sort Select + ASC / DESC button */}
+                    <div className="flex items-center gap-1.5">
+                      <div className="relative flex-1">
+                        <select
+                          value={sortBy}
+                          onChange={e => setSortBy(e.target.value as any)}
+                          className="appearance-none w-full border border-[#D8DCE3] hover:border-[#94A3B8] rounded-[7px] bg-white py-1 pl-2 pr-6 text-[11.5px] font-medium text-[#0F172A] outline-none transition-colors cursor-pointer"
+                        >
+                          <option value="name">Sort: Name</option>
+                          <option value="athletes">Sort: Athletes</option>
+                          <option value="weight">Sort: Weight</option>
+                        </select>
+                        <svg className="w-3 h-3 text-[#94A3B8] absolute right-2 top-1/2 -translate-y-1/2 pointer-events-none" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                          <path d="M6 9l6 6 6-6"/>
+                        </svg>
+                      </div>
+
                       <button
+                        type="button"
                         onClick={() => setSortOrder(sortOrder === "asc" ? "desc" : "asc")}
-                        className="bg-white border border-outline-variant rounded p-1 text-[10px] flex items-center justify-center min-w-[40px] hover:bg-surface-container"
+                        className="flex items-center gap-1 border border-[#D8DCE3] hover:border-[#94A3B8] rounded-[7px] bg-white hover:bg-[#FBFBFC] py-1 px-2 text-[11px] font-bold text-[#0F172A] transition-colors cursor-pointer shrink-0 shadow-2xs"
+                        title={sortOrder === "asc" ? "Ascending (click for Descending)" : "Descending (click for Ascending)"}
                       >
-                        {sortOrder === "asc" ? "ASC" : "DESC"}
+                        <span className="font-mono">{sortOrder === "asc" ? "ASC" : "DESC"}</span>
+                        <svg
+                          className={`w-3 h-3 text-[#64748B] transition-transform duration-200 ${sortOrder === "desc" ? "rotate-180" : ""}`}
+                          viewBox="0 0 24 24"
+                          fill="none"
+                          stroke="currentColor"
+                          strokeWidth="2.2"
+                        >
+                          <path d="M12 19V5M6 11l6-6 6 6"/>
+                        </svg>
                       </button>
                     </div>
                   </div>
@@ -1097,7 +1230,7 @@ export default function RingBalancingClient({
                     <div
                       ref={provided.innerRef}
                       {...provided.droppableProps}
-                      className={`flex-1 overflow-y-auto p-4 space-y-4 bg-surface-container-lowest ${snapshot.isDraggingOver ? 'bg-secondary/5' : ''}`}
+                      className={`flex-1 overflow-y-auto p-2.5 space-y-2 bg-[#F8FAFC] ${snapshot.isDraggingOver ? 'bg-secondary/5' : ''}`}
                     >
                       {visibleUnassigned.map((cat, index) => (
                         <Draggable key={cat.id} draggableId={cat.id} index={index} isDragDisabled={readOnly}>
@@ -1106,25 +1239,25 @@ export default function RingBalancingClient({
                               ref={provided.innerRef}
                               {...provided.draggableProps}
                               {...provided.dragHandleProps}
-                              className={`p-4 bg-white border ${snapshot.isDragging ? 'border-secondary shadow-lg' : 'border-outline-variant shadow-sm'} rounded-xl ${!readOnly ? 'cursor-grab active:cursor-grabbing' : ''}`}
+                              className={`p-2.5 bg-white border ${snapshot.isDragging ? 'border-secondary shadow-lg' : 'border-outline-variant/70 shadow-2xs hover:border-slate-300'} rounded-lg ${!readOnly ? 'cursor-grab active:cursor-grabbing' : ''}`}
                             >
-                              <div className="flex justify-between items-start mb-2">
+                              <div className="flex justify-between items-start mb-1.5">
                                 <div className="flex gap-1 flex-wrap">
-                                  {cat.belt && <span className="px-1.5 py-0.5 bg-surface-container-high text-on-surface rounded text-[9px] font-bold uppercase">{cat.belt}</span>}
-                                  {cat.sex && <span className="px-1.5 py-0.5 bg-surface-container-high text-on-surface rounded text-[9px] font-bold uppercase">{cat.sex}</span>}
+                                  {cat.belt && <span className="px-1.5 py-0.5 bg-surface-container-high text-on-surface rounded text-[8.5px] font-bold uppercase">{cat.belt}</span>}
+                                  {cat.sex && <span className="px-1.5 py-0.5 bg-surface-container-high text-on-surface rounded text-[8.5px] font-bold uppercase">{cat.sex}</span>}
                                   {cat.age_bracket ? (
-                                    <span className="px-1.5 py-0.5 bg-surface-container-high text-on-surface rounded text-[9px] font-bold uppercase">{cat.age_bracket}</span>
+                                    <span className="px-1.5 py-0.5 bg-surface-container-high text-on-surface rounded text-[8.5px] font-bold uppercase">{cat.age_bracket}</span>
                                   ) : (cat.age_min !== null || cat.age_max !== null) && (
-                                    <span className="px-1.5 py-0.5 bg-surface-container-high text-on-surface rounded text-[9px] font-bold uppercase">
+                                    <span className="px-1.5 py-0.5 bg-surface-container-high text-on-surface rounded text-[8.5px] font-bold uppercase">
                                       {cat.age_min}-{cat.age_max}
                                     </span>
                                   )}
-                                  {cat.weight_class && <span className="px-1.5 py-0.5 bg-surface-container-high text-on-surface rounded text-[9px] font-bold uppercase">{cat.weight_class}</span>}
-                                  {cat.day && <span className="px-1.5 py-0.5 bg-surface-container-high text-on-surface rounded text-[9px] font-bold uppercase">{cat.day}</span>}
+                                  {cat.weight_class && <span className="px-1.5 py-0.5 bg-surface-container-high text-on-surface rounded text-[8.5px] font-bold uppercase">{cat.weight_class}</span>}
+                                  {cat.day && <span className="px-1.5 py-0.5 bg-surface-container-high text-on-surface rounded text-[8.5px] font-bold uppercase">{cat.day}</span>}
                                 </div>
-                                {!readOnly && <span className="material-symbols-outlined text-outline-variant text-sm">drag_indicator</span>}
+                                {!readOnly && <span className="material-symbols-outlined text-outline-variant text-xs">drag_indicator</span>}
                               </div>
-                              <h4 className="font-headline-sm text-sm text-primary mb-3">
+                              <h4 className="text-[12.5px] font-bold text-primary mb-1.5 leading-snug">
                                 <span className="flex items-center gap-1.5 flex-wrap">
                                   {cat.name}
                                   {cat.doc_url && (
@@ -1135,7 +1268,7 @@ export default function RingBalancingClient({
                                         setViewingPdf({ url: cat.doc_url!, title: cat.name });
                                       }}
                                       title="View student list PDF"
-                                      className="material-symbols-outlined text-[14px] text-outline hover:text-primary transition-colors shrink-0 cursor-pointer"
+                                      className="material-symbols-outlined text-[13px] text-outline hover:text-primary transition-colors shrink-0 cursor-pointer"
                                       style={{ fontVariationSettings: "'FILL' 0" }}
                                     >
                                       article
@@ -1143,28 +1276,103 @@ export default function RingBalancingClient({
                                   )}
                                 </span>
                               </h4>
-                              <div className="flex items-center justify-between pt-3 border-t border-outline-variant/30">
-                                <div className="flex items-center gap-3">
-                                  <span className="flex items-center gap-1 font-data-mono text-[11px]"><span className="material-symbols-outlined text-[14px] text-outline">group</span> {cat.athletes_count}</span>
+                              <div className="flex items-center justify-between pt-1.5 border-t border-outline-variant/30">
+                                <div className="flex items-center gap-2">
+                                  <span className="flex items-center gap-1 font-data-mono text-[10.5px] text-[#64748B]"><span className="material-symbols-outlined text-[13px] text-outline">group</span> {cat.athletes_count}</span>
                                 </div>
-                                <span className="font-data-mono text-xs font-bold px-2 py-0.5 bg-primary text-on-primary rounded">{Math.ceil((cat.expected_matches * 109) / 60)}m</span>
+                                <span className="font-data-mono text-[10.5px] font-bold px-1.5 py-0.5 bg-primary text-on-primary rounded">{Math.ceil((cat.expected_matches * 109) / 60)}m</span>
                               </div>
                             </div>
                           )}
                         </Draggable>
                       ))}
+
+                      {/* Empty State */}
+                      {visibleUnassigned.length === 0 && (
+                        Boolean(search.trim() || beltFilter || ageFilter || sexFilter) ? (
+                          <div className="flex flex-col items-center justify-center text-center py-5 px-3 bg-rose-50/75 border border-rose-200/80 rounded-xl my-2 mx-1 shadow-2xs">
+                            <div className="w-8 h-8 rounded-lg bg-rose-100/90 border border-rose-200 flex items-center justify-center mb-2 text-rose-600">
+                              <span className="material-symbols-outlined text-[18px]">filter_alt_off</span>
+                            </div>
+                            <div className="text-[12.5px] font-bold text-rose-950 mb-0.5">
+                              No matching categories
+                            </div>
+                            <div className="text-[11px] font-medium text-rose-700 max-w-[210px] leading-snug mb-2.5">
+                              Filters or search are hiding categories from this list.
+                            </div>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setSearch(""); setBeltFilter(""); setAgeFilter(""); setSexFilter("");
+                              }}
+                              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md bg-rose-600 hover:bg-rose-700 active:scale-95 text-white font-bold text-[11px] shadow-xs hover:shadow transition-all cursor-pointer"
+                            >
+                              <span className="material-symbols-outlined text-[13px]">filter_alt_off</span>
+                              <span>Clear Filters &amp; Search</span>
+                            </button>
+                          </div>
+                        ) : (
+                          <div className="flex flex-col items-center justify-center text-center py-6 px-4 text-[#94A3B8]">
+                            <div className="w-8 h-8 rounded-[9px] bg-[#F1F3F5] flex items-center justify-center mb-2 text-[#94A3B8]">
+                              <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8">
+                                <path d="M4 13v6a1 1 0 001 1h14a1 1 0 001-1v-6M4 13l2.5-7h11l2.5 7M4 13h5.5a.5.5 0 01.5.5v0a2 2 0 002 2h0a2 2 0 002-2v0a.5.5 0 01.5-.5H20"/>
+                              </svg>
+                            </div>
+                            <div className="text-[12px] font-semibold text-[#334155] mb-0.5">
+                              Nothing unassigned
+                            </div>
+                            <div className="text-[11px] text-[#94A3B8] max-w-[200px] leading-snug">
+                              Every category is currently on a tatami or completed.
+                            </div>
+                          </div>
+                        )
+                      )}
+
                       {provided.placeholder}
                     </div>
                   )}
                 </Droppable>
               ) : (
-                /* Queue / Completed view: read-only greyed cards */
-                <div className="flex-1 overflow-y-auto p-4 space-y-3">
+                /* Queue / Completed view: read-only greyed cards (compact) */
+                <div className="flex-1 overflow-y-auto p-2.5 space-y-2 bg-[#F8FAFC]">
                   {sidebarCategoriesToShow.length === 0 && (
-                    <div className="flex flex-col items-center justify-center h-40 text-outline opacity-60">
-                      <span className="material-symbols-outlined text-3xl mb-2">inbox</span>
-                      <span className="text-xs">No categories</span>
-                    </div>
+                    Boolean(search.trim()) ? (
+                      <div className="flex flex-col items-center justify-center text-center py-5 px-3 bg-rose-50/75 border border-rose-200/80 rounded-xl my-2 mx-1 shadow-2xs">
+                        <div className="w-8 h-8 rounded-lg bg-rose-100/90 border border-rose-200 flex items-center justify-center mb-2 text-rose-600">
+                          <span className="material-symbols-outlined text-[18px]">search_off</span>
+                        </div>
+                        <div className="text-[12.5px] font-bold text-rose-950 mb-0.5">
+                          No matching categories
+                        </div>
+                        <div className="text-[11px] font-medium text-rose-700 max-w-[210px] leading-snug mb-2.5">
+                          No categories match &ldquo;{search}&rdquo;.
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => setSearch("")}
+                          className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md bg-rose-600 hover:bg-rose-700 active:scale-95 text-white font-bold text-[11px] shadow-xs hover:shadow transition-all cursor-pointer"
+                        >
+                          <span className="material-symbols-outlined text-[13px]">refresh</span>
+                          <span>Clear Search</span>
+                        </button>
+                      </div>
+                    ) : (
+                      <div className="flex flex-col items-center justify-center text-center py-6 px-4 text-[#94A3B8]">
+                        <div className="w-8 h-8 rounded-[9px] bg-[#F1F3F5] flex items-center justify-center mb-2 text-[#94A3B8]">
+                          <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8">
+                            <path d="M4 13v6a1 1 0 001 1h14a1 1 0 001-1v-6M4 13l2.5-7h11l2.5 7M4 13h5.5a.5.5 0 01.5.5v0a2 2 0 002 2h0a2 2 0 002-2v0a.5.5 0 01.5-.5H20"/>
+                          </svg>
+                        </div>
+                        <div className="text-[12px] font-semibold text-[#334155] mb-0.5">
+                          {statusFilter === "queue" ? "Nothing in queue" : "No completed categories"}
+                        </div>
+                        <div className="text-[11px] text-[#94A3B8] max-w-[200px] leading-snug">
+                          {statusFilter === "queue"
+                            ? "Drag categories into a tatami ring to queue them up."
+                            : "Finished categories will appear here once marked completed."}
+                        </div>
+                      </div>
+                    )
                   )}
                   {sidebarCategoriesToShow.map(cat => {
                     const assignment = assignmentsMap[cat.id];
@@ -1181,7 +1389,7 @@ export default function RingBalancingClient({
                     return (
                       <div
                         key={cat.id}
-                        className={`p-3 border rounded-xl relative overflow-hidden ${isPaused
+                        className={`p-2.5 border rounded-lg relative overflow-hidden ${isPaused
                             ? 'bg-amber-500/5 border-amber-300 shadow-2xs'
                             : isRunning
                               ? 'bg-secondary/5 border-secondary/30 shadow-2xs'
@@ -1199,16 +1407,16 @@ export default function RingBalancingClient({
                         {isCompleted && (
                           <div className="absolute top-0 left-0 w-1 h-full bg-blue-600"></div>
                         )}
-                        <div className={`flex gap-1 flex-wrap mb-1.5 ${hasLeftAccent ? 'ml-1.5' : ''}`}>
-                          {cat.belt && <span className="px-1.5 py-0.5 bg-surface-container-high text-on-surface rounded text-[9px] font-bold uppercase">{cat.belt}</span>}
-                          {cat.sex && <span className="px-1.5 py-0.5 bg-surface-container-high text-on-surface rounded text-[9px] font-bold uppercase">{cat.sex}</span>}
-                          {cat.age_bracket && <span className="px-1.5 py-0.5 bg-surface-container-high text-on-surface rounded text-[9px] font-bold uppercase">{cat.age_bracket}</span>}
-                          {cat.weight_class && <span className="px-1.5 py-0.5 bg-surface-container-high text-on-surface rounded text-[9px] font-bold uppercase">{cat.weight_class}</span>}
+                        <div className={`flex gap-1 flex-wrap mb-1 ${hasLeftAccent ? 'ml-1.5' : ''}`}>
+                          {cat.belt && <span className="px-1.5 py-0.5 bg-surface-container-high text-on-surface rounded text-[8.5px] font-bold uppercase">{cat.belt}</span>}
+                          {cat.sex && <span className="px-1.5 py-0.5 bg-surface-container-high text-on-surface rounded text-[8.5px] font-bold uppercase">{cat.sex}</span>}
+                          {cat.age_bracket && <span className="px-1.5 py-0.5 bg-surface-container-high text-on-surface rounded text-[8.5px] font-bold uppercase">{cat.age_bracket}</span>}
+                          {cat.weight_class && <span className="px-1.5 py-0.5 bg-surface-container-high text-on-surface rounded text-[8.5px] font-bold uppercase">{cat.weight_class}</span>}
                         </div>
-                        <h4 className={`text-xs font-bold text-on-surface mb-1.5 ${hasLeftAccent ? 'ml-1.5' : ''}`}>{cat.name}</h4>
-                        <div className={`flex justify-between items-center text-[10px] text-on-surface-variant mb-1 ${hasLeftAccent ? 'ml-1.5' : ''}`}>
+                        <h4 className={`text-[12px] font-bold text-on-surface mb-1 ${hasLeftAccent ? 'ml-1.5' : ''}`}>{cat.name}</h4>
+                        <div className={`flex justify-between items-center text-[9.5px] text-on-surface-variant mb-0.5 ${hasLeftAccent ? 'ml-1.5' : ''}`}>
                           <span className="flex items-center gap-1 font-bold">
-                            <span className="material-symbols-outlined text-[12px]">{isCompleted ? 'done_all' : isPaused ? 'pause_circle' : 'schedule'}</span>
+                            <span className="material-symbols-outlined text-[11px]">{isCompleted ? 'done_all' : isPaused ? 'pause_circle' : 'schedule'}</span>
                             {ringName}
                           </span>
                           <div className="flex items-center gap-1.5">
@@ -1220,7 +1428,7 @@ export default function RingBalancingClient({
                                   setViewingPdf({ url: cat.doc_url!, title: cat.name });
                                 }}
                                 title="View student list PDF"
-                                className="material-symbols-outlined text-[12px] text-outline hover:text-primary transition-colors shrink-0 cursor-pointer"
+                                className="material-symbols-outlined text-[11px] text-outline hover:text-primary transition-colors shrink-0 cursor-pointer"
                                 style={{ fontVariationSettings: "'FILL' 0" }}
                               >
                                 article
@@ -1230,20 +1438,20 @@ export default function RingBalancingClient({
                               <StagerStatusIndicator stagerStatus={assignment.stager_status} stagerActorName={assignment.stager_name} />
                             )}
                             {isPaused && (
-                              <span className="inline-flex items-center gap-1 text-[9px] font-bold text-amber-800 bg-amber-50 border border-amber-200 px-1.5 py-0.5 rounded uppercase tracking-wider shadow-2xs">
+                              <span className="inline-flex items-center gap-1 text-[8.5px] font-bold text-amber-800 bg-amber-50 border border-amber-200 px-1.5 py-0.5 rounded uppercase tracking-wider shadow-2xs">
                                 <span className="w-1.5 h-1.5 rounded-full bg-amber-600 animate-pulse" />
                                 PAUSED
                               </span>
                             )}
                             {isRunning && (
-                              <span className="inline-flex items-center gap-1 text-[9px] font-bold text-emerald-800 bg-emerald-50 border border-emerald-200 px-1.5 py-0.5 rounded uppercase tracking-wider shadow-2xs">
+                              <span className="inline-flex items-center gap-1 text-[8.5px] font-bold text-emerald-800 bg-emerald-50 border border-emerald-200 px-1.5 py-0.5 rounded uppercase tracking-wider shadow-2xs">
                                 <span className="w-1.5 h-1.5 rounded-full bg-emerald-600 animate-pulse" />
                                 LIVE
                               </span>
                             )}
                             {isCompleted && (
-                              <span className="inline-flex items-center gap-1 text-[9px] font-bold text-blue-800 bg-blue-50 border border-blue-200 px-1.5 py-0.5 rounded uppercase tracking-wider shadow-2xs">
-                                <span className="material-symbols-outlined text-[10px] text-blue-600">done_all</span>
+                              <span className="inline-flex items-center gap-1 text-[8.5px] font-bold text-blue-800 bg-blue-50 border border-blue-200 px-1.5 py-0.5 rounded uppercase tracking-wider shadow-2xs">
+                                <span className="material-symbols-outlined text-[9.5px] text-blue-600">done_all</span>
                                 DONE
                               </span>
                             )}
@@ -1269,48 +1477,100 @@ export default function RingBalancingClient({
           </section>
 
           {/* Horizontal Scrollable Ring Grid */}
-          <section className="flex-1 overflow-x-auto bg-surface-container-low flex p-3 sm:p-6 gap-3 sm:gap-6 items-start">
+          <section className="flex-1 overflow-x-auto bg-surface-container-low flex p-3 sm:p-5 sm:pb-3 gap-3 sm:gap-5 items-start">
             {initialRings.map(ring => {
               const overloaded = isOverloaded(ring.id);
               const isHistoryView = historyOpenForRing === ring.id;
 
+              // Derive live status of this Tatami
+              const ringCats = ringQueues[ring.id] || [];
+              const runningCat = ringCats.find(c => assignmentsMap[c.id]?.status === 'running');
+              const pausedCat = !runningCat ? ringCats.find(c => assignmentsMap[c.id]?.status === 'paused') : null;
+              const isRingRunning = Boolean(runningCat);
+              const isRingPaused = Boolean(pausedCat);
+              const isRingCompleted = ringCats.length === 0 && (ringCompletedQueues[ring.id]?.length || 0) > 0;
+              const ringStatusText = isRingRunning ? "RUNNING" : isRingPaused ? "PAUSED" : isRingCompleted ? "COMPLETED" : "IDLE";
+              const ringHeaderBg = isRingRunning
+                ? "bg-[#1F5C3B] animate-band-pulse"
+                : isRingPaused
+                ? "bg-[#8E2E27]"
+                : isRingCompleted
+                ? "bg-[#1E3A8A]"
+                : "bg-[#59564C]";
+
+              const matNumberMatch = ring.name.match(/\d+/);
+              const matNumber = matNumberMatch ? matNumberMatch[0].padStart(2, "0") : String(ring.ring_order || 1).padStart(2, "0");
+              const formattedRingName = ring.name.replace(/Ring/i, "Tatami");
+
               if (isHistoryView) {
+                const totalHistoryAthletes = ringCompletedQueues[ring.id]?.reduce((sum, cat) => sum + cat.athletes_count, 0) || 0;
                 return (
-                  <div key={ring.id} className="w-[85vw] max-w-[360px] md:w-80 lg:w-[330px] xl:w-[350px] 2xl:w-[380px] shrink-0 flex flex-col bg-surface-container-lowest border border-outline-variant rounded-xl overflow-hidden shadow-sm h-full">
-                    <div className="sticky top-0 z-10 p-4 flex justify-between items-start shrink-0 bg-surface-container-highest text-on-surface">
-                      <div className="flex items-start gap-2">
-                        <span className="material-symbols-outlined text-[20px] text-primary mt-1">history</span>
-                        <div>
-                          <h4 className="font-headline-sm text-lg tracking-tight leading-none mb-1">{ring.name.replace(/Ring/i, "Tatami")} History</h4>
-                          <div className="flex gap-3 text-[10px] font-bold text-on-surface-variant uppercase">
-                            <span>{ringCompletedQueues[ring.id]?.length || 0} Categories</span>
-                            <span className="flex items-center gap-1"><span className="material-symbols-outlined text-[12px]">group</span> {ringCompletedQueues[ring.id]?.reduce((sum, cat) => sum + cat.athletes_count, 0) || 0} Athletes</span>
-                          </div>
+                  <div key={ring.id} className="w-[85vw] max-w-[360px] md:w-80 lg:w-[330px] xl:w-[350px] 2xl:w-[380px] shrink-0 flex flex-col bg-white border border-outline-variant rounded-xl overflow-hidden shadow-sm h-full">
+                    {/* Scoreboard History Header */}
+                    <div className="sticky top-0 z-10 px-3.5 h-[46px] flex items-center justify-between shrink-0 relative transition-all text-white bg-[#1E293B] overflow-visible">
+                      {/* Left: Scoreboard Mat Number & Label */}
+                      <div className="flex items-center gap-2 relative z-10 min-w-0">
+                        <span className="font-scoreboard text-[26px] sm:text-[28px] font-normal leading-none tracking-wide text-white shrink-0">
+                          {matNumber}
+                        </span>
+                        <div className="min-w-0 flex flex-col justify-center">
+                          <h4 className="font-bold text-[13px] sm:text-[13.5px] tracking-tight leading-tight text-white truncate">
+                            {formattedRingName}
+                          </h4>
+                          <span className="text-[8.5px] font-bold tracking-wider uppercase leading-none mt-0.5 text-amber-300">
+                            HISTORY ARCHIVE
+                          </span>
                         </div>
                       </div>
-                      <button
-                        className="p-1 rounded hover:bg-black/10 transition-colors flex items-center justify-center text-primary"
-                        onClick={() => setHistoryOpenForRing(null)}
-                        title="Back to Current"
-                      >
-                        <span className="material-symbols-outlined text-[20px]">close</span>
-                      </button>
+
+                      {/* Right: Back to Queue Button */}
+                      <div className="flex items-center gap-1.5 relative z-10 shrink-0">
+                        <button
+                          type="button"
+                          className="flex items-center gap-1 text-[9.5px] font-bold tracking-wider uppercase text-white bg-white/15 hover:bg-white/25 px-2 py-1 rounded-md transition-all cursor-pointer border border-white/10 shadow-xs"
+                          onClick={() => setHistoryOpenForRing(null)}
+                          title="Back to Current Queue"
+                        >
+                          <span className="material-symbols-outlined text-[13px]">arrow_back</span>
+                          <span>QUEUE</span>
+                        </button>
+                      </div>
+
+                      {/* Ticket Perforation Notches - centered exactly at bottom seam */}
+                      <div className="spectator-notch left -bottom-[7px]" />
+                      <div className="spectator-notch right -bottom-[7px]" />
+                    </div>
+
+                    {/* History Stats Summary Bar (matches EST TIME / ATHLETES height & seam) */}
+                    <div className="py-1.5 px-3 border-b border-outline-variant flex items-center justify-around bg-slate-50">
+                      <div className="flex flex-col items-center">
+                        <span className="text-[8.5px] font-label-caps font-bold text-on-surface-variant leading-tight">COMPLETED</span>
+                        <span className="font-data-mono text-[15px] font-black text-slate-800 leading-tight">
+                          {ringCompletedQueues[ring.id]?.length || 0}
+                        </span>
+                      </div>
+                      <div className="h-4 w-[1px] bg-outline-variant/50"></div>
+                      <div className="flex flex-col items-center">
+                        <span className="text-[8.5px] font-label-caps font-bold text-on-surface-variant leading-tight">ATHLETES</span>
+                        <span className="flex items-center gap-1 font-data-mono text-[15px] font-black text-slate-800 leading-tight">
+                          <span className="material-symbols-outlined text-[13px]">group</span> {totalHistoryAthletes}
+                        </span>
+                      </div>
                     </div>
 
                     <div className="flex-1 overflow-y-auto p-4 space-y-3">
-                      {(!ringCompletedQueues[ring.id] || ringCompletedQueues[ring.id].length === 0) ? (
+                      {ringCompletedQueues[ring.id]?.length === 0 ? (
                         <div className="flex flex-col items-center justify-center h-full text-outline opacity-70">
                           <span className="material-symbols-outlined text-4xl mb-2">inbox</span>
                           <span className="text-sm">No completed categories</span>
                         </div>
                       ) : (
-                        ringCompletedQueues[ring.id].map(cat => {
+                        ringCompletedQueues[ring.id]?.map(cat => {
                           const assignment = initialAssignments.find(a => a.category_id === cat.id);
-                          const fallbackTime = assignment?.completed_at || assignment?.created_at;
-                          const rawTime = completedTimes[cat.id] || fallbackTime;
-                          const timeStr = rawTime ? new Date(rawTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : "Completed";
+                          const rawTime = completedTimes[cat.id] || (assignment as any)?.completed_at || (assignment as any)?.created_at;
+                          const timeStr = rawTime ? new Date(rawTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : 'Completed';
                           return (
-                            <div key={cat.id} className="p-3 bg-white border border-outline-variant rounded-lg flex flex-col gap-1 shadow-sm relative overflow-hidden">
+                            <div key={cat.id} className="p-3 bg-surface-container-lowest border border-outline-variant rounded-lg flex flex-col gap-1 shadow-sm relative overflow-hidden">
                               <div className="absolute top-0 left-0 w-1 h-full bg-green-500"></div>
                               <div className="flex justify-between items-center ml-2">
                                 <span className="text-[10px] font-bold text-secondary uppercase tracking-wider">
@@ -1339,24 +1599,24 @@ export default function RingBalancingClient({
                                     </button>
                                   )}
                                 </h5>
-                                <span className="flex items-center gap-1 text-[10px] font-data-mono font-bold text-outline">
-                                  <span className="material-symbols-outlined text-[12px]">group</span> {cat.athletes_count}
-                                </span>
-                              </div>
-                              {!readOnly && (
-                                <div className="flex justify-between items-center ml-2 mt-2 pt-2 border-t border-outline-variant/40">
-                                  <button
-                                    type="button"
-                                    onClick={() => setPendingRevertCategory({ ringId: ring.id, ringName: ring.name, category: cat })}
-                                    className="inline-flex items-center gap-1.5 px-2.5 py-1 text-xs font-semibold text-amber-800 bg-amber-100/80 hover:bg-amber-200 active:bg-amber-300 border border-amber-300 rounded transition-colors shadow-xs cursor-pointer"
-                                    title="Revert category back to active tatami queue"
-                                  >
-                                    <span className="material-symbols-outlined text-[15px]">undo</span>
-                                    Revert to Queue
-                                  </button>
-                                  <span className="text-[10px] text-on-surface-variant/60 font-medium">Put back to stack</span>
+                                <div className="flex items-center gap-1">
+                                  {!readOnly && (
+                                    <button
+                                      type="button"
+                                      onClick={() => setPendingRevertCategory({ ringId: ring.id, ringName: ring.name, category: cat })}
+                                      className="px-2 py-0.5 text-[10px] font-bold text-amber-700 bg-amber-500/10 hover:bg-amber-500/20 rounded transition-colors flex items-center gap-1"
+                                      title="Revert category to live queue"
+                                    >
+                                      <span className="material-symbols-outlined text-[12px]">undo</span>
+                                      Revert
+                                    </button>
+                                  )}
                                 </div>
-                              )}
+                              </div>
+                              <div className="flex gap-4 text-[10px] font-data-mono text-outline ml-2">
+                                <span className="flex items-center gap-1"><span className="material-symbols-outlined text-[12px]">group</span> {cat.athletes_count}</span>
+                                <span>{cat.expected_matches} Matches</span>
+                              </div>
                             </div>
                           );
                         })
@@ -1366,42 +1626,80 @@ export default function RingBalancingClient({
                 );
               }
 
-
               return (
                 <div key={ring.id} className="w-[85vw] max-w-[360px] md:w-80 lg:w-[330px] xl:w-[350px] 2xl:w-[380px] shrink-0 flex flex-col bg-white border border-outline-variant rounded-xl overflow-hidden shadow-sm h-full">
-                  {/* Header Droppable Shortcut Target */}
+                  {/* Header Droppable Shortcut Target - Spectator Scoreboard Style */}
                   <Droppable droppableId={`header_${ring.id}`}>
                     {(providedHeader, snapshotHeader) => (
                       <div
                         ref={providedHeader.innerRef}
                         {...providedHeader.droppableProps}
-                        className={`sticky top-0 z-10 p-4 flex flex-col shrink-0 relative transition-all ${snapshotHeader.isDraggingOver
-                            ? 'bg-emerald-600 text-white ring-4 ring-emerald-400/50 shadow-xl'
-                            : overloaded ? 'bg-error text-on-error' : 'bg-primary text-on-primary'
-                          }`}
+                        className={`sticky top-0 z-10 px-3.5 h-[46px] flex items-center justify-between shrink-0 relative transition-all text-white overflow-visible ${
+                          snapshotHeader.isDraggingOver
+                            ? 'bg-emerald-600 ring-4 ring-emerald-400/50 shadow-xl'
+                            : overloaded
+                            ? 'bg-red-800'
+                            : ringHeaderBg
+                        }`}
                       >
-                        <div className="flex justify-between items-center w-full">
-                          <div>
-                            <h4 className="font-headline-sm text-lg tracking-tight leading-none mb-1">{ring.name.replace(/Ring/i, "Tatami")}</h4>
-                            <span className="text-[9px] font-label-caps opacity-80">{overloaded ? "OVERLOADED" : "OPTIMUM CAPACITY"}</span>
-                          </div>
-                          <div className="relative flex items-center gap-1">
-                            <button
-                              className="p-1 rounded hover:bg-white/20 transition-colors flex items-center justify-center"
-                              onClick={() => setHistoryOpenForRing(ring.id)}
-                              title="View Completed Categories"
-                            >
-                              <span className="material-symbols-outlined text-[20px]">history</span>
-                            </button>
+                        {/* Left: Mat Number & 2-Line Label */}
+                        <div className="flex items-center gap-2 relative z-10 min-w-0">
+                          <span className="font-scoreboard text-[26px] sm:text-[28px] font-normal leading-none tracking-wide text-white shrink-0">
+                            {matNumber}
+                          </span>
+                          <div className="min-w-0 flex flex-col justify-center">
+                            <h4 className="font-bold text-[13px] sm:text-[13.5px] tracking-tight leading-tight text-white truncate">
+                              {formattedRingName}
+                            </h4>
+                            <span className={`text-[8.5px] font-bold tracking-wider uppercase leading-none mt-0.5 ${
+                              overloaded 
+                                ? 'text-red-200' 
+                                : isRingRunning 
+                                ? 'text-emerald-200/90' 
+                                : isRingPaused 
+                                ? 'text-rose-200/80' 
+                                : 'text-white/70'
+                            }`}>
+                              {overloaded ? "OVERLOADED (>6H)" : isRingRunning ? "OPTIMUM CAPACITY" : ringStatusText}
+                            </span>
                           </div>
                         </div>
 
-                        {snapshotHeader.isDraggingOver && (
-                          <div className="mt-2 bg-emerald-700 text-white text-[11px] font-bold py-1.5 px-3 rounded-lg flex items-center justify-center gap-1 shadow-md animate-pulse">
-                            <span className="material-symbols-outlined text-sm">south</span>
-                            Append to Bottom of Queue
-                          </div>
-                        )}
+                        {/* Right: Dot Status Capsule Pill + History Button */}
+                        <div className="flex items-center gap-1.5 relative z-10 shrink-0">
+                          <span className="flex items-center gap-1 text-[9px] sm:text-[9.5px] font-bold tracking-wider uppercase text-white bg-black/25 px-2 py-0.5 rounded-full border border-white/10 shadow-xs">
+                            <span className="relative flex h-1.5 w-1.5 shrink-0">
+                              {isRingRunning && (
+                                <span className="animate-pulse-ring absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-80" />
+                              )}
+                              <span
+                                className={`relative inline-flex rounded-full h-1.5 w-1.5 ${
+                                  isRingRunning
+                                    ? "bg-emerald-400"
+                                    : isRingPaused
+                                    ? "bg-rose-400"
+                                    : isRingCompleted
+                                    ? "bg-blue-400"
+                                    : "bg-stone-300"
+                                }`}
+                              />
+                            </span>
+                            <span>{ringStatusText}</span>
+                          </span>
+
+                          <button
+                            type="button"
+                            className="w-7 h-7 rounded-md bg-black/25 hover:bg-white/20 text-white border border-white/10 flex items-center justify-center transition-all cursor-pointer shadow-xs"
+                            onClick={() => setHistoryOpenForRing(ring.id)}
+                            title="View Completed Categories"
+                          >
+                            <span className="material-symbols-outlined text-[15px]">history</span>
+                          </button>
+                        </div>
+
+                        {/* Ticket Perforation Notches - centered exactly at bottom seam */}
+                        <div className="spectator-notch left -bottom-[7px]" />
+                        <div className="spectator-notch right -bottom-[7px]" />
 
                         <div className="hidden">{providedHeader.placeholder}</div>
                       </div>
@@ -1409,16 +1707,16 @@ export default function RingBalancingClient({
                   </Droppable>
 
                   {/* Workload Info */}
-                  <div className={`p-3 border-b border-outline-variant flex items-center justify-around ${overloaded ? 'bg-error/5' : 'bg-secondary/5'}`}>
+                  <div className={`py-1.5 px-3 border-b border-outline-variant flex items-center justify-around ${overloaded ? 'bg-error/5' : 'bg-secondary/5'}`}>
                     <div className="flex flex-col items-center">
-                      <span className={`text-[9px] font-label-caps font-bold ${overloaded ? 'text-error' : 'text-on-surface-variant'}`}>EST TIME</span>
-                      <span className={`font-data-mono text-lg font-black ${overloaded ? 'text-error' : 'text-secondary'}`}>{calculateRingWorkload(ring.id)}</span>
+                      <span className={`text-[8.5px] font-label-caps font-bold leading-tight ${overloaded ? 'text-error' : 'text-on-surface-variant'}`}>EST TIME</span>
+                      <span className={`font-data-mono text-[15px] font-black leading-tight ${overloaded ? 'text-error' : 'text-secondary'}`}>{calculateRingWorkload(ring.id)}</span>
                     </div>
-                    <div className="h-6 w-[1px] bg-outline-variant/50"></div>
+                    <div className="h-4 w-[1px] bg-outline-variant/50"></div>
                     <div className="flex flex-col items-center">
-                      <span className="text-[9px] font-label-caps font-bold text-on-surface-variant">ATHLETES</span>
-                      <span className={`flex items-center gap-1 font-data-mono text-lg font-black ${overloaded ? 'text-error' : 'text-secondary'}`}>
-                        <span className="material-symbols-outlined text-[15px]">group</span> {calculateRingAthletes(ring.id)}
+                      <span className="text-[8.5px] font-label-caps font-bold text-on-surface-variant leading-tight">ATHLETES</span>
+                      <span className={`flex items-center gap-1 font-data-mono text-[15px] font-black leading-tight ${overloaded ? 'text-error' : 'text-secondary'}`}>
+                        <span className="material-symbols-outlined text-[13px]">group</span> {calculateRingAthletes(ring.id)}
                       </span>
                     </div>
                   </div>
@@ -1446,32 +1744,102 @@ export default function RingBalancingClient({
                               const stagerStatus = catAssignment?.stager_status ?? null;
                               const stagerActorName = catAssignment?.stager_name ?? null;
 
+                              if (hasLeftAccent) {
+                                return (
+                                  <div
+                                    ref={provided.innerRef}
+                                    {...provided.draggableProps}
+                                    {...provided.dragHandleProps}
+                                    className={`border rounded-xl relative overflow-hidden transition-all bg-white ${
+                                      isPaused
+                                        ? 'border-amber-400/60 border-l-[3.5px] border-l-amber-600 shadow-xs'
+                                        : isRunning
+                                        ? 'border-emerald-400/60 border-l-[3.5px] border-l-emerald-600 shadow-sm'
+                                        : 'border-blue-400/40 border-l-[3.5px] border-l-blue-600 shadow-xs opacity-90'
+                                    } ${!readOnly ? 'cursor-grab active:cursor-grabbing' : ''}`}
+                                  >
+                                    {/* Clean Distinct Top Bar for Category Card */}
+                                    <div className="px-3 py-2 border-b border-stone-100 flex items-center justify-between bg-stone-50/75">
+                                      <span className="text-[10px] font-bold tracking-wider uppercase text-stone-600 truncate">
+                                        {(cat.age_bracket || (cat.age_min !== null && cat.age_max !== null ? `${cat.age_min}-${cat.age_max}` : ""))} | {cat.weight_class || cat.belt || "-"}
+                                      </span>
+                                      <div className="flex items-center gap-1.5 shrink-0">
+                                        {stagerStatus && (
+                                          <StagerStatusIndicator stagerStatus={stagerStatus} stagerActorName={stagerActorName} />
+                                        )}
+                                        <span
+                                          className={`px-2 py-0.5 rounded-full text-[9.5px] font-bold flex items-center gap-1.5 border ${
+                                            isPaused
+                                              ? 'bg-amber-50 text-amber-800 border-amber-200'
+                                              : isRunning
+                                              ? 'bg-emerald-50 text-emerald-800 border-emerald-200'
+                                              : 'bg-blue-50 text-blue-800 border-blue-200'
+                                          }`}
+                                        >
+                                          <span
+                                            className={`w-1.5 h-1.5 rounded-full ${
+                                              isPaused
+                                                ? 'bg-amber-600'
+                                                : isRunning
+                                                ? 'bg-emerald-600 animate-pulse'
+                                                : 'bg-blue-600'
+                                            }`}
+                                          />
+                                          <span>{isPaused ? "PAUSED" : isRunning ? "LIVE" : "DONE"}</span>
+                                        </span>
+                                      </div>
+                                    </div>
+
+                                    {/* Card Body */}
+                                    <div className="p-3">
+                                      <div className="flex justify-between items-start gap-1.5 mb-1.5">
+                                        <h5 className="text-xs font-bold text-[#1B1815] leading-snug line-clamp-1">{cat.name}</h5>
+                                        {cat.doc_url && (
+                                          <button
+                                            type="button"
+                                            onClick={(e) => {
+                                              e.stopPropagation();
+                                              setViewingPdf({ url: cat.doc_url!, title: cat.name });
+                                            }}
+                                            title="View student list PDF"
+                                            className="material-symbols-outlined text-[13px] text-outline hover:text-primary transition-colors shrink-0 cursor-pointer"
+                                            style={{ fontVariationSettings: "'FILL' 0" }}
+                                          >
+                                            article
+                                          </button>
+                                        )}
+                                      </div>
+
+                                      <div className="flex items-center gap-1 text-[10px] font-data-mono text-[#68645A] mb-1.5">
+                                        <span className="material-symbols-outlined text-[12px]">group</span>
+                                        <span>{cat.athletes_count} athletes</span>
+                                      </div>
+
+                                      {/* Exact 10-Segment Hatched Diagonal Progress Bar */}
+                                      <SegmentedProgressBar
+                                        completed={matchesDone}
+                                        total={matchesTotal || 1}
+                                        status={status}
+                                        compact
+                                        showLabel
+                                      />
+                                    </div>
+                                  </div>
+                                );
+                              }
+
+                              // Pending / Queued Category Card
                               return (
                                 <div
                                   ref={provided.innerRef}
                                   {...provided.draggableProps}
                                   {...provided.dragHandleProps}
-                                  className={`p-3 border rounded-lg relative overflow-hidden ${isPaused
-                                      ? 'bg-amber-500/5 border-amber-400/50 shadow-md'
-                                      : isRunning
-                                        ? 'bg-secondary/5 border-secondary/40 shadow-md'
-                                        : isCompleted
-                                          ? 'bg-surface-container/60 border-outline-variant opacity-80'
-                                          : `bg-surface-container-lowest border-outline-variant ${snapshot.isDragging ? 'border-secondary shadow-lg' : ''}`
-                                    } ${!readOnly ? 'cursor-grab active:cursor-grabbing' : ''}`}
+                                  className={`p-3 border rounded-xl relative overflow-hidden bg-white border-outline-variant hover:border-[#A19C90] transition-all ${
+                                    snapshot.isDragging ? 'border-secondary shadow-lg' : 'shadow-xs'
+                                  } ${!readOnly ? 'cursor-grab active:cursor-grabbing' : ''}`}
                                 >
-                                  {isPaused && (
-                                    <div className="absolute top-0 left-0 w-1 h-full bg-amber-500"></div>
-                                  )}
-                                  {isRunning && (
-                                    <div className="absolute top-0 left-0 w-1 h-full bg-secondary"></div>
-                                  )}
-                                  {isCompleted && (
-                                    <div className="absolute top-0 left-0 w-1 h-full bg-blue-600"></div>
-                                  )}
-                                  <div className={`flex justify-between items-center mb-1 ${hasLeftAccent ? 'ml-2' : ''}`}>
-                                    <span className={`text-[9px] font-bold uppercase tracking-wider ${isPaused ? 'text-amber-700' : isCompleted ? 'text-blue-700' : 'text-secondary'
-                                      }`}>
+                                  <div className="flex justify-between items-center mb-1.5">
+                                    <span className="text-[9.5px] font-bold uppercase tracking-wider text-[#68645A]">
                                       {(cat.age_bracket || (cat.age_min !== null && cat.age_max !== null ? `${cat.age_min}-${cat.age_max}` : ""))} | {cat.weight_class || cat.belt || "-"}
                                     </span>
                                     <div className="flex items-center gap-1.5 shrink-0">
@@ -1492,51 +1860,30 @@ export default function RingBalancingClient({
                                       {stagerStatus && (
                                         <StagerStatusIndicator stagerStatus={stagerStatus} stagerActorName={stagerActorName} />
                                       )}
-                                      {isPaused ? (
-                                        <span className="inline-flex items-center gap-1 text-[9px] font-bold text-amber-800 bg-amber-50 border border-amber-200 px-1.5 py-0.5 rounded uppercase tracking-wider shadow-2xs">
-                                          <span className="w-1.5 h-1.5 rounded-full bg-amber-600 animate-pulse" />
-                                          PAUSED
-                                        </span>
-                                      ) : isRunning ? (
-                                        <span className="inline-flex items-center gap-1 text-[9px] font-bold text-emerald-800 bg-emerald-50 border border-emerald-200 px-1.5 py-0.5 rounded uppercase tracking-wider shadow-2xs">
-                                          <span className="w-1.5 h-1.5 rounded-full bg-emerald-600 animate-pulse" />
-                                          LIVE
-                                        </span>
-                                      ) : isCompleted ? (
-                                        <span className="inline-flex items-center gap-1 text-[9px] font-bold text-blue-800 bg-blue-50 border border-blue-200 px-1.5 py-0.5 rounded uppercase tracking-wider shadow-2xs">
-                                          <span className="material-symbols-outlined text-[11px] text-blue-600">done_all</span>
-                                          COMPLETED
-                                        </span>
-                                      ) : (
-                                        <span className="font-data-mono text-[10px] font-bold text-on-surface-variant">{Math.ceil((cat.expected_matches * 109) / 60)}m</span>
-                                      )}
+                                      <span className="font-data-mono text-[9.5px] font-bold text-[#68645A] bg-[#ECE9DF] px-1.5 py-0.5 rounded">
+                                        {Math.ceil((cat.expected_matches * 109) / 60)}m
+                                      </span>
                                     </div>
                                   </div>
-                                  <h5 className={`text-xs font-bold text-primary mb-2 ${hasLeftAccent ? 'ml-2' : ''}`}>{cat.name}</h5>
-                                  <div className={`flex gap-4 text-[10px] font-data-mono text-outline ${hasLeftAccent ? 'ml-2' : ''}`}>
-                                    <span className="flex items-center gap-1"><span className="material-symbols-outlined text-[12px]">group</span> {cat.athletes_count}</span>
+                                  <h5 className="text-xs font-bold text-[#1B1815] mb-1.5 leading-snug">{cat.name}</h5>
+                                  <div className="flex justify-between items-center text-[10px] font-data-mono text-[#68645A]">
+                                    <span className="flex items-center gap-1">
+                                      <span className="material-symbols-outlined text-[12px]">group</span> {cat.athletes_count}
+                                    </span>
+                                    <span>{cat.expected_matches} matches</span>
                                   </div>
-                                  {(isRunning || isPaused || isCompleted) && (
-                                    <div className="mt-2 ml-2">
-                                      <div className={`flex justify-between text-[9px] font-bold mb-0.5 ${isPaused ? 'text-amber-700' : isCompleted ? 'text-blue-700' : 'text-secondary'
-                                        }`}>
-                                        <span>{matchesDone} / {matchesTotal} matches</span>
-                                        <span>{pct.toFixed(0)}%</span>
-                                      </div>
-                                      <div className="w-full bg-surface-container-high h-1.5 rounded-full overflow-hidden">
-                                        <div
-                                          className={`h-full transition-all duration-500 ease-out ${isPaused ? 'bg-amber-500' : isCompleted ? 'bg-blue-600' : 'bg-secondary'
-                                            }`}
-                                          style={{ width: `${Math.min(100, pct)}%` }}
-                                        ></div>
-                                      </div>
-                                    </div>
-                                  )}
                                 </div>
                               );
                             }}
                           </Draggable>
                         ))}
+                        {(!ringQueues[ring.id] || ringQueues[ring.id].length === 0) && (
+                          <div className="flex-1 flex flex-col items-center justify-center py-8 px-4 text-center border-2 border-dashed border-outline-variant/60 rounded-xl my-2 text-outline/60">
+                            <span className="material-symbols-outlined text-3xl mb-1 text-outline/40">low_priority</span>
+                            <span className="text-[12px] font-semibold text-[#8C877C]">Tatami Idle</span>
+                            <span className="text-[10px] text-[#A19C90] mt-0.5">Drag categories here to assign</span>
+                          </div>
+                        )}
                         {provided.placeholder}
                       </div>
                     )}
@@ -1548,45 +1895,7 @@ export default function RingBalancingClient({
         </div>
       </DragDropContext>
 
-      {/* Bottom Status Bar */}
-      <footer className="h-10 bg-surface-container-highest border-t border-outline-variant px-4 sm:px-8 flex items-center justify-between shrink-0 z-10 w-full gap-2">
-        <div className="flex gap-4 sm:gap-6 items-center min-w-0">
-          <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
-            <span className="w-2 h-2 rounded-full bg-green-500 animate-pulse"></span>
-            <span className="font-label-caps text-[10px] text-on-surface-variant whitespace-nowrap">System Live</span>
-          </div>
-          <div className="flex items-center gap-1.5 sm:gap-2 min-w-0">
-            <span className="material-symbols-outlined text-[14px] text-outline shrink-0">sync</span>
-            <span className="font-label-caps text-[10px] text-on-surface-variant truncate whitespace-nowrap">
-              {isMounted && lastSaved ? `Last saved at ${lastSaved.toLocaleTimeString()}` : "Not saved yet"}
-            </span>
-          </div>
-        </div>
 
-        {/* CruxStudios Footer Badge - only when not readOnly (Organiser has full FooterDemo at the end) */}
-        {!readOnly && (
-          <a
-            href="https://cruxstudios.dev"
-            target="_blank"
-            rel="noopener noreferrer"
-            className="group inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-[#1B1815] hover:bg-black text-[#F5F3EC] border border-[#E1DDCF]/40 hover:border-cyan-400/60 shadow-[0_2px_8px_rgba(27,24,21,0.12)] hover:shadow-[0_0_15px_rgba(0,229,255,0.25)] transition-all duration-300 shrink-0"
-          >
-            <span className="font-['Inter',sans-serif] font-medium text-[9px] text-[#F5F3EC]/90 group-hover:text-white transition-colors hidden xs:inline whitespace-nowrap">
-              Developed by
-            </span>
-            <div className="flex items-center gap-1">
-              <img
-                src="https://cruxstudios.dev/favicon.svg"
-                alt="CruxStudios"
-                className="h-3.5 w-3.5 drop-shadow-[0_0_6px_rgba(0,229,255,0.7)] group-hover:scale-110 transition-all duration-300"
-              />
-              <span className="font-['Plus_Jakarta_Sans',sans-serif] font-black text-[11px] text-white tracking-tight group-hover:text-[#00E5FF] transition-colors whitespace-nowrap">
-                CruxStudios
-              </span>
-            </div>
-          </a>
-        )}
-      </footer>
 
       {/* Confirmation Modal */}
       {pendingDragResult && (
