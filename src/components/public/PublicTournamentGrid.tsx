@@ -65,6 +65,11 @@ export default function PublicTournamentGrid({ tournaments, todayStr }: PublicTo
                 key={t.id}
                 href={`/public/event/${t.id}`}
                 scroll={true}
+                onClick={() => {
+                  if (typeof window !== "undefined") {
+                    window.scrollTo({ top: 0, left: 0, behavior: "instant" as any });
+                  }
+                }}
                 className="rounded-2xl p-6 md:p-7 transition-all duration-300 flex flex-col justify-between group cursor-pointer relative overflow-hidden bg-white border-2 border-[#1B1815] shadow-[0_8px_30px_rgba(27,24,21,0.08)] hover:shadow-[0_16px_40px_rgba(27,24,21,0.14)] hover:-translate-y-1"
               >
                 <div>

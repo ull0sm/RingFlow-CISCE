@@ -246,12 +246,17 @@ export default function PublicEventClient({
 
     const fetchAthletes = async () => {
       try {
+        const isNumeric = /^\d+$/.test(cleanQ);
+        const nameFilter = isNumeric
+          ? `name.ilike.%${cleanQ}%,chest_number.eq.${cleanQ}`
+          : `name.ilike.%${cleanQ}%,chest_number.ilike.%${cleanQ}%`;
+
         // 1. Fetch athletes directly matching name or chest number
         const namePromise = supabase
           .from("athletes")
           .select("id, name, chest_number, category_id, categories(id, name, doc_url)")
           .eq("tournament_id", tournament.id)
-          .or(`name.ilike.%${cleanQ}%,chest_number.ilike.%${cleanQ}%`)
+          .or(nameFilter)
           .limit(20);
 
         // 2. Fetch categories matching the query (e.g. u14_30-35kg, 30, 14, age, weight)

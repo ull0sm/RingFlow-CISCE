@@ -1,10 +1,17 @@
-import React from "react";
+"use client";
+
+import React, { useEffect } from "react";
 import { RingCardSkeleton } from "@/components/ui/Skeleton";
 import "@/components/public/public-spectator.css";
 
 export default function PublicEventLoading() {
+  useEffect(() => {
+    window.scrollTo({ top: 0, left: 0, behavior: "instant" });
+  }, []);
+
   return (
     <div className="spectator-root min-h-screen">
+      <script dangerouslySetInnerHTML={{ __html: "window.scrollTo(0, 0);" }} />
       <div className="spectator-page">
         {/* ---------- Header Skeleton ---------- */}
         <header className="spectator-header">
@@ -23,15 +30,8 @@ export default function PublicEventLoading() {
           </div>
 
           {/* Eyebrow & Title */}
-          <div className="w-44 h-3.5 bg-[#E1DDCF]/80 rounded-sm animate-pulse mb-3" />
-          <div className="w-full max-w-2xl h-10 sm:h-12 bg-[#E1DDCF]/90 rounded-lg animate-pulse mb-4" />
-
-          {/* Tournament Metric Pills */}
-          <div className="flex items-center gap-2 mb-2">
-            <div className="w-24 h-6 rounded-full bg-[#E1DDCF]/70 animate-pulse" />
-            <div className="w-32 h-6 rounded-full bg-[#E1DDCF]/70 animate-pulse" />
-            <div className="w-28 h-6 rounded-full bg-[#E1DDCF]/70 animate-pulse" />
-          </div>
+          <div className="w-40 h-3 bg-[#E1DDCF]/80 rounded-sm animate-pulse mb-1.5" />
+          <div className="w-full max-w-xl h-9 sm:h-11 bg-[#E1DDCF]/90 rounded-lg animate-pulse mb-0" />
         </header>
 
         {/* ---------- Search Box Skeleton ---------- */}

@@ -84,63 +84,69 @@ export default async function PublicHome() {
           <div className="absolute inset-0 bg-gradient-to-r from-[#F5F3EC] via-[#F5F3EC]/90 to-transparent md:via-[#F5F3EC]/60" />
 
           {/* 📱 MOBILE VIEW ONLY (md:hidden) */}
-          <div className="relative max-w-7xl mx-auto px-6 sm:px-8 w-full flex-1 flex flex-col justify-between z-10 md:hidden">
+          <div className="relative max-w-7xl mx-auto px-5 sm:px-8 w-full z-10 md:hidden flex flex-col">
             {/* Top: Header Text */}
             <div className="max-w-2xl pt-1">
-              <h1 className="font-['Plus_Jakarta_Sans',sans-serif] text-[30px] sm:text-[40px] font-black tracking-[-0.03em] leading-[1.08] mb-2 text-[#1B1815]">
+              <h1 className="font-['Plus_Jakarta_Sans',sans-serif] text-[28px] sm:text-[34px] font-black tracking-[-0.03em] leading-[1.12] mb-1.5 text-[#1B1815]">
                 Find Your Next Championship
               </h1>
-              <p className="text-[#68645A] font-['Inter',sans-serif] font-normal text-[14px] sm:text-base max-w-md leading-relaxed">
+              <p className="text-[#68645A] font-['Inter',sans-serif] font-normal text-[13.5px] sm:text-[15px] max-w-md leading-relaxed">
                 Track live tatami rings, category assignments, and athlete queue status in real time.
               </p>
             </div>
 
-            {/* Bullet points: single column with the exact spacing */}
-            <div className="mt-6 sm:mt-8 mb-6 sm:mb-8 max-w-2xl">
-              <div className="space-y-4 sm:space-y-5 max-w-[280px] sm:max-w-sm">
-                <div className="flex items-center gap-2.5 text-[13.5px] sm:text-[14.5px] text-[#3D3A33] font-medium">
+            {/* Bullet points: balanced 2-column grid so background artwork stays visible and height is compact */}
+            <div className="my-4 sm:my-5 max-w-xl">
+              <div className="grid grid-cols-2 gap-x-3 gap-y-2.5 text-[12px] sm:text-[13px] text-[#3D3A33] font-medium">
+                <div className="flex items-center gap-2">
                   <span className="w-1.5 h-1.5 rounded-full bg-[#1B1815] shrink-0" />
-                  <span>Live tatami ring status</span>
+                  <span className="leading-tight">Live ring status</span>
                 </div>
-                <div className="flex items-center gap-2.5 text-[13.5px] sm:text-[14.5px] text-[#3D3A33] font-medium">
+                <div className="flex items-center gap-2">
                   <span className="w-1.5 h-1.5 rounded-full bg-[#1B1815] shrink-0" />
-                  <span>Real-time match queues</span>
+                  <span className="leading-tight">Bracket progression</span>
                 </div>
-                <div className="flex items-center gap-2.5 text-[13.5px] sm:text-[14.5px] text-[#3D3A33] font-medium">
+                <div className="flex items-center gap-2">
                   <span className="w-1.5 h-1.5 rounded-full bg-[#1B1815] shrink-0" />
-                  <span>Category allocations</span>
+                  <span className="leading-tight">Match queues</span>
                 </div>
-                <div className="flex items-center gap-2.5 text-[13.5px] sm:text-[14.5px] text-[#3D3A33] font-medium">
+                <div className="flex items-center gap-2">
                   <span className="w-1.5 h-1.5 rounded-full bg-[#1B1815] shrink-0" />
-                  <span>Athlete bullpen tracking</span>
+                  <span className="leading-tight">Schedule routing</span>
                 </div>
-                <div className="flex items-center gap-2.5 text-[13.5px] sm:text-[14.5px] text-[#3D3A33] font-medium">
+                <div className="flex items-center gap-2">
                   <span className="w-1.5 h-1.5 rounded-full bg-[#1B1815] shrink-0" />
-                  <span>Instant bracket progression</span>
+                  <span className="leading-tight">Category allocations</span>
                 </div>
-                <div className="flex items-center gap-2.5 text-[13.5px] sm:text-[14.5px] text-[#3D3A33] font-medium">
+                <div className="flex items-center gap-2">
                   <span className="w-1.5 h-1.5 rounded-full bg-[#1B1815] shrink-0" />
-                  <span>Match schedule routing</span>
+                  <span className="leading-tight">Referee assignments</span>
                 </div>
-                <div className="flex items-center gap-2.5 text-[13.5px] sm:text-[14.5px] text-[#3D3A33] font-medium">
+                <div className="flex items-center gap-2">
                   <span className="w-1.5 h-1.5 rounded-full bg-[#1B1815] shrink-0" />
-                  <span>Referee floor assignments</span>
+                  <span className="leading-tight">Bullpen tracking</span>
                 </div>
-                <div className="flex items-center gap-2.5 text-[13.5px] sm:text-[14.5px] text-[#3D3A33] font-medium">
+                <div className="flex items-center gap-2">
                   <span className="w-1.5 h-1.5 rounded-full bg-[#1B1815] shrink-0" />
-                  <span>Live spectator scoreboards</span>
+                  <span className="leading-tight">Live spectator boards</span>
                 </div>
               </div>
             </div>
 
-            {/* Bottom: Button positioned right above Explore */}
-            <div className="max-w-2xl w-full flex flex-col items-center pb-2">
+            {/* Bottom: View Events button + Explore indicator in clean vertical flow */}
+            <div className="w-full flex flex-col items-center pt-2 pb-1">
               <Link
                 href="#events"
-                className="w-full sm:w-auto text-center px-8 py-3.5 bg-[#1B1815]/85 hover:bg-[#1B1815] backdrop-blur-md border border-[#F5F3EC]/25 text-[#F5F3EC] font-['Plus_Jakarta_Sans',sans-serif] font-bold text-[15px] rounded-xl transition-all shadow-[0_8px_24px_rgba(27,24,21,0.12)] hover:shadow-[0_12px_28px_rgba(27,24,21,0.2)] inline-block active:scale-[0.98]"
+                className="w-full max-w-[280px] text-center px-6 py-3 bg-[#1B1815] hover:bg-black text-[#F5F3EC] font-['Plus_Jakarta_Sans',sans-serif] font-bold text-[14.5px] rounded-xl transition-all shadow-md active:scale-[0.98]"
               >
                 View Events
               </Link>
+              <div className="flex flex-col items-center text-[#8C877C] animate-bounce pointer-events-none mt-2.5 opacity-75">
+                <span className="text-[9px] font-bold tracking-widest uppercase font-['Plus_Jakarta_Sans',sans-serif]">Explore</span>
+                <svg className="w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                  <path d="M19 9l-7 7-7-7" />
+                </svg>
+              </div>
             </div>
           </div>
 
@@ -200,14 +206,6 @@ export default async function PublicHome() {
                 </Link>
               </div>
             </div>
-          </div>
-
-          {/* Explore indicator pinned to the bottom of the screen on mobile only */}
-          <div className="absolute bottom-2 left-1/2 -translate-x-1/2 flex flex-col items-center text-[#8C877C] animate-bounce pointer-events-none md:hidden opacity-85">
-            <span className="text-[10px] font-bold tracking-widest uppercase font-['Plus_Jakarta_Sans',sans-serif] mb-0.5">Explore</span>
-            <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
-              <path d="M19 9l-7 7-7-7" />
-            </svg>
           </div>
         </section>
 
