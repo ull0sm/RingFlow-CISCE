@@ -10,6 +10,20 @@
   --background: #F5F3EC;
   --foreground: #1B1815;
   --bg: #F5F3EC;
+
+  /* Shell v2 Design System Tokens from index.html */
+  --ink-900: #0F172A;
+  --ink-700: #334155;
+  --ink-500: #64748B;
+  --ink-400: #94A3B8;
+  --line: #E7EAEF;
+  --line-strong: #DCE0E7;
+  --surface: #FFFFFF;
+  --canvas: #F7F8FA;
+  --accent: #0E9C7C;
+  --accent-tint: #E3F6F0;
+  --accent-dark: #0B7C63;
+  --notif: #E4483C;
 }
 
 /* Fluid responsive root font-size scaling across all screens:
@@ -53,3 +67,126 @@ body {
   background-image: radial-gradient(#e0e3e5 0.5px, transparent 0.5px);
   background-size: 8px 8px;
 }
+
+/* ─── Spectator Ticket & Segmented Progress Utilities ─── */
+.font-scoreboard {
+  font-family: var(--font-bebas-neue), 'Inter', sans-serif;
+  letter-spacing: 0.04em;
+}
+
+/* Ticket perforation notches */
+.spectator-notch {
+  position: absolute;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: #F5F3EC;
+  z-index: 2;
+}
+
+.spectator-notch.left {
+  left: -7px;
+}
+
+.spectator-notch.right {
+  right: -7px;
+}
+
+/* 10-Segment diagonal-hatched progress bar */
+.spectator-tiles {
+  display: flex;
+  gap: 3px;
+  width: 100%;
+  margin-bottom: 6px;
+}
+
+.spectator-tile {
+  flex: 1;
+  height: 8px;
+  border-radius: 1.5px;
+  background: #ECE9DF;
+  transition: background-color 0.2s ease;
+}
+
+.spectator-tile.filled {
+  background-image: repeating-linear-gradient(45deg, transparent 0 2px, rgba(255, 255, 255, 0.35) 2px 4px);
+}
+
+.spectator-tile.filled-run {
+  background-color: #2E7A4F;
+}
+
+.spectator-tile.filled-pause {
+  background-color: #B23B33;
+}
+
+.spectator-tile.filled-completed {
+  background-color: #2563EB;
+}
+
+/* Scoreboard band breathing pulse */
+@keyframes spectator-band-pulse {
+  0%, 100% {
+    box-shadow: inset 0 0 0 0 rgba(255, 255, 255, 0);
+  }
+  50% {
+    box-shadow: inset 0 0 24px 3px rgba(255, 255, 255, 0.22);
+  }
+}
+
+.animate-band-pulse {
+  animation: spectator-band-pulse 2.6s ease-in-out infinite;
+}
+
+@keyframes spectator-pulse-ring {
+  0% {
+    transform: scale(0.95);
+    opacity: 0.85;
+  }
+  50% {
+    transform: scale(1.8);
+    opacity: 0;
+  }
+  100% {
+    transform: scale(0.95);
+    opacity: 0;
+  }
+}
+
+.animate-pulse-ring {
+  animation: spectator-pulse-ring 1.8s ease-out infinite;
+}
+
+/* Modern sleek scrollbar for horizontal balancing boards and scroll panels */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: #CBD5E1;
+  border-radius: 9999px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #94A3B8;
+}
+* {
+  scrollbar-width: thin;
+  scrollbar-color: #CBD5E1 transparent;
+}
+
+/* Safety guard: prevent raw font ligature text (e.g. progress_activity, sync) from rotating */
+.material-symbols-outlined.animate-spin,
+.material-symbols.animate-spin {
+  font-size: 0 !important;
+  display: inline-block !important;
+  width: 1.125rem !important;
+  height: 1.125rem !important;
+  border: 2px solid currentColor !important;
+  border-top-color: transparent !important;
+  border-radius: 9999px !important;
+  vertical-align: middle;
+}
+

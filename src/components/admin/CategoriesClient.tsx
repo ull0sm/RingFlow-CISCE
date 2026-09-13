@@ -465,7 +465,7 @@ export default function CategoriesClient({
                 disabled={isUploading}
                 className="px-6 py-2 rounded font-bold bg-secondary text-on-secondary hover:opacity-90 transition-opacity flex items-center gap-2 disabled:opacity-50"
               >
-                {isUploading ? <><span className="material-symbols-outlined animate-spin text-[18px]">sync</span> PUSHING...</> : "APPROVE & UPLOAD"}
+                {isUploading ? <><span className="w-4 h-4 border-2 border-current border-t-transparent rounded-full animate-spin shrink-0" /> PUSHING...</> : "APPROVE & UPLOAD"}
               </button>
             </div>
           </div>
@@ -658,7 +658,7 @@ export default function CategoriesClient({
                 >
                   {isPdfUploading ? (
                     <>
-                      <span className="material-symbols-outlined animate-spin text-[18px]">sync</span>
+                      <span className="w-4 h-4 border-2 border-current border-t-transparent rounded-full animate-spin shrink-0" />
                       {overwrites.length > 0 ? "OVERWRITING..." : "UPLOADING..."}
                     </>
                   ) : overwrites.length > 0 ? (

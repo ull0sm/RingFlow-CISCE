@@ -327,9 +327,7 @@ export function PdfViewerModal({ url, title, onClose }: PdfViewerModalProps) {
         >
           {isLoading && (
             <div className="absolute inset-0 flex flex-col items-center justify-center gap-2.5 bg-zinc-950/90 z-10 p-4 text-center">
-              <span className="material-symbols-outlined text-3xl animate-spin text-red-500">
-                progress_activity
-              </span>
+              <span className="w-8 h-8 rounded-full border-2 border-red-500/20 border-t-red-500 animate-spin" />
               <span className="text-xs font-medium text-zinc-400">Loading document...</span>
             </div>
           )}

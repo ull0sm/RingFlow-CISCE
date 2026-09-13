@@ -1,7 +1,9 @@
 "use client";
 
-import React, { useState, useRef } from "react";
+import React, { useState, useRef, useEffect } from "react";
+import { useSearchParams } from "next/navigation";
 import { addAthlete, deleteAthlete, bulkAddMasterAthletes, updateAthleteCategory } from "@/actions/athletes";
+import { matchesCategorySearch } from "@/lib/searchUtils";
 import * as XLSX from "xlsx";
 
 type Athlete = {
@@ -40,9 +42,10 @@ export default function AthletesClient({
   const [uploadProgress, setUploadProgress] = useState("");
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  // Filters and Editing State
+  // Filters and Editing State with reload persistence
   const [searchQuery, setSearchQuery] = useState("");
   const [filterCategoryId, setFilterCategoryId] = useState("all");
+  const [isFilterLoaded, setIsFilterLoaded] = useState(false);
   const [editingAthleteId, setEditingAthleteId] = useState<string | null>(null);
 
   // Preview State
@@ -57,10 +60,104 @@ export default function AthletesClient({
     sports_id: ""
   });
 
+  const searchParams = useSearchParams();
+
   // Sync props
-  React.useEffect(() => {
+  useEffect(() => {
     setAthletes(initialAthletes);
   }, [initialAthletes]);
+
+  // Restore filters on mount from URL search params or sessionStorage so reloads preserve them
+  useEffect(() => {
+    const urlQ = searchParams.get("q");
+    const urlCat = searchParams.get("category");
+
+    const savedQ = typeof window !== "undefined" ? sessionStorage.getItem(`ringflow_athletes_q_${tournamentId}`) : null;
+    const savedCat = typeof window !== "undefined" ? sessionStorage.getItem(`ringflow_athletes_cat_${tournamentId}`) : null;
+
+    const initialQ = urlQ ?? savedQ ?? "";
+    const initialCat = urlCat ?? savedCat ?? "all";
+
+    if (initialQ) setSearchQuery(initialQ);
+    if (initialCat) setFilterCategoryId(initialCat);
+    setIsFilterLoaded(true);
+  }, [searchParams, tournamentId]);
+
+  // Persist filter changes to URL and sessionStorage
+  useEffect(() => {
+    if (!isFilterLoaded) return;
+
+    if (typeof window !== "undefined") {
+      if (searchQuery.trim()) {
+        sessionStorage.setItem(`ringflow_athletes_q_${tournamentId}`, searchQuery);
+      } else {
+        sessionStorage.removeItem(`ringflow_athletes_q_${tournamentId}`);
+      }
+
+      if (filterCategoryId && filterCategoryId !== "all") {
+        sessionStorage.setItem(`ringflow_athletes_cat_${tournamentId}`, filterCategoryId);
+      } else {
+        sessionStorage.removeItem(`ringflow_athletes_cat_${tournamentId}`);
+      }
+
+      const url = new URL(window.location.href);
+      if (searchQuery.trim()) {
+        url.searchParams.set("q", searchQuery.trim());
+      } else {
+        url.searchParams.delete("q");
+      }
+
+      if (filterCategoryId && filterCategoryId !== "all") {
+        url.searchParams.set("category", filterCategoryId);
+      } else {
+        url.searchParams.delete("category");
+      }
+
+      window.history.replaceState(null, "", url.toString());
+    }
+  }, [searchQuery, filterCategoryId, isFilterLoaded, tournamentId]);
+
+  const hasActiveFilters = Boolean(searchQuery.trim() || (filterCategoryId && filterCategoryId !== "all"));
+
+  const handleClearFilters = () => {
+    setSearchQuery("");
+    setFilterCategoryId("all");
+    if (typeof window !== "undefined") {
+      sessionStorage.removeItem(`ringflow_athletes_q_${tournamentId}`);
+      sessionStorage.removeItem(`ringflow_athletes_cat_${tournamentId}`);
+      const url = new URL(window.location.href);
+      url.searchParams.delete("q");
+      url.searchParams.delete("category");
+      window.history.replaceState(null, "", url.toString());
+    }
+  };
+
+  const filteredAthletes = React.useMemo(() => {
+    return athletes.filter((athlete) => {
+      if (searchQuery) {
+        const query = searchQuery.toLowerCase().trim();
+        const matchesName = athlete.name.toLowerCase().includes(query);
+        const matchesChest = athlete.chest_number?.toLowerCase().includes(query.replace(/^#/, ""));
+        const matchesSchool = (athlete.school || athlete.dojo)?.toLowerCase().includes(query);
+        const matchesSportsId = athlete.sports_id?.toLowerCase().includes(query);
+        const matchesCategory = matchesCategorySearch(
+          athlete.categories?.name,
+          searchQuery
+        );
+        if (!matchesName && !matchesChest && !matchesSchool && !matchesSportsId && !matchesCategory) {
+          return false;
+        }
+      }
+      if (filterCategoryId !== "all") {
+        if (filterCategoryId === "uncategorized") {
+          if (athlete.category_id !== null && athlete.category_id !== "") return false;
+        } else {
+          if (athlete.category_id !== filterCategoryId) return false;
+        }
+      }
+      return true;
+    });
+  }, [athletes, searchQuery, filterCategoryId]);
 
   const handleSaveAdd = async () => {
     if (!addForm.name || !addForm.category_id) return alert("Name and Category are required");
@@ -210,23 +307,47 @@ export default function AthletesClient({
 
       {uploadProgress && (
         <div className="bg-secondary-container text-on-secondary-container p-4 rounded-lg flex items-center gap-3 font-data-mono text-sm shadow-sm animate-pulse">
-          <span className="material-symbols-outlined animate-spin">sync</span> {uploadProgress}
+          <span className="w-4 h-4 border-2 border-current border-t-transparent rounded-full animate-spin shrink-0" /> {uploadProgress}
         </div>
       )}
 
       {/* Filters */}
-      <div className="flex flex-col sm:flex-row gap-3 sm:gap-4 mb-4">
-        <input 
-          type="text" 
-          placeholder="Search by name or chest no..."
-          value={searchQuery}
-          onChange={(e) => setSearchQuery(e.target.value)}
-          className="flex-1 bg-white border border-outline-variant rounded p-2 text-sm outline-none focus:border-secondary"
-        />
+      <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 sm:gap-4 mb-3">
+        <div className="relative flex-1">
+          <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-[18px] text-slate-400 pointer-events-none">
+            search
+          </span>
+          <input 
+            type="text" 
+            placeholder="Search by athlete, chest no, or category (e.g. u14_30-35kg, 30)..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            className={`w-full bg-white border rounded-lg pl-9 pr-8 py-2 text-sm outline-none transition-all shadow-2xs ${
+              searchQuery.trim()
+                ? "border-[#0E9C7C] ring-2 ring-[#0E9C7C]/20 font-medium text-primary"
+                : "border-outline-variant focus:border-[#0E9C7C]"
+            }`}
+          />
+          {searchQuery && (
+            <button
+              type="button"
+              onClick={() => setSearchQuery("")}
+              className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-700 cursor-pointer p-0.5"
+              title="Clear search text"
+            >
+              <span className="material-symbols-outlined text-[16px]">close</span>
+            </button>
+          )}
+        </div>
+
         <select 
           value={filterCategoryId}
           onChange={(e) => setFilterCategoryId(e.target.value)}
-          className="w-full sm:w-64 bg-white border border-outline-variant rounded p-2 text-sm outline-none"
+          className={`w-full sm:w-64 bg-white border rounded-lg p-2 text-sm outline-none transition-all shadow-2xs cursor-pointer ${
+            filterCategoryId !== "all"
+              ? "border-[#0E9C7C] ring-2 ring-[#0E9C7C]/20 font-semibold text-[#0B7C63]"
+              : "border-outline-variant focus:border-[#0E9C7C]"
+          }`}
         >
           <option value="all">All Categories</option>
           <option value="uncategorized">Uncategorized</option>
@@ -234,7 +355,59 @@ export default function AthletesClient({
             <option key={c.id} value={c.id}>{c.name}</option>
           ))}
         </select>
+
+        {/* ─── Highlighted Clear Filters Button ─── */}
+        {hasActiveFilters && (
+          <button
+            type="button"
+            onClick={handleClearFilters}
+            className="group flex items-center justify-center gap-1.5 px-4 py-2 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs shadow-[0_0_16px_rgba(5,150,105,0.4)] hover:shadow-[0_0_24px_rgba(5,150,105,0.65)] hover:-translate-y-0.5 active:translate-y-0 transition-all duration-200 cursor-pointer shrink-0 animate-in fade-in zoom-in-95"
+            title="Filters are active. Click to clear and view all athletes."
+          >
+            <span className="material-symbols-outlined text-[16px] group-hover:rotate-90 transition-transform duration-200">
+              filter_alt_off
+            </span>
+            <span className="tracking-wide uppercase">Clear Filters</span>
+            <span className="px-1.5 py-0.5 rounded-full bg-white/25 text-white text-[10px] font-black">
+              {(searchQuery.trim() ? 1 : 0) + (filterCategoryId !== "all" ? 1 : 0)}
+            </span>
+          </button>
+        )}
       </div>
+
+      {/* ─── Active Filter Notification Banner ─── */}
+      {hasActiveFilters && (
+        <div className="flex items-center justify-between gap-3 px-3.5 py-2 rounded-lg bg-emerald-50 border border-emerald-200 text-xs text-emerald-900 mb-4 animate-in fade-in">
+          <div className="flex items-center gap-2 flex-wrap">
+            <span className="font-bold flex items-center gap-1 text-[#0B7C63]">
+              <span className="w-2 h-2 rounded-full bg-[#0E9C7C] animate-pulse" />
+              Active Filters:
+            </span>
+            <span className="text-slate-600">
+              Showing <strong>{filteredAthletes.length}</strong> of <strong>{athletes.length}</strong> athletes
+            </span>
+            {searchQuery.trim() && (
+              <span className="px-2 py-0.5 rounded-md bg-white border border-emerald-200 text-[#0B7C63] font-medium flex items-center gap-1">
+                Query: &ldquo;{searchQuery}&rdquo;
+                <button type="button" onClick={() => setSearchQuery("")} className="hover:text-red-500 cursor-pointer text-xs">×</button>
+              </span>
+            )}
+            {filterCategoryId !== "all" && (
+              <span className="px-2 py-0.5 rounded-md bg-white border border-emerald-200 text-[#0B7C63] font-medium flex items-center gap-1">
+                Category: {categories.find(c => c.id === filterCategoryId)?.name || "Uncategorized"}
+                <button type="button" onClick={() => setFilterCategoryId("all")} className="hover:text-red-500 cursor-pointer text-xs">×</button>
+              </span>
+            )}
+          </div>
+          <button
+            type="button"
+            onClick={handleClearFilters}
+            className="text-[11px] font-bold text-[#0B7C63] hover:text-emerald-800 underline shrink-0 cursor-pointer"
+          >
+            Clear all to view all
+          </button>
+        </div>
+      )}
 
       <div className="bg-surface-container-lowest border border-outline-variant rounded-lg overflow-x-auto shadow-sm">
         <table className="w-full text-left border-collapse">
@@ -273,22 +446,7 @@ export default function AthletesClient({
               </tr>
             )}
 
-            {athletes.filter(athlete => {
-              if (searchQuery) {
-                const query = searchQuery.toLowerCase();
-                const matchesName = athlete.name.toLowerCase().includes(query);
-                const matchesChest = athlete.chest_number?.toLowerCase().includes(query);
-                if (!matchesName && !matchesChest) return false;
-              }
-              if (filterCategoryId !== "all") {
-                if (filterCategoryId === "uncategorized") {
-                  if (athlete.category_id !== null) return false;
-                } else {
-                  if (athlete.category_id !== filterCategoryId) return false;
-                }
-              }
-              return true;
-            }).map((athlete) => (
+            {filteredAthletes.map((athlete) => (
               <tr key={athlete.id} className="hover:bg-surface-container-low transition-colors">
                 <td className="px-6 py-4 font-data-mono">{athlete.chest_number || "-"}</td>
                 <td className="px-6 py-4 font-bold text-primary">{athlete.name}</td>
@@ -332,10 +490,33 @@ export default function AthletesClient({
               </tr>
             ))}
             
-            {!athletes || (athletes.length === 0 && !isAdding) && (
+            {/* Empty state when filters return 0 results */}
+            {filteredAthletes.length === 0 && !isAdding && (
               <tr>
-                <td colSpan={readOnly ? 6 : 7} className="px-6 py-8 text-center text-on-surface-variant italic">
-                  No athletes found in this tournament roster.
+                <td colSpan={readOnly ? 6 : 7} className="px-6 py-12 text-center">
+                  <div className="flex flex-col items-center justify-center gap-3">
+                    <div className="w-12 h-12 rounded-full bg-emerald-50 flex items-center justify-center text-[#0E9C7C]">
+                      <span className="material-symbols-outlined text-[26px]">filter_alt_off</span>
+                    </div>
+                    <div className="text-[#0F172A] font-semibold text-[15px]">
+                      {hasActiveFilters ? "No athletes match your active filters" : "No athletes found in this tournament roster."}
+                    </div>
+                    {hasActiveFilters && (
+                      <>
+                        <p className="text-xs text-slate-500 max-w-sm">
+                          Try adjusting your search query or clear the filters to view the complete roster.
+                        </p>
+                        <button
+                          type="button"
+                          onClick={handleClearFilters}
+                          className="mt-1 px-4 py-2 rounded-lg bg-[#0E9C7C] hover:bg-[#0B7C63] text-white font-bold text-xs shadow-[0_0_12px_rgba(14,156,124,0.3)] hover:shadow-lg transition-all cursor-pointer flex items-center gap-1.5"
+                        >
+                          <span className="material-symbols-outlined text-[16px]">filter_alt_off</span>
+                          Clear Filters to View All ({athletes.length})
+                        </button>
+                      </>
+                    )}
+                  </div>
                 </td>
               </tr>
             )}
@@ -399,7 +580,7 @@ export default function AthletesClient({
                 disabled={isUploading}
                 className="px-6 py-2 rounded font-bold bg-secondary text-on-secondary hover:opacity-90 transition-opacity flex items-center gap-2 disabled:opacity-50"
               >
-                {isUploading ? <><span className="material-symbols-outlined animate-spin text-[18px]">sync</span> {uploadProgress || "PUSHING..."}</> : "APPROVE & UPLOAD"}
+                {isUploading ? <><span className="w-4 h-4 border-2 border-current border-t-transparent rounded-full animate-spin shrink-0" /> {uploadProgress || "PUSHING..."}</> : "APPROVE & UPLOAD"}
               </button>
             </div>
           </div>
