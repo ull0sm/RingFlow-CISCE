@@ -7,19 +7,19 @@
 }
 
 :root {
-  --background: #F5F3EC;
+  --background: #FFFFFF;
   --foreground: #1B1815;
-  --bg: #F5F3EC;
+  --bg: #FFFFFF;
 
-  /* Shell v2 Design System Tokens from index.html */
-  --ink-900: #0F172A;
-  --ink-700: #334155;
-  --ink-500: #64748B;
-  --ink-400: #94A3B8;
-  --line: #E7EAEF;
-  --line-strong: #DCE0E7;
-  --surface: #FFFFFF;
-  --canvas: #F7F8FA;
+  /* Shell v2 Design System Tokens with Warm Cream Palette */
+  --ink-900: #1B1815;
+  --ink-700: #3D3A33;
+  --ink-500: #68645A;
+  --ink-400: #8C877C;
+  --line: #E1DDCF;
+  --line-strong: #D5D0C0;
+  --surface: #FAF9F5;
+  --canvas: #F5F3EC;
   --accent: #0E9C7C;
   --accent-tint: #E3F6F0;
   --accent-dark: #0B7C63;
@@ -39,7 +39,7 @@ html {
 }
 
 body {
-  background-color: #F5F3EC;
+  background-color: #FFFFFF;
   color: var(--foreground);
   font-family: 'Inter', sans-serif;
 }
