@@ -131,6 +131,16 @@ export default function RingBalancingClient({
     }
   }, [search, beltFilter, ageFilter, sexFilter, sortBy, sortOrder, statusFilter, isBalanceFilterLoaded, tournamentId]);
 
+  // Close desktop organiser pool dropdown on Escape
+  useEffect(() => {
+    if (!isOrgPoolExpanded) return;
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setIsOrgPoolExpanded(false);
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [isOrgPoolExpanded]);
+
   // Toggle pool with mobile back button / history integration
   const togglePool = useCallback(() => {
     setMobileShowPool((prev) => {
@@ -865,6 +875,490 @@ export default function RingBalancingClient({
     ? Math.round((overallCompletedMatches / overallTotalExpectedMatches) * 100)
     : (totalCategoriesCount > 0 ? Math.round((completedCategoriesCount / totalCategoriesCount) * 100) : 0);
 
+  const renderCategoryCard = (cat: Category, isDrag: boolean, provided?: any, snapshot?: any) => (
+    <div
+      ref={provided?.innerRef}
+      {...(provided?.draggableProps || {})}
+      {...(provided?.dragHandleProps || {})}
+      className={`p-2.5 bg-white border ${snapshot?.isDragging ? 'border-secondary shadow-lg' : 'border-outline-variant/70 shadow-2xs hover:border-[#A19C90]'} rounded-lg ${!readOnly && isDrag ? 'cursor-grab active:cursor-grabbing' : ''}`}
+    >
+      <div className="flex justify-between items-start mb-1.5">
+        <div className="flex gap-1 flex-wrap">
+          {cat.belt && <span className="px-1.5 py-0.5 bg-surface-container-high text-on-surface rounded text-[8.5px] font-bold uppercase">{cat.belt}</span>}
+          {cat.sex && <span className="px-1.5 py-0.5 bg-surface-container-high text-on-surface rounded text-[8.5px] font-bold uppercase">{cat.sex}</span>}
+          {cat.age_bracket ? (
+            <span className="px-1.5 py-0.5 bg-surface-container-high text-on-surface rounded text-[8.5px] font-bold uppercase">{cat.age_bracket}</span>
+          ) : (cat.age_min !== null || cat.age_max !== null) && (
+            <span className="px-1.5 py-0.5 bg-surface-container-high text-on-surface rounded text-[8.5px] font-bold uppercase">
+              {cat.age_min}-{cat.age_max}
+            </span>
+          )}
+          {cat.weight_class && <span className="px-1.5 py-0.5 bg-surface-container-high text-on-surface rounded text-[8.5px] font-bold uppercase">{cat.weight_class}</span>}
+          {cat.day && <span className="px-1.5 py-0.5 bg-surface-container-high text-on-surface rounded text-[8.5px] font-bold uppercase">{cat.day}</span>}
+        </div>
+        {!readOnly && isDrag && <span className="material-symbols-outlined text-outline-variant text-xs">drag_indicator</span>}
+      </div>
+      <h4 className="text-[12.5px] font-bold text-primary mb-1.5 leading-snug">
+        <span className="flex items-center gap-1.5 flex-wrap">
+          {cat.name}
+          {cat.doc_url && (
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation();
+                setViewingPdf({ url: cat.doc_url!, title: cat.name });
+              }}
+              title="View athlete list PDF"
+              className="material-symbols-outlined text-[13px] text-outline hover:text-primary transition-colors shrink-0 cursor-pointer"
+              style={{ fontVariationSettings: "'FILL' 0" }}
+            >
+              article
+            </button>
+          )}
+        </span>
+      </h4>
+      <div className="flex items-center justify-between pt-1.5 border-t border-outline-variant/30">
+        <div className="flex items-center gap-2">
+          <span className="flex items-center gap-1 font-data-mono text-[10.5px] text-[#64748B]">
+            <span className="material-symbols-outlined text-[13px] text-outline">group</span> {cat.athletes_count}
+          </span>
+        </div>
+        <span className="font-data-mono text-[10.5px] font-bold px-1.5 py-0.5 bg-primary text-on-primary rounded">
+          {Math.ceil((cat.expected_matches * 109) / 60)}m
+        </span>
+      </div>
+    </div>
+  );
+
+  const renderIdleEmptyState = () => (
+    Boolean(search.trim() || beltFilter || ageFilter || sexFilter) ? (
+      <div className="flex flex-col items-center justify-center text-center py-5 px-3 bg-rose-50/75 border border-rose-200/80 rounded-xl my-2 mx-1 shadow-2xs">
+        <div className="w-8 h-8 rounded-lg bg-rose-100/90 border border-rose-200 flex items-center justify-center mb-2 text-rose-600">
+          <span className="material-symbols-outlined text-[18px]">filter_alt_off</span>
+        </div>
+        <div className="text-[12.5px] font-bold text-rose-950 mb-0.5">
+          No matching categories
+        </div>
+        <div className="text-[11px] font-medium text-rose-700 max-w-[210px] leading-snug mb-2.5">
+          Filters or search are hiding categories from this list.
+        </div>
+        <button
+          type="button"
+          onClick={() => {
+            setSearch(""); setBeltFilter(""); setAgeFilter(""); setSexFilter("");
+          }}
+          className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md bg-rose-600 hover:bg-rose-700 active:scale-95 text-white font-bold text-[11px] shadow-xs hover:shadow transition-all cursor-pointer"
+        >
+          <span className="material-symbols-outlined text-[13px]">filter_alt_off</span>
+          <span>Clear Filters &amp; Search</span>
+        </button>
+      </div>
+    ) : (
+      <div className="flex flex-col items-center justify-center text-center py-6 px-4 text-[#94A3B8]">
+        <div className="w-8 h-8 rounded-[9px] bg-[#F1F3F5] flex items-center justify-center mb-2 text-[#94A3B8]">
+          <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8">
+            <path d="M4 13v6a1 1 0 001 1h14a1 1 0 001-1v-6M4 13l2.5-7h11l2.5 7M4 13h5.5a.5.5 0 01.5.5v0a2 2 0 002 2h0a2 2 0 002-2v0a.5.5 0 01.5-.5H20"/>
+          </svg>
+        </div>
+        <div className="text-[12px] font-semibold text-[#334155] mb-0.5">
+          Nothing unassigned
+        </div>
+        <div className="text-[11px] text-[#94A3B8] max-w-[200px] leading-snug">
+          Every category is currently on a tatami or completed.
+        </div>
+      </div>
+    )
+  );
+
+  const renderQueueEmptyState = () => (
+    Boolean(search.trim()) ? (
+      <div className="flex flex-col items-center justify-center text-center py-5 px-3 bg-rose-50/75 border border-rose-200/80 rounded-xl my-2 mx-1 shadow-2xs">
+        <div className="w-8 h-8 rounded-lg bg-rose-100/90 border border-rose-200 flex items-center justify-center mb-2 text-rose-600">
+          <span className="material-symbols-outlined text-[18px]">search_off</span>
+        </div>
+        <div className="text-[12.5px] font-bold text-rose-950 mb-0.5">
+          No matching categories
+        </div>
+        <div className="text-[11px] font-medium text-rose-700 max-w-[210px] leading-snug mb-2.5">
+          No categories match &ldquo;{search}&rdquo;.
+        </div>
+        <button
+          type="button"
+          onClick={() => setSearch("")}
+          className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md bg-rose-600 hover:bg-rose-700 active:scale-95 text-white font-bold text-[11px] shadow-xs hover:shadow transition-all cursor-pointer"
+        >
+          <span className="material-symbols-outlined text-[13px]">refresh</span>
+          <span>Clear Search</span>
+        </button>
+      </div>
+    ) : (
+      <div className="flex flex-col items-center justify-center text-center py-6 px-4 text-[#94A3B8]">
+        <div className="w-8 h-8 rounded-[9px] bg-[#F1F3F5] flex items-center justify-center mb-2 text-[#94A3B8]">
+          <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8">
+            <path d="M4 13v6a1 1 0 001 1h14a1 1 0 001-1v-6M4 13l2.5-7h11l2.5 7M4 13h5.5a.5.5 0 01.5.5v0a2 2 0 002 2h0a2 2 0 002-2v0a.5.5 0 01.5-.5H20"/>
+          </svg>
+        </div>
+        <div className="text-[12px] font-semibold text-[#334155] mb-0.5">
+          {statusFilter === "queue" ? "Nothing in queue" : "No completed categories"}
+        </div>
+        <div className="text-[11px] text-[#94A3B8] max-w-[200px] leading-snug">
+          {statusFilter === "queue"
+            ? readOnly
+              ? "No categories currently assigned to any tatami."
+              : "Drag categories into a tatami ring to queue them up."
+            : "Finished categories will appear here once marked completed."}
+        </div>
+      </div>
+    )
+  );
+
+  const renderQueueOrCompletedCards = () => (
+    <div className="flex-1 overflow-y-auto p-2.5 space-y-2 bg-white">
+      {sidebarCategoriesToShow.length === 0 && renderQueueEmptyState()}
+      {sidebarCategoriesToShow.map(cat => {
+        const assignment = assignmentsMap[cat.id];
+        const ringName = initialRings.find(r => r.id === assignment?.ring_id)?.name?.replace(/Ring/i, 'Tatami') || "";
+        const status = assignment?.status;
+        const isCompleted = status === 'completed';
+        const isRunning = status === 'running';
+        const isPaused = status === 'paused';
+        const hasLeftAccent = isRunning || isPaused || isCompleted;
+        const matchesDone = assignment?.matches_completed || 0;
+        const matchesTotal = cat.expected_matches || 0;
+        const pct = matchesTotal > 0 ? (matchesDone / matchesTotal) * 100 : 0;
+
+        return (
+          <div
+            key={cat.id}
+            className={`p-2.5 border rounded-lg relative overflow-hidden ${isPaused
+                ? 'bg-amber-500/5 border-amber-300 shadow-2xs'
+                : isRunning
+                  ? 'bg-secondary/5 border-secondary/30 shadow-2xs'
+                  : isCompleted
+                    ? 'bg-surface-container border-outline-variant/50 opacity-60'
+                    : 'bg-surface-container border-outline-variant/50 opacity-70'
+              }`}
+          >
+            {isPaused && (
+              <div className="absolute top-0 left-0 w-1 h-full bg-amber-500"></div>
+            )}
+            {isRunning && (
+              <div className="absolute top-0 left-0 w-1 h-full bg-secondary"></div>
+            )}
+            {isCompleted && (
+              <div className="absolute top-0 left-0 w-1 h-full bg-blue-600"></div>
+            )}
+            <div className={`flex gap-1 flex-wrap mb-1 ${hasLeftAccent ? 'ml-1.5' : ''}`}>
+              {cat.belt && <span className="px-1.5 py-0.5 bg-surface-container-high text-on-surface rounded text-[8.5px] font-bold uppercase">{cat.belt}</span>}
+              {cat.sex && <span className="px-1.5 py-0.5 bg-surface-container-high text-on-surface rounded text-[8.5px] font-bold uppercase">{cat.sex}</span>}
+              {cat.age_bracket && <span className="px-1.5 py-0.5 bg-surface-container-high text-on-surface rounded text-[8.5px] font-bold uppercase">{cat.age_bracket}</span>}
+              {cat.weight_class && <span className="px-1.5 py-0.5 bg-surface-container-high text-on-surface rounded text-[8.5px] font-bold uppercase">{cat.weight_class}</span>}
+            </div>
+            <h4 className={`text-[12px] font-bold text-on-surface mb-1 ${hasLeftAccent ? 'ml-1.5' : ''}`}>{cat.name}</h4>
+            <div className={`flex justify-between items-center text-[9.5px] text-on-surface-variant mb-0.5 ${hasLeftAccent ? 'ml-1.5' : ''}`}>
+              <span className="flex items-center gap-1 font-bold">
+                <span className="material-symbols-outlined text-[11px]">{isCompleted ? 'done_all' : isPaused ? 'pause_circle' : 'schedule'}</span>
+                {ringName}
+              </span>
+              <div className="flex items-center gap-1.5">
+                {cat.doc_url && (
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setViewingPdf({ url: cat.doc_url!, title: cat.name });
+                    }}
+                    title="View athlete list PDF"
+                    className="material-symbols-outlined text-[11px] text-outline hover:text-primary transition-colors shrink-0 cursor-pointer"
+                    style={{ fontVariationSettings: "'FILL' 0" }}
+                  >
+                    article
+                  </button>
+                )}
+                {assignment?.stager_status && (
+                  <StagerStatusIndicator stagerStatus={assignment.stager_status} stagerActorName={assignment.stager_name} />
+                )}
+                {isPaused && (
+                  <span className="inline-flex items-center gap-1 text-[8.5px] font-bold text-amber-800 bg-amber-50 border border-amber-200 px-1.5 py-0.5 rounded uppercase tracking-wider shadow-2xs">
+                    <span className="w-1.5 h-1.5 rounded-full bg-amber-600 animate-pulse" />
+                    PAUSED
+                  </span>
+                )}
+                {isRunning && (
+                  <span className="inline-flex items-center gap-1 text-[8.5px] font-bold text-emerald-800 bg-emerald-50 border border-emerald-200 px-1.5 py-0.5 rounded uppercase tracking-wider shadow-2xs">
+                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-600 animate-pulse" />
+                    LIVE
+                  </span>
+                )}
+                {isCompleted && (
+                  <span className="inline-flex items-center gap-1 text-[8.5px] font-bold text-blue-800 bg-blue-50 border border-blue-200 px-1.5 py-0.5 rounded uppercase tracking-wider shadow-2xs">
+                    <span className="material-symbols-outlined text-[9.5px] text-blue-600">done_all</span>
+                    DONE
+                  </span>
+                )}
+              </div>
+            </div>
+            {(isRunning || isPaused || isCompleted) && (
+              <div className={`mt-1.5 ${hasLeftAccent ? 'ml-1.5' : ''}`}>
+                <div className="flex justify-between text-[9px] font-bold text-on-surface-variant mb-0.5">
+                  <span>{matchesDone} / {matchesTotal} matches</span>
+                  <span>{pct.toFixed(0)}%</span>
+                </div>
+                <div className="w-full bg-surface-container-high h-1 rounded-full overflow-hidden">
+                  <div className={`h-full transition-all duration-500 ${isCompleted ? 'bg-blue-600' : isPaused ? 'bg-amber-500' : 'bg-secondary'}`} style={{ width: `${Math.min(100, pct)}%` }}></div>
+                </div>
+              </div>
+            )}
+          </div>
+        );
+      })}
+    </div>
+  );
+
+  const renderPoolContent = (isDropdown = false) => (
+    <>
+      {/* Panel Head - Fixed Height & Sleek */}
+      <div className={`flex items-center justify-between px-3 ${isDropdown ? "h-[42px]" : "h-[38px]"} border-b border-[#E1DDCF] bg-[#FAF9F5] shrink-0`}>
+        <div className="flex items-center gap-1.5 min-w-0">
+          {isDropdown && (
+            <span className="material-symbols-outlined text-[17px] text-blue-600 shrink-0 select-none">
+              category
+            </span>
+          )}
+          <h3 className="text-[13px] font-bold text-[#1B1815] tracking-tight leading-none">
+            {statusFilter === "idle" ? "Unassigned" : statusFilter === "queue" ? "In Queue" : "Completed"}
+          </h3>
+          <span className="bg-[#ECE9DF] text-[#68645A] text-[10px] font-bold px-1.5 py-0.5 rounded-full font-mono leading-none">
+            {statusFilter === "idle" ? visibleUnassigned.length : statusFilter === "queue" ? queuedCategories.length : allCompletedCategories.length}
+          </span>
+        </div>
+
+        <div className="flex items-center gap-1.5 shrink-0">
+          {/* Glowing emerald Clear Filters button */}
+          {Boolean(search.trim() || beltFilter || ageFilter || sexFilter) && (
+            <button
+              type="button"
+              onClick={() => {
+                setSearch(""); setBeltFilter(""); setAgeFilter(""); setSexFilter("");
+              }}
+              className="inline-flex items-center gap-1 px-2 h-[22px] rounded-md bg-emerald-600 hover:bg-emerald-700 text-white font-semibold text-[10px] leading-none shadow-[0_0_8px_rgba(5,150,105,0.35)] transition-all cursor-pointer"
+              title="Clear active filters"
+            >
+              <span className="material-symbols-outlined text-[12px] leading-none">filter_alt_off</span>
+              <span className="leading-none whitespace-nowrap">Clear filters</span>
+            </button>
+          )}
+
+          {/* Collapse button: Up arrow to furl up on desktop dropdown; chevron_left for mobile drawer */}
+          {isDropdown ? (
+            <button
+              onClick={() => setIsOrgPoolExpanded(false)}
+              type="button"
+              className="p-1 rounded-md text-[#68645A] hover:bg-[#ECE9DF] transition-colors cursor-pointer flex items-center justify-center"
+              title="Furl up / Send up"
+              aria-label="Furl up"
+            >
+              <span className="material-symbols-outlined text-[18px] leading-none">keyboard_arrow_up</span>
+            </button>
+          ) : (
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                togglePool();
+              }}
+              type="button"
+              className="md:hidden p-1 rounded-md text-[#68645A] hover:bg-[#ECE9DF] transition-colors cursor-pointer"
+              title="Shrink sidebar"
+            >
+              <span className="material-symbols-outlined text-[16px] leading-none">chevron_left</span>
+            </button>
+          )}
+        </div>
+      </div>
+
+      {/* Panel Body: Thinned Search, Segmented Tabs, Filter & Sort Rows */}
+      <div className="px-3 py-2 bg-[#FAF9F5] border-b border-[#E1DDCF] flex flex-col shrink-0">
+        {/* Search Bar - Sleek & Compact */}
+        <div className="flex items-center gap-1.5 px-2.5 py-1.5 border border-[#E1DDCF] rounded-[7px] bg-white mb-1.5 focus-within:border-[#0E9C7C] focus-within:ring-1 focus-within:ring-[#0E9C7C]/20 transition-all relative">
+          <svg className="w-3.5 h-3.5 text-[#8C877C] shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+            <circle cx="11" cy="11" r="7"/>
+            <path d="M21 21l-4.3-4.3"/>
+          </svg>
+          <input
+            type="text"
+            placeholder="Search categories…"
+            value={search}
+            onChange={e => setSearch(e.target.value)}
+            className="border-none outline-none bg-transparent text-[12px] text-[#1B1815] placeholder-[#8C877C] w-full font-inherit"
+          />
+          {search && (
+            <button
+              type="button"
+              onClick={() => setSearch("")}
+              className="text-[#8C877C] hover:text-[#1B1815] cursor-pointer text-xs p-0.5"
+              title="Clear search"
+            >
+              ×
+            </button>
+          )}
+        </div>
+
+        {/* Segmented Control - Thin */}
+        <div className="flex bg-[#ECE9DF] rounded-[7px] p-[2px] mb-1.5">
+          {(["idle", "queue", "completed"] as const).map(tab => (
+            <button
+              key={tab}
+              type="button"
+              onClick={() => setStatusFilter(tab)}
+              className={`flex-1 border-none py-1 rounded-[5px] text-[11.5px] font-semibold transition-all cursor-pointer capitalize ${
+                statusFilter === tab
+                  ? 'bg-white text-[#1B1815] shadow-[0_1px_3px_rgba(27,24,21,0.1)] font-bold'
+                  : 'text-[#68645A] hover:text-[#1B1815]'
+              }`}
+            >
+              {tab === "idle" ? "Idle" : tab === "queue" ? "Queue" : "Completed"}
+            </button>
+          ))}
+        </div>
+
+        {/* Filters & Sort (Active on Idle tab) */}
+        {statusFilter === "idle" && (
+          <div className="space-y-1.5 animate-in fade-in duration-150">
+            {/* Filter Row: Age and Sex (and Belt if available) */}
+            <div className={`grid ${uniqueBelts.length > 0 ? "grid-cols-3" : "grid-cols-2"} gap-1.5`}>
+              {/* Age Column */}
+              <div className="min-w-0">
+                <label className="text-[9px] font-bold text-[#8C877C] tracking-[0.3px] mb-0.5 block uppercase leading-none">
+                  Age
+                </label>
+                <div className="relative">
+                  <select
+                    value={ageFilter}
+                    onChange={e => setAgeFilter(e.target.value)}
+                    className="appearance-none w-full border border-[#E1DDCF] hover:border-[#8C877C] rounded-[7px] bg-white py-1 pl-2 pr-5 text-[11.5px] font-medium text-[#1B1815] outline-none transition-colors cursor-pointer truncate"
+                  >
+                    <option value="">All ages</option>
+                    {uniqueAges.map(a => <option key={a as string} value={a as string}>{a}</option>)}
+                  </select>
+                  <svg className="w-2.5 h-2.5 text-[#8C877C] absolute right-1.5 top-1/2 -translate-y-1/2 pointer-events-none" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                    <path d="M6 9l6 6 6-6"/>
+                  </svg>
+                </div>
+              </div>
+
+              {/* Belt Column (if applicable) */}
+              {uniqueBelts.length > 0 && (
+                <div className="min-w-0">
+                  <label className="text-[9px] font-bold text-[#8C877C] tracking-[0.3px] mb-0.5 block uppercase leading-none">
+                    Belt
+                  </label>
+                  <div className="relative">
+                    <select
+                      value={beltFilter}
+                      onChange={e => setBeltFilter(e.target.value)}
+                      className="appearance-none w-full border border-[#E1DDCF] hover:border-[#8C877C] rounded-[7px] bg-white py-1 pl-2 pr-5 text-[11.5px] font-medium text-[#1B1815] outline-none transition-colors cursor-pointer truncate"
+                    >
+                      <option value="">All Belts</option>
+                      {uniqueBelts.map(b => <option key={b as string} value={b as string}>{b}</option>)}
+                    </select>
+                    <svg className="w-2.5 h-2.5 text-[#8C877C] absolute right-1.5 top-1/2 -translate-y-1/2 pointer-events-none" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                      <path d="M6 9l6 6 6-6"/>
+                    </svg>
+                  </div>
+                </div>
+              )}
+
+              {/* Sex Column */}
+              <div className="min-w-0">
+                <label className="text-[9px] font-bold text-[#8C877C] tracking-[0.3px] mb-0.5 block uppercase leading-none">
+                  Sex
+                </label>
+                <div className="relative">
+                  <select
+                    value={sexFilter}
+                    onChange={e => setSexFilter(e.target.value)}
+                    className="appearance-none w-full border border-[#E1DDCF] hover:border-[#8C877C] rounded-[7px] bg-white py-1 pl-2 pr-5 text-[11.5px] font-medium text-[#1B1815] outline-none transition-colors cursor-pointer truncate"
+                  >
+                    <option value="">All</option>
+                    {uniqueSexes.map(s => <option key={s as string} value={s as string}>{s}</option>)}
+                  </select>
+                  <svg className="w-2.5 h-2.5 text-[#8C877C] absolute right-1.5 top-1/2 -translate-y-1/2 pointer-events-none" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                    <path d="M6 9l6 6 6-6"/>
+                  </svg>
+                </div>
+              </div>
+            </div>
+
+            {/* Sort Dropdown */}
+            <div className="flex items-center gap-1.5 pt-0.5">
+              <span className="text-[9px] font-bold text-[#8C877C] tracking-[0.3px] uppercase leading-none shrink-0">
+                Sort:
+              </span>
+              <div className="relative flex-1 min-w-0">
+                <select
+                  value={sortBy}
+                  onChange={e => setSortBy(e.target.value as any)}
+                  className="appearance-none w-full border border-[#E1DDCF] hover:border-[#8C877C] rounded-[7px] bg-white py-0.5 pl-2 pr-5 text-[11px] font-medium text-[#1B1815] outline-none transition-colors cursor-pointer truncate"
+                >
+                  <option value="athletes">Athletes count</option>
+                  <option value="name">Category name</option>
+                  <option value="weight">Weight class</option>
+                </select>
+                <svg className="w-2.5 h-2.5 text-[#8C877C] absolute right-1.5 top-1/2 -translate-y-1/2 pointer-events-none" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  <path d="M6 9l6 6 6-6"/>
+                </svg>
+              </div>
+              <button
+                type="button"
+                onClick={() => setSortOrder(prev => prev === "asc" ? "desc" : "asc")}
+                className="p-1 rounded-[7px] border border-[#E1DDCF] bg-white hover:bg-[#FAF9F5] text-[#1B1815] transition-colors cursor-pointer shrink-0"
+                title={`Sort ${sortOrder === "asc" ? "Ascending" : "Descending"}`}
+              >
+                <svg className={`w-3 h-3 transition-transform ${sortOrder === "desc" ? "rotate-180" : ""}`} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  <path d="M12 5v14M19 12l-7 7-7-7"/>
+                </svg>
+              </button>
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* Categories List */}
+      {statusFilter === "idle" ? (
+        isDropdown ? (
+          <div className="flex-1 overflow-y-auto p-2.5 space-y-2 bg-white">
+            {visibleUnassigned.map((cat) => (
+              <div key={cat.id}>
+                {renderCategoryCard(cat, false)}
+              </div>
+            ))}
+            {visibleUnassigned.length === 0 && renderIdleEmptyState()}
+          </div>
+        ) : (
+          <Droppable droppableId="unassigned">
+            {(provided, snapshot) => (
+              <div
+                ref={provided.innerRef}
+                {...provided.droppableProps}
+                className={`flex-1 overflow-y-auto p-2.5 space-y-2 bg-white ${snapshot.isDraggingOver ? 'bg-secondary/5' : ''}`}
+              >
+                {visibleUnassigned.map((cat, index) => (
+                  <Draggable key={cat.id} draggableId={cat.id} index={index} isDragDisabled={readOnly}>
+                    {(provided, snapshot) => renderCategoryCard(cat, true, provided, snapshot)}
+                  </Draggable>
+                ))}
+                {visibleUnassigned.length === 0 && renderIdleEmptyState()}
+                {provided.placeholder}
+              </div>
+            )}
+          </Droppable>
+        )
+      ) : (
+        renderQueueOrCompletedCards()
+      )}
+    </>
+  );
+
   return (
     <div className="flex flex-col overflow-hidden w-full h-[calc(100dvh-4rem)] md:h-screen">
       {/* TopNavBar - Shell v2 Header */}
@@ -906,61 +1400,40 @@ export default function RingBalancingClient({
         {/* Main Content Area */}
         <div className="flex-1 flex overflow-hidden w-full relative">
 
-          {/* Left Sidebar: Category Pool (Full vertical height directly below header) */}
+          {/* Left Sidebar: Category Pool (Full vertical height directly below header on admin, collapsible drawer on mobile) */}
           <section
-            className={`h-full flex flex-col bg-surface-container-low shrink-0 relative transition-[width] duration-300 ease-in-out z-20 ${
-              readOnly
-                ? isOrgPoolExpanded
-                  ? "w-[85vw] max-w-[340px] md:w-80 shadow-lg md:shadow-none p-2 sm:p-4 sm:pr-0"
-                  : "w-0 min-w-0 p-0 overflow-hidden border-none pointer-events-none"
-                : mobileShowPool
-                  ? "w-[85vw] max-w-[340px] md:w-80 shadow-lg md:shadow-none p-2 sm:p-4 sm:pr-0"
-                  : "w-[44px] min-w-[44px] md:w-80 overflow-visible cursor-pointer select-none p-1.5 pr-0 md:p-4 md:pr-0"
+            className={`h-full flex flex-col bg-surface-container-low shrink-0 relative transition-[width] duration-300 ease-in-out z-20 ${readOnly ? "md:hidden" : ""} ${
+              mobileShowPool
+                ? "w-[85vw] max-w-[340px] md:w-80 shadow-lg md:shadow-none p-2 sm:p-4 sm:pr-0"
+                : "w-[44px] min-w-[44px] md:w-80 overflow-visible cursor-pointer select-none p-1.5 pr-0 md:p-4 md:pr-0"
             }`}
-            onClick={!readOnly && !mobileShowPool ? togglePool : undefined}
-            title={!readOnly && !mobileShowPool ? "Tap or drag to expand categories" : undefined}
+            onClick={!mobileShowPool ? togglePool : undefined}
+            title={!mobileShowPool ? "Tap or drag to expand categories" : undefined}
           >
             {/* Pop-out black button with white arrow */}
-            {!readOnly && (
-              <button
-                onClick={(e) => {
-                  e.stopPropagation();
-                  togglePool();
-                }}
-                type="button"
-                title={mobileShowPool ? "Shrink sidebar" : "Expand categories pool"}
-                className="md:hidden absolute top-1/2 left-full -translate-x-1/2 -translate-y-1/2 w-8 h-8 sm:w-9 sm:h-9 bg-black text-white rounded-full shadow-xl hover:scale-110 active:scale-95 transition-all cursor-pointer z-50 flex items-center justify-center border-2 border-white/90"
-              >
-                <span className="material-symbols-outlined text-[20px] sm:text-[22px] select-none leading-none text-white">
-                  {mobileShowPool ? "chevron_left" : "chevron_right"}
-                </span>
-              </button>
-            )}
-            {readOnly && isOrgPoolExpanded && (
-              <button
-                onClick={(e) => {
-                  e.stopPropagation();
-                  setIsOrgPoolExpanded(false);
-                }}
-                type="button"
-                title="Shrink sidebar"
-                className="absolute top-1/2 left-full -translate-x-1/2 -translate-y-1/2 w-8 h-8 sm:w-9 sm:h-9 bg-black text-white rounded-full shadow-xl hover:scale-110 active:scale-95 transition-all cursor-pointer z-50 flex items-center justify-center border-2 border-white/90"
-              >
-                <span className="material-symbols-outlined text-[20px] sm:text-[22px] select-none leading-none text-white">
-                  chevron_left
-                </span>
-              </button>
-            )}
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                togglePool();
+              }}
+              type="button"
+              title={mobileShowPool ? "Shrink sidebar" : "Expand categories pool"}
+              className="md:hidden absolute top-1/2 left-full -translate-x-1/2 -translate-y-1/2 w-8 h-8 sm:w-9 sm:h-9 bg-black text-white rounded-full shadow-xl hover:scale-110 active:scale-95 transition-all cursor-pointer z-50 flex items-center justify-center border-2 border-white/90"
+            >
+              <span className="material-symbols-outlined text-[20px] sm:text-[22px] select-none leading-none text-white">
+                {mobileShowPool ? "chevron_left" : "chevron_right"}
+              </span>
+            </button>
 
-            {/* Mobile Collapsed Peek Tab (Visible only on mobile when collapsed in admin mode) */}
-            {!readOnly && !mobileShowPool && (
+            {/* Mobile Collapsed Peek Tab (Visible only on mobile when collapsed) */}
+            {!mobileShowPool && (
               <div className="md:hidden w-full h-full flex flex-col items-center justify-between py-5 bg-white border border-[#E1DDCF] rounded-l-none rounded-r-xl shadow-xs animate-in fade-in duration-200">
                 {/* Top: Category Icon + Count Badge */}
                 <div className="flex flex-col items-center gap-1">
                   <span className="material-symbols-outlined text-[16px] text-secondary">
                     category
                   </span>
-                  <span className="bg-secondary/10 text-secondary text-[9px] font-black px-1.5 py-0.5 rounded-full font-mono leading-none">
+                  <span className="bg-[#ECE9DF] text-[#1B1815] text-[10px] font-bold px-1.5 py-0.5 rounded-full font-mono leading-none">
                     {visibleUnassigned.length}
                   </span>
                 </div>
@@ -995,509 +1468,64 @@ export default function RingBalancingClient({
             {/* Inner Content Container - Distinct Bordered Card (Expanded / Desktop) */}
             <div
               className={`w-full flex-col h-full bg-white border border-[#E1DDCF] rounded-xl overflow-hidden shadow-xs transition-opacity duration-200 ${
-                readOnly
-                  ? isOrgPoolExpanded
-                    ? "flex opacity-100"
-                    : "hidden opacity-0"
-                  : mobileShowPool
-                    ? "flex opacity-100"
-                    : "hidden md:flex opacity-100"
+                mobileShowPool
+                  ? "flex opacity-100"
+                  : "hidden md:flex opacity-100"
               }`}
             >
-              {/* Panel Head - Fixed Height & Sleek */}
-              <div className="flex items-center justify-between px-3 h-[38px] border-b border-[#E1DDCF] bg-[#FAF9F5] shrink-0">
-                <div className="flex items-center gap-1.5 min-w-0">
-                  <h3 className="text-[13px] font-bold text-[#1B1815] tracking-tight leading-none">
-                    {statusFilter === "idle" ? "Unassigned" : statusFilter === "queue" ? "In Queue" : "Completed"}
-                  </h3>
-                  <span className="bg-[#ECE9DF] text-[#68645A] text-[10px] font-bold px-1.5 py-0.5 rounded-full font-mono leading-none">
-                    {statusFilter === "idle" ? visibleUnassigned.length : statusFilter === "queue" ? queuedCategories.length : allCompletedCategories.length}
-                  </span>
-                </div>
-
-                <div className="flex items-center gap-1.5 shrink-0">
-                  {/* Glowing emerald Clear Filters button - fixed height so header never expands vertically */}
-                  {Boolean(search.trim() || beltFilter || ageFilter || sexFilter) && (
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setSearch(""); setBeltFilter(""); setAgeFilter(""); setSexFilter("");
-                      }}
-                      className="inline-flex items-center gap-1 px-2 h-[22px] rounded-md bg-emerald-600 hover:bg-emerald-700 text-white font-semibold text-[10px] leading-none shadow-[0_0_8px_rgba(5,150,105,0.35)] transition-all cursor-pointer"
-                      title="Clear active filters"
-                    >
-                      <span className="material-symbols-outlined text-[12px] leading-none">filter_alt_off</span>
-                      <span className="leading-none whitespace-nowrap">Clear filters</span>
-                    </button>
-                  )}
-
-                  {/* Collapse button */}
-                  {(readOnly || mobileShowPool) && (
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        if (readOnly) {
-                          setIsOrgPoolExpanded(false);
-                        } else {
-                          togglePool();
-                        }
-                      }}
-                      type="button"
-                      className="p-1 rounded-md text-[#68645A] hover:bg-[#ECE9DF] transition-colors cursor-pointer flex items-center justify-center"
-                      title="Shrink sidebar"
-                    >
-                      <span className="material-symbols-outlined text-[16px] leading-none">chevron_left</span>
-                    </button>
-                  )}
-                </div>
-              </div>
-
-              {/* Panel Body: Thinned Search, Segmented Tabs, Filter & Sort Rows */}
-              <div className="px-3 py-2 bg-[#FAF9F5] border-b border-[#E1DDCF] flex flex-col shrink-0">
-                {/* Search Bar - Sleek & Compact */}
-                <div className="flex items-center gap-1.5 px-2.5 py-1.5 border border-[#E1DDCF] rounded-[7px] bg-white mb-1.5 focus-within:border-[#0E9C7C] focus-within:ring-1 focus-within:ring-[#0E9C7C]/20 transition-all relative">
-                  <svg className="w-3.5 h-3.5 text-[#8C877C] shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                    <circle cx="11" cy="11" r="7"/>
-                    <path d="M21 21l-4.3-4.3"/>
-                  </svg>
-                  <input
-                    type="text"
-                    placeholder="Search categories…"
-                    value={search}
-                    onChange={e => setSearch(e.target.value)}
-                    className="border-none outline-none bg-transparent text-[12px] text-[#1B1815] placeholder-[#8C877C] w-full font-inherit"
-                  />
-                  {search && (
-                    <button
-                      type="button"
-                      onClick={() => setSearch("")}
-                      className="text-[#8C877C] hover:text-[#1B1815] cursor-pointer text-xs p-0.5"
-                      title="Clear search"
-                    >
-                      ×
-                    </button>
-                  )}
-                </div>
-
-                {/* Segmented Control - Thin */}
-                <div className="flex bg-[#ECE9DF] rounded-[7px] p-[2px] mb-1.5">
-                  {(["idle", "queue", "completed"] as const).map(tab => (
-                    <button
-                      key={tab}
-                      type="button"
-                      onClick={() => setStatusFilter(tab)}
-                      className={`flex-1 border-none py-1 rounded-[5px] text-[11.5px] font-semibold transition-all cursor-pointer capitalize ${
-                        statusFilter === tab
-                          ? 'bg-white text-[#1B1815] shadow-[0_1px_3px_rgba(27,24,21,0.1)] font-bold'
-                          : 'text-[#68645A] hover:text-[#1B1815]'
-                      }`}
-                    >
-                      {tab === "idle" ? "Idle" : tab === "queue" ? "Queue" : "Completed"}
-                    </button>
-                  ))}
-                </div>
-
-                {/* Filters & Sort (Active on Idle tab) */}
-                {statusFilter === "idle" && (
-                  <div className="space-y-1.5 animate-in fade-in duration-150">
-                    {/* Filter Row: Age and Sex (and Belt if available) */}
-                    <div className={`grid ${uniqueBelts.length > 0 ? "grid-cols-3" : "grid-cols-2"} gap-1.5`}>
-                      {/* Age Column */}
-                      <div className="min-w-0">
-                        <label className="text-[9px] font-bold text-[#8C877C] tracking-[0.3px] mb-0.5 block uppercase leading-none">
-                          Age
-                        </label>
-                        <div className="relative">
-                          <select
-                            value={ageFilter}
-                            onChange={e => setAgeFilter(e.target.value)}
-                            className="appearance-none w-full border border-[#E1DDCF] hover:border-[#8C877C] rounded-[7px] bg-white py-1 pl-2 pr-5 text-[11.5px] font-medium text-[#1B1815] outline-none transition-colors cursor-pointer truncate"
-                          >
-                            <option value="">All ages</option>
-                            {uniqueAges.map(a => <option key={a as string} value={a as string}>{a}</option>)}
-                          </select>
-                          <svg className="w-2.5 h-2.5 text-[#8C877C] absolute right-1.5 top-1/2 -translate-y-1/2 pointer-events-none" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                            <path d="M6 9l6 6 6-6"/>
-                          </svg>
-                        </div>
-                      </div>
-
-                      {/* Belt Column (if applicable) */}
-                      {uniqueBelts.length > 0 && (
-                        <div className="min-w-0">
-                          <label className="text-[9px] font-bold text-[#8C877C] tracking-[0.3px] mb-0.5 block uppercase leading-none">
-                            Belt
-                          </label>
-                          <div className="relative">
-                            <select
-                              value={beltFilter}
-                              onChange={e => setBeltFilter(e.target.value)}
-                              className="appearance-none w-full border border-[#E1DDCF] hover:border-[#8C877C] rounded-[7px] bg-white py-1 pl-2 pr-5 text-[11.5px] font-medium text-[#1B1815] outline-none transition-colors cursor-pointer truncate"
-                            >
-                              <option value="">All Belts</option>
-                              {uniqueBelts.map(b => <option key={b as string} value={b as string}>{b}</option>)}
-                            </select>
-                            <svg className="w-2.5 h-2.5 text-[#8C877C] absolute right-1.5 top-1/2 -translate-y-1/2 pointer-events-none" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                              <path d="M6 9l6 6 6-6"/>
-                            </svg>
-                          </div>
-                        </div>
-                      )}
-
-                      {/* Sex Column */}
-                      <div className="min-w-0">
-                        <label className="text-[9px] font-bold text-[#8C877C] tracking-[0.3px] mb-0.5 block uppercase leading-none">
-                          Sex
-                        </label>
-                        <div className="relative">
-                          <select
-                            value={sexFilter}
-                            onChange={e => setSexFilter(e.target.value)}
-                            className="appearance-none w-full border border-[#E1DDCF] hover:border-[#8C877C] rounded-[7px] bg-white py-1 pl-2 pr-5 text-[11.5px] font-medium text-[#1B1815] outline-none transition-colors cursor-pointer truncate"
-                          >
-                            <option value="">Any</option>
-                            {uniqueSexes.map(s => <option key={s as string} value={s as string}>{s}</option>)}
-                          </select>
-                          <svg className="w-2.5 h-2.5 text-[#8C877C] absolute right-1.5 top-1/2 -translate-y-1/2 pointer-events-none" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                            <path d="M6 9l6 6 6-6"/>
-                          </svg>
-                        </div>
-                      </div>
-                    </div>
-
-                    {/* Sort Row: Shortened Sort Select + ASC / DESC button */}
-                    <div className="flex items-center gap-1.5">
-                      <div className="relative flex-1">
-                        <select
-                          value={sortBy}
-                          onChange={e => setSortBy(e.target.value as any)}
-                          className="appearance-none w-full border border-[#E1DDCF] hover:border-[#8C877C] rounded-[7px] bg-white py-1 pl-2 pr-6 text-[11.5px] font-medium text-[#1B1815] outline-none transition-colors cursor-pointer"
-                        >
-                          <option value="name">Sort: Name</option>
-                          <option value="athletes">Sort: Athletes</option>
-                          <option value="weight">Sort: Weight</option>
-                        </select>
-                        <svg className="w-3 h-3 text-[#8C877C] absolute right-2 top-1/2 -translate-y-1/2 pointer-events-none" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                          <path d="M6 9l6 6 6-6"/>
-                        </svg>
-                      </div>
-
-                      <button
-                        type="button"
-                        onClick={() => setSortOrder(sortOrder === "asc" ? "desc" : "asc")}
-                        className="flex items-center gap-1 border border-[#E1DDCF] hover:border-[#8C877C] rounded-[7px] bg-[#FAF9F5] hover:bg-[#ECE9DF] py-1 px-2 text-[11px] font-bold text-[#1B1815] transition-colors cursor-pointer shrink-0 shadow-2xs"
-                        title={sortOrder === "asc" ? "Ascending (click for Descending)" : "Descending (click for Ascending)"}
-                      >
-                        <span className="font-mono">{sortOrder === "asc" ? "ASC" : "DESC"}</span>
-                        <svg
-                          className={`w-3 h-3 text-[#68645A] transition-transform duration-200 ${sortOrder === "desc" ? "rotate-180" : ""}`}
-                          viewBox="0 0 24 24"
-                          fill="none"
-                          stroke="currentColor"
-                          strokeWidth="2.2"
-                        >
-                          <path d="M12 19V5M6 11l6-6 6 6"/>
-                        </svg>
-                      </button>
-                    </div>
-                  </div>
-                )}
-              </div>
-
-              {/* Idle view: draggable categories */}
-              {statusFilter === "idle" ? (
-                <Droppable droppableId="unassigned">
-                  {(provided, snapshot) => (
-                    <div
-                      ref={provided.innerRef}
-                      {...provided.droppableProps}
-                      className={`flex-1 overflow-y-auto p-2.5 space-y-2 bg-white ${snapshot.isDraggingOver ? 'bg-secondary/5' : ''}`}
-                    >
-                      {visibleUnassigned.map((cat, index) => (
-                        <Draggable key={cat.id} draggableId={cat.id} index={index} isDragDisabled={readOnly}>
-                          {(provided, snapshot) => (
-                            <div
-                              ref={provided.innerRef}
-                              {...provided.draggableProps}
-                              {...provided.dragHandleProps}
-                              className={`p-2.5 bg-white border ${snapshot.isDragging ? 'border-secondary shadow-lg' : 'border-outline-variant/70 shadow-2xs hover:border-[#A19C90]'} rounded-lg ${!readOnly ? 'cursor-grab active:cursor-grabbing' : ''}`}
-                            >
-                              <div className="flex justify-between items-start mb-1.5">
-                                <div className="flex gap-1 flex-wrap">
-                                  {cat.belt && <span className="px-1.5 py-0.5 bg-surface-container-high text-on-surface rounded text-[8.5px] font-bold uppercase">{cat.belt}</span>}
-                                  {cat.sex && <span className="px-1.5 py-0.5 bg-surface-container-high text-on-surface rounded text-[8.5px] font-bold uppercase">{cat.sex}</span>}
-                                  {cat.age_bracket ? (
-                                    <span className="px-1.5 py-0.5 bg-surface-container-high text-on-surface rounded text-[8.5px] font-bold uppercase">{cat.age_bracket}</span>
-                                  ) : (cat.age_min !== null || cat.age_max !== null) && (
-                                    <span className="px-1.5 py-0.5 bg-surface-container-high text-on-surface rounded text-[8.5px] font-bold uppercase">
-                                      {cat.age_min}-{cat.age_max}
-                                    </span>
-                                  )}
-                                  {cat.weight_class && <span className="px-1.5 py-0.5 bg-surface-container-high text-on-surface rounded text-[8.5px] font-bold uppercase">{cat.weight_class}</span>}
-                                  {cat.day && <span className="px-1.5 py-0.5 bg-surface-container-high text-on-surface rounded text-[8.5px] font-bold uppercase">{cat.day}</span>}
-                                </div>
-                                {!readOnly && <span className="material-symbols-outlined text-outline-variant text-xs">drag_indicator</span>}
-                              </div>
-                              <h4 className="text-[12.5px] font-bold text-primary mb-1.5 leading-snug">
-                                <span className="flex items-center gap-1.5 flex-wrap">
-                                  {cat.name}
-                                  {cat.doc_url && (
-                                    <button
-                                      type="button"
-                                      onClick={(e) => {
-                                        e.stopPropagation();
-                                        setViewingPdf({ url: cat.doc_url!, title: cat.name });
-                                      }}
-                                      title="View athlete list PDF"
-                                      className="material-symbols-outlined text-[13px] text-outline hover:text-primary transition-colors shrink-0 cursor-pointer"
-                                      style={{ fontVariationSettings: "'FILL' 0" }}
-                                    >
-                                      article
-                                    </button>
-                                  )}
-                                </span>
-                              </h4>
-                              <div className="flex items-center justify-between pt-1.5 border-t border-outline-variant/30">
-                                <div className="flex items-center gap-2">
-                                  <span className="flex items-center gap-1 font-data-mono text-[10.5px] text-[#64748B]"><span className="material-symbols-outlined text-[13px] text-outline">group</span> {cat.athletes_count}</span>
-                                </div>
-                                <span className="font-data-mono text-[10.5px] font-bold px-1.5 py-0.5 bg-primary text-on-primary rounded">{Math.ceil((cat.expected_matches * 109) / 60)}m</span>
-                              </div>
-                            </div>
-                          )}
-                        </Draggable>
-                      ))}
-
-                      {/* Empty State */}
-                      {visibleUnassigned.length === 0 && (
-                        Boolean(search.trim() || beltFilter || ageFilter || sexFilter) ? (
-                          <div className="flex flex-col items-center justify-center text-center py-5 px-3 bg-rose-50/75 border border-rose-200/80 rounded-xl my-2 mx-1 shadow-2xs">
-                            <div className="w-8 h-8 rounded-lg bg-rose-100/90 border border-rose-200 flex items-center justify-center mb-2 text-rose-600">
-                              <span className="material-symbols-outlined text-[18px]">filter_alt_off</span>
-                            </div>
-                            <div className="text-[12.5px] font-bold text-rose-950 mb-0.5">
-                              No matching categories
-                            </div>
-                            <div className="text-[11px] font-medium text-rose-700 max-w-[210px] leading-snug mb-2.5">
-                              Filters or search are hiding categories from this list.
-                            </div>
-                            <button
-                              type="button"
-                              onClick={() => {
-                                setSearch(""); setBeltFilter(""); setAgeFilter(""); setSexFilter("");
-                              }}
-                              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md bg-rose-600 hover:bg-rose-700 active:scale-95 text-white font-bold text-[11px] shadow-xs hover:shadow transition-all cursor-pointer"
-                            >
-                              <span className="material-symbols-outlined text-[13px]">filter_alt_off</span>
-                              <span>Clear Filters &amp; Search</span>
-                            </button>
-                          </div>
-                        ) : (
-                          <div className="flex flex-col items-center justify-center text-center py-6 px-4 text-[#94A3B8]">
-                            <div className="w-8 h-8 rounded-[9px] bg-[#F1F3F5] flex items-center justify-center mb-2 text-[#94A3B8]">
-                              <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8">
-                                <path d="M4 13v6a1 1 0 001 1h14a1 1 0 001-1v-6M4 13l2.5-7h11l2.5 7M4 13h5.5a.5.5 0 01.5.5v0a2 2 0 002 2h0a2 2 0 002-2v0a.5.5 0 01.5-.5H20"/>
-                              </svg>
-                            </div>
-                            <div className="text-[12px] font-semibold text-[#334155] mb-0.5">
-                              Nothing unassigned
-                            </div>
-                            <div className="text-[11px] text-[#94A3B8] max-w-[200px] leading-snug">
-                              Every category is currently on a tatami or completed.
-                            </div>
-                          </div>
-                        )
-                      )}
-
-                      {provided.placeholder}
-                    </div>
-                  )}
-                </Droppable>
-              ) : (
-                /* Queue / Completed view: read-only greyed cards (compact) */
-                <div className="flex-1 overflow-y-auto p-2.5 space-y-2 bg-white">
-                  {sidebarCategoriesToShow.length === 0 && (
-                    Boolean(search.trim()) ? (
-                      <div className="flex flex-col items-center justify-center text-center py-5 px-3 bg-rose-50/75 border border-rose-200/80 rounded-xl my-2 mx-1 shadow-2xs">
-                        <div className="w-8 h-8 rounded-lg bg-rose-100/90 border border-rose-200 flex items-center justify-center mb-2 text-rose-600">
-                          <span className="material-symbols-outlined text-[18px]">search_off</span>
-                        </div>
-                        <div className="text-[12.5px] font-bold text-rose-950 mb-0.5">
-                          No matching categories
-                        </div>
-                        <div className="text-[11px] font-medium text-rose-700 max-w-[210px] leading-snug mb-2.5">
-                          No categories match &ldquo;{search}&rdquo;.
-                        </div>
-                        <button
-                          type="button"
-                          onClick={() => setSearch("")}
-                          className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md bg-rose-600 hover:bg-rose-700 active:scale-95 text-white font-bold text-[11px] shadow-xs hover:shadow transition-all cursor-pointer"
-                        >
-                          <span className="material-symbols-outlined text-[13px]">refresh</span>
-                          <span>Clear Search</span>
-                        </button>
-                      </div>
-                    ) : (
-                      <div className="flex flex-col items-center justify-center text-center py-6 px-4 text-[#94A3B8]">
-                        <div className="w-8 h-8 rounded-[9px] bg-[#F1F3F5] flex items-center justify-center mb-2 text-[#94A3B8]">
-                          <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8">
-                            <path d="M4 13v6a1 1 0 001 1h14a1 1 0 001-1v-6M4 13l2.5-7h11l2.5 7M4 13h5.5a.5.5 0 01.5.5v0a2 2 0 002 2h0a2 2 0 002-2v0a.5.5 0 01.5-.5H20"/>
-                          </svg>
-                        </div>
-                        <div className="text-[12px] font-semibold text-[#334155] mb-0.5">
-                          {statusFilter === "queue" ? "Nothing in queue" : "No completed categories"}
-                        </div>
-                        <div className="text-[11px] text-[#94A3B8] max-w-[200px] leading-snug">
-                          {statusFilter === "queue"
-                            ? readOnly
-                              ? "No categories currently assigned to any tatami."
-                              : "Drag categories into a tatami ring to queue them up."
-                            : "Finished categories will appear here once marked completed."}
-                        </div>
-                      </div>
-                    )
-                  )}
-                  {sidebarCategoriesToShow.map(cat => {
-                    const assignment = assignmentsMap[cat.id];
-                    const ringName = initialRings.find(r => r.id === assignment?.ring_id)?.name?.replace(/Ring/i, 'Tatami') || "";
-                    const status = assignment?.status;
-                    const isCompleted = status === 'completed';
-                    const isRunning = status === 'running';
-                    const isPaused = status === 'paused';
-                    const hasLeftAccent = isRunning || isPaused || isCompleted;
-                    const matchesDone = assignment?.matches_completed || 0;
-                    const matchesTotal = cat.expected_matches || 0;
-                    const pct = matchesTotal > 0 ? (matchesDone / matchesTotal) * 100 : 0;
-
-                    return (
-                      <div
-                        key={cat.id}
-                        className={`p-2.5 border rounded-lg relative overflow-hidden ${isPaused
-                            ? 'bg-amber-500/5 border-amber-300 shadow-2xs'
-                            : isRunning
-                              ? 'bg-secondary/5 border-secondary/30 shadow-2xs'
-                              : isCompleted
-                                ? 'bg-surface-container border-outline-variant/50 opacity-60'
-                                : 'bg-surface-container border-outline-variant/50 opacity-70'
-                          }`}
-                      >
-                        {isPaused && (
-                          <div className="absolute top-0 left-0 w-1 h-full bg-amber-500"></div>
-                        )}
-                        {isRunning && (
-                          <div className="absolute top-0 left-0 w-1 h-full bg-secondary"></div>
-                        )}
-                        {isCompleted && (
-                          <div className="absolute top-0 left-0 w-1 h-full bg-blue-600"></div>
-                        )}
-                        <div className={`flex gap-1 flex-wrap mb-1 ${hasLeftAccent ? 'ml-1.5' : ''}`}>
-                          {cat.belt && <span className="px-1.5 py-0.5 bg-surface-container-high text-on-surface rounded text-[8.5px] font-bold uppercase">{cat.belt}</span>}
-                          {cat.sex && <span className="px-1.5 py-0.5 bg-surface-container-high text-on-surface rounded text-[8.5px] font-bold uppercase">{cat.sex}</span>}
-                          {cat.age_bracket && <span className="px-1.5 py-0.5 bg-surface-container-high text-on-surface rounded text-[8.5px] font-bold uppercase">{cat.age_bracket}</span>}
-                          {cat.weight_class && <span className="px-1.5 py-0.5 bg-surface-container-high text-on-surface rounded text-[8.5px] font-bold uppercase">{cat.weight_class}</span>}
-                        </div>
-                        <h4 className={`text-[12px] font-bold text-on-surface mb-1 ${hasLeftAccent ? 'ml-1.5' : ''}`}>{cat.name}</h4>
-                        <div className={`flex justify-between items-center text-[9.5px] text-on-surface-variant mb-0.5 ${hasLeftAccent ? 'ml-1.5' : ''}`}>
-                          <span className="flex items-center gap-1 font-bold">
-                            <span className="material-symbols-outlined text-[11px]">{isCompleted ? 'done_all' : isPaused ? 'pause_circle' : 'schedule'}</span>
-                            {ringName}
-                          </span>
-                          <div className="flex items-center gap-1.5">
-                            {cat.doc_url && (
-                              <button
-                                type="button"
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  setViewingPdf({ url: cat.doc_url!, title: cat.name });
-                                }}
-                                title="View athlete list PDF"
-                                className="material-symbols-outlined text-[11px] text-outline hover:text-primary transition-colors shrink-0 cursor-pointer"
-                                style={{ fontVariationSettings: "'FILL' 0" }}
-                              >
-                                article
-                              </button>
-                            )}
-                            {assignment?.stager_status && (
-                              <StagerStatusIndicator stagerStatus={assignment.stager_status} stagerActorName={assignment.stager_name} />
-                            )}
-                            {isPaused && (
-                              <span className="inline-flex items-center gap-1 text-[8.5px] font-bold text-amber-800 bg-amber-50 border border-amber-200 px-1.5 py-0.5 rounded uppercase tracking-wider shadow-2xs">
-                                <span className="w-1.5 h-1.5 rounded-full bg-amber-600 animate-pulse" />
-                                PAUSED
-                              </span>
-                            )}
-                            {isRunning && (
-                              <span className="inline-flex items-center gap-1 text-[8.5px] font-bold text-emerald-800 bg-emerald-50 border border-emerald-200 px-1.5 py-0.5 rounded uppercase tracking-wider shadow-2xs">
-                                <span className="w-1.5 h-1.5 rounded-full bg-emerald-600 animate-pulse" />
-                                LIVE
-                              </span>
-                            )}
-                            {isCompleted && (
-                              <span className="inline-flex items-center gap-1 text-[8.5px] font-bold text-blue-800 bg-blue-50 border border-blue-200 px-1.5 py-0.5 rounded uppercase tracking-wider shadow-2xs">
-                                <span className="material-symbols-outlined text-[9.5px] text-blue-600">done_all</span>
-                                DONE
-                              </span>
-                            )}
-                          </div>
-                        </div>
-                        {(isRunning || isPaused || isCompleted) && (
-                          <div className={`mt-1.5 ${hasLeftAccent ? 'ml-1.5' : ''}`}>
-                            <div className="flex justify-between text-[9px] font-bold text-on-surface-variant mb-0.5">
-                              <span>{matchesDone} / {matchesTotal} matches</span>
-                              <span>{pct.toFixed(0)}%</span>
-                            </div>
-                            <div className="w-full bg-surface-container-high h-1 rounded-full overflow-hidden">
-                              <div className={`h-full transition-all duration-500 ${isCompleted ? 'bg-blue-600' : isPaused ? 'bg-amber-500' : 'bg-secondary'}`} style={{ width: `${Math.min(100, pct)}%` }}></div>
-                            </div>
-                          </div>
-                        )}
-                      </div>
-                    );
-                  })}
-                </div>
-              )}
+              {renderPoolContent(false)}
             </div>
           </section>
 
           {/* Right Workspace: Shrunken & Centered Overview Bar + Ring Grid */}
           <div className="flex-1 flex flex-col overflow-hidden min-w-0 h-full">
             {/* Tournament Overview Bar - Shrunken, Centered in Remaining Space with Border Start & End */}
-            <div className="w-full flex items-center justify-center shrink-0 z-10 bg-surface-container-low px-2 sm:px-4 relative">
-              {/* Hanging Organiser Unassigned Categories Tab (Hangs attached to nav bar to the left of stats bar) */}
+            <div className="w-full flex items-stretch justify-center shrink-0 z-30 bg-surface-container-low px-2 sm:px-4 gap-2 sm:gap-3">
+              {/* Hanging Organiser Unassigned Categories Tab (Visible only on desktop in readOnly mode) */}
               {readOnly && (
-                <button
-                  type="button"
-                  onClick={() => setIsOrgPoolExpanded((prev) => !prev)}
-                  className={`absolute left-2 sm:left-4 top-0 bg-white border-s border-e border-b border-outline-variant rounded-b-xl shadow-xs px-2.5 sm:px-3.5 py-1.5 sm:py-2 flex items-center gap-1.5 sm:gap-2 text-[#1B1815] transition-all cursor-pointer z-20 select-none ${
-                    isOrgPoolExpanded
-                      ? "bg-[#FAF9F5] border-[#0E9C7C] text-[#0B7C63]"
-                      : "hover:bg-[#FAF9F5] hover:border-[#0E9C7C]"
-                  }`}
-                  title={isOrgPoolExpanded ? "Shrink category pool" : "Expand unassigned category pool"}
-                  aria-label={isOrgPoolExpanded ? "Shrink categories" : "Expand categories"}
-                >
-                  <span className="material-symbols-outlined text-[15px] sm:text-[16px] text-secondary shrink-0">
-                    category
-                  </span>
-                  <span className="hidden min-[480px]:inline text-[8.5px] sm:text-[9.5px] font-bold tracking-widest uppercase text-on-surface-variant whitespace-nowrap">
-                    Unassigned
-                  </span>
-                  <span className="bg-[#ECE9DF] text-[#1B1815] text-[10px] sm:text-[11px] font-bold px-1.5 py-0.5 rounded-full font-mono leading-none shrink-0">
-                    {visibleUnassigned.length}
-                  </span>
-                  <span
-                    className={`material-symbols-outlined text-[15px] sm:text-[16px] text-outline transition-transform duration-200 ${
-                      isOrgPoolExpanded ? "rotate-180" : ""
+                <div className="relative hidden md:flex items-stretch">
+                  <button
+                    type="button"
+                    onClick={() => setIsOrgPoolExpanded((prev) => !prev)}
+                    className={`h-full bg-white border-s border-e border-b border-outline-variant rounded-b-xl shadow-xs px-3.5 sm:px-5 py-1.5 sm:py-2 flex items-center gap-2.5 sm:gap-3 transition-all cursor-pointer select-none ${
+                      isOrgPoolExpanded
+                        ? "bg-[#FAF9F5] border-[#0E9C7C] text-[#0B7C63]"
+                        : "hover:bg-[#FAF9F5] hover:border-[#0E9C7C] text-on-surface"
                     }`}
+                    title={isOrgPoolExpanded ? "Furl categories up" : "Unfurl categories down"}
+                    aria-label={isOrgPoolExpanded ? "Furl categories up" : "Unfurl categories down"}
                   >
-                    {isOrgPoolExpanded ? "chevron_left" : "chevron_right"}
-                  </span>
-                </button>
+                    <span className="material-symbols-outlined text-[18px] sm:text-[20px] text-blue-600 shrink-0 select-none">
+                      category
+                    </span>
+                    <span className="text-[10px] sm:text-[11px] font-extrabold tracking-wider uppercase text-on-surface select-none whitespace-nowrap">
+                      Unassigned
+                    </span>
+                    <span className="bg-[#ECE9DF] text-[#1B1815] text-[11px] sm:text-[12px] font-bold px-2 py-0.5 rounded-full font-mono leading-none shrink-0 select-none">
+                      {visibleUnassigned.length}
+                    </span>
+                    <span className="material-symbols-outlined text-[18px] sm:text-[20px] text-outline shrink-0 select-none">
+                      {isOrgPoolExpanded ? "keyboard_arrow_up" : "keyboard_arrow_down"}
+                    </span>
+                  </button>
+
+                  {/* Unfurling Category Pool Dropdown Panel */}
+                  {isOrgPoolExpanded && (
+                    <>
+                      {/* Backdrop to close on outside click */}
+                      <div
+                        className="fixed inset-0 z-40 bg-black/15 backdrop-blur-[0.5px]"
+                        onClick={() => setIsOrgPoolExpanded(false)}
+                      />
+                      <div className="absolute left-0 top-full mt-1.5 w-[380px] lg:w-[420px] max-w-[calc(100vw-32px)] max-h-[calc(100vh-140px)] bg-white border border-[#E1DDCF] rounded-2xl shadow-2xl overflow-hidden flex flex-col z-50 animate-in slide-in-from-top-2 duration-200">
+                        {renderPoolContent(true)}
+                      </div>
+                    </>
+                  )}
+                </div>
               )}
 
-              <div className={`bg-white border-s border-e border-b border-outline-variant rounded-b-xl shadow-xs px-3 sm:px-6 py-1.5 sm:py-2 w-full max-w-xl sm:max-w-2xl lg:max-w-3xl flex items-center justify-between gap-2 sm:gap-4 ${
-                readOnly ? "max-w-[calc(100%-80px)] sm:max-w-xl md:max-w-2xl ml-auto sm:mx-auto" : ""
-              }`}>
+              <div className="bg-white border-s border-e border-b border-outline-variant rounded-b-xl shadow-xs px-3 sm:px-6 py-1.5 sm:py-2 w-full max-w-xl sm:max-w-2xl lg:max-w-3xl flex items-center justify-between gap-2 sm:gap-4">
                 {/* 3 Stats: Centered Telemetry */}
                 <div className="flex-1 max-w-xl sm:max-w-2xl lg:max-w-3xl mx-auto grid grid-cols-3 divide-x divide-outline-variant">
                   {/* Stat 1: Completed Categories */}
