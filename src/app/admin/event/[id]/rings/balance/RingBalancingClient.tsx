@@ -96,6 +96,7 @@ export default function RingBalancingClient({
   const [sortOrder, setSortOrder] = useState<"asc" | "desc">("desc");
   const [statusFilter, setStatusFilter] = useState<"idle" | "queue" | "completed">("idle");
   const [mobileShowPool, setMobileShowPool] = useState(false);
+  const [isOrgPoolExpanded, setIsOrgPoolExpanded] = useState(false);
   const [isBalanceFilterLoaded, setIsBalanceFilterLoaded] = useState(false);
 
   // Restore filter & sort state across reloads
@@ -907,30 +908,52 @@ export default function RingBalancingClient({
 
           {/* Left Sidebar: Category Pool (Full vertical height directly below header) */}
           <section
-            className={`h-full flex flex-col bg-surface-container-low shrink-0 relative transition-[width] duration-300 ease-in-out z-20 ${mobileShowPool
-                ? "w-[85vw] max-w-[340px] md:w-80 shadow-lg md:shadow-none p-2 sm:p-4 sm:pr-0"
-                : "w-[44px] min-w-[44px] md:w-80 overflow-visible cursor-pointer select-none p-1.5 pr-0 md:p-4 md:pr-0"
-              }`}
-            onClick={!mobileShowPool ? togglePool : undefined}
-            title={!mobileShowPool ? "Tap or drag to expand categories" : undefined}
+            className={`h-full flex flex-col bg-surface-container-low shrink-0 relative transition-[width] duration-300 ease-in-out z-20 ${
+              readOnly
+                ? isOrgPoolExpanded
+                  ? "w-[85vw] max-w-[340px] md:w-80 shadow-lg md:shadow-none p-2 sm:p-4 sm:pr-0"
+                  : "w-0 min-w-0 p-0 overflow-hidden border-none pointer-events-none"
+                : mobileShowPool
+                  ? "w-[85vw] max-w-[340px] md:w-80 shadow-lg md:shadow-none p-2 sm:p-4 sm:pr-0"
+                  : "w-[44px] min-w-[44px] md:w-80 overflow-visible cursor-pointer select-none p-1.5 pr-0 md:p-4 md:pr-0"
+            }`}
+            onClick={!readOnly && !mobileShowPool ? togglePool : undefined}
+            title={!readOnly && !mobileShowPool ? "Tap or drag to expand categories" : undefined}
           >
             {/* Pop-out black button with white arrow */}
-            <button
-              onClick={(e) => {
-                e.stopPropagation();
-                togglePool();
-              }}
-              type="button"
-              title={mobileShowPool ? "Shrink sidebar" : "Expand categories pool"}
-              className="md:hidden absolute top-1/2 left-full -translate-x-1/2 -translate-y-1/2 w-8 h-8 sm:w-9 sm:h-9 bg-black text-white rounded-full shadow-xl hover:scale-110 active:scale-95 transition-all cursor-pointer z-50 flex items-center justify-center border-2 border-white/90"
-            >
-              <span className="material-symbols-outlined text-[20px] sm:text-[22px] select-none leading-none text-white">
-                {mobileShowPool ? "chevron_left" : "chevron_right"}
-              </span>
-            </button>
+            {!readOnly && (
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  togglePool();
+                }}
+                type="button"
+                title={mobileShowPool ? "Shrink sidebar" : "Expand categories pool"}
+                className="md:hidden absolute top-1/2 left-full -translate-x-1/2 -translate-y-1/2 w-8 h-8 sm:w-9 sm:h-9 bg-black text-white rounded-full shadow-xl hover:scale-110 active:scale-95 transition-all cursor-pointer z-50 flex items-center justify-center border-2 border-white/90"
+              >
+                <span className="material-symbols-outlined text-[20px] sm:text-[22px] select-none leading-none text-white">
+                  {mobileShowPool ? "chevron_left" : "chevron_right"}
+                </span>
+              </button>
+            )}
+            {readOnly && isOrgPoolExpanded && (
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setIsOrgPoolExpanded(false);
+                }}
+                type="button"
+                title="Shrink sidebar"
+                className="absolute top-1/2 left-full -translate-x-1/2 -translate-y-1/2 w-8 h-8 sm:w-9 sm:h-9 bg-black text-white rounded-full shadow-xl hover:scale-110 active:scale-95 transition-all cursor-pointer z-50 flex items-center justify-center border-2 border-white/90"
+              >
+                <span className="material-symbols-outlined text-[20px] sm:text-[22px] select-none leading-none text-white">
+                  chevron_left
+                </span>
+              </button>
+            )}
 
-            {/* Mobile Collapsed Peek Tab (Visible only on mobile when collapsed) */}
-            {!mobileShowPool && (
+            {/* Mobile Collapsed Peek Tab (Visible only on mobile when collapsed in admin mode) */}
+            {!readOnly && !mobileShowPool && (
               <div className="md:hidden w-full h-full flex flex-col items-center justify-between py-5 bg-white border border-[#E1DDCF] rounded-l-none rounded-r-xl shadow-xs animate-in fade-in duration-200">
                 {/* Top: Category Icon + Count Badge */}
                 <div className="flex flex-col items-center gap-1">
@@ -971,10 +994,15 @@ export default function RingBalancingClient({
 
             {/* Inner Content Container - Distinct Bordered Card (Expanded / Desktop) */}
             <div
-              className={`w-full flex-col h-full bg-white border border-[#E1DDCF] rounded-xl overflow-hidden shadow-xs transition-opacity duration-200 ${mobileShowPool
-                  ? "flex opacity-100"
-                  : "hidden md:flex opacity-100"
-                }`}
+              className={`w-full flex-col h-full bg-white border border-[#E1DDCF] rounded-xl overflow-hidden shadow-xs transition-opacity duration-200 ${
+                readOnly
+                  ? isOrgPoolExpanded
+                    ? "flex opacity-100"
+                    : "hidden opacity-0"
+                  : mobileShowPool
+                    ? "flex opacity-100"
+                    : "hidden md:flex opacity-100"
+              }`}
             >
               {/* Panel Head - Fixed Height & Sleek */}
               <div className="flex items-center justify-between px-3 h-[38px] border-b border-[#E1DDCF] bg-[#FAF9F5] shrink-0">
@@ -1003,18 +1031,24 @@ export default function RingBalancingClient({
                     </button>
                   )}
 
-                  {/* Mobile collapse button */}
-                  <button
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      togglePool();
-                    }}
-                    type="button"
-                    className="md:hidden p-1 rounded-md text-[#68645A] hover:bg-[#ECE9DF] transition-colors cursor-pointer"
-                    title="Shrink sidebar"
-                  >
-                    <span className="material-symbols-outlined text-[16px] leading-none">chevron_left</span>
-                  </button>
+                  {/* Collapse button */}
+                  {(readOnly || mobileShowPool) && (
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        if (readOnly) {
+                          setIsOrgPoolExpanded(false);
+                        } else {
+                          togglePool();
+                        }
+                      }}
+                      type="button"
+                      className="p-1 rounded-md text-[#68645A] hover:bg-[#ECE9DF] transition-colors cursor-pointer flex items-center justify-center"
+                      title="Shrink sidebar"
+                    >
+                      <span className="material-symbols-outlined text-[16px] leading-none">chevron_left</span>
+                    </button>
+                  )}
                 </div>
               </div>
 
@@ -1428,8 +1462,42 @@ export default function RingBalancingClient({
           {/* Right Workspace: Shrunken & Centered Overview Bar + Ring Grid */}
           <div className="flex-1 flex flex-col overflow-hidden min-w-0 h-full">
             {/* Tournament Overview Bar - Shrunken, Centered in Remaining Space with Border Start & End */}
-            <div className="w-full flex items-center justify-center shrink-0 z-10 bg-surface-container-low px-2 sm:px-4">
-              <div className="bg-white border-s border-e border-b border-outline-variant rounded-b-xl shadow-xs px-3 sm:px-6 py-1.5 sm:py-2 w-full max-w-xl sm:max-w-2xl lg:max-w-3xl flex items-center justify-between gap-2 sm:gap-4">
+            <div className="w-full flex items-center justify-center shrink-0 z-10 bg-surface-container-low px-2 sm:px-4 relative">
+              {/* Hanging Organiser Unassigned Categories Tab (Hangs attached to nav bar to the left of stats bar) */}
+              {readOnly && (
+                <button
+                  type="button"
+                  onClick={() => setIsOrgPoolExpanded((prev) => !prev)}
+                  className={`absolute left-2 sm:left-4 top-0 bg-white border-s border-e border-b border-outline-variant rounded-b-xl shadow-xs px-2.5 sm:px-3.5 py-1.5 sm:py-2 flex items-center gap-1.5 sm:gap-2 text-[#1B1815] transition-all cursor-pointer z-20 select-none ${
+                    isOrgPoolExpanded
+                      ? "bg-[#FAF9F5] border-[#0E9C7C] text-[#0B7C63]"
+                      : "hover:bg-[#FAF9F5] hover:border-[#0E9C7C]"
+                  }`}
+                  title={isOrgPoolExpanded ? "Shrink category pool" : "Expand unassigned category pool"}
+                  aria-label={isOrgPoolExpanded ? "Shrink categories" : "Expand categories"}
+                >
+                  <span className="material-symbols-outlined text-[15px] sm:text-[16px] text-secondary shrink-0">
+                    category
+                  </span>
+                  <span className="hidden min-[480px]:inline text-[8.5px] sm:text-[9.5px] font-bold tracking-widest uppercase text-on-surface-variant whitespace-nowrap">
+                    Unassigned
+                  </span>
+                  <span className="bg-[#ECE9DF] text-[#1B1815] text-[10px] sm:text-[11px] font-bold px-1.5 py-0.5 rounded-full font-mono leading-none shrink-0">
+                    {visibleUnassigned.length}
+                  </span>
+                  <span
+                    className={`material-symbols-outlined text-[15px] sm:text-[16px] text-outline transition-transform duration-200 ${
+                      isOrgPoolExpanded ? "rotate-180" : ""
+                    }`}
+                  >
+                    {isOrgPoolExpanded ? "chevron_left" : "chevron_right"}
+                  </span>
+                </button>
+              )}
+
+              <div className={`bg-white border-s border-e border-b border-outline-variant rounded-b-xl shadow-xs px-3 sm:px-6 py-1.5 sm:py-2 w-full max-w-xl sm:max-w-2xl lg:max-w-3xl flex items-center justify-between gap-2 sm:gap-4 ${
+                readOnly ? "max-w-[calc(100%-80px)] sm:max-w-xl md:max-w-2xl ml-auto sm:mx-auto" : ""
+              }`}>
                 {/* 3 Stats: Centered Telemetry */}
                 <div className="flex-1 max-w-xl sm:max-w-2xl lg:max-w-3xl mx-auto grid grid-cols-3 divide-x divide-outline-variant">
                   {/* Stat 1: Completed Categories */}
