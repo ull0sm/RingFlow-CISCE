@@ -1,4 +1,4 @@
-import React from "react";
+import React, { Suspense } from "react";
 import AdminHeader from "@/components/layout/AdminHeader";
 import { createClient } from "@/utils/supabase/server";
 import { redirect } from "next/navigation";
@@ -32,11 +32,13 @@ export default async function AdminAthletes({ params }: { params: Promise<{ id: 
   return (
     <>
       <AdminHeader title="Athletes Roster" eventName={tournament.name} />
-      <AthletesClient 
-        tournamentId={tournamentId} 
-        initialAthletes={validAthletes} 
-        categories={categories || []} 
-      />
+      <Suspense fallback={<div className="p-8 text-center text-[#64748B]">Loading roster...</div>}>
+        <AthletesClient 
+          tournamentId={tournamentId} 
+          initialAthletes={validAthletes} 
+          categories={categories || []} 
+        />
+      </Suspense>
     </>
   );
 }

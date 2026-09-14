@@ -1,4 +1,5 @@
 import React from "react";
+import { SegmentedProgressBar } from "@/components/ui/SegmentedProgressBar";
 
 export type RingStatus = "Running" | "Paused" | "Completed" | "Empty";
 
@@ -17,6 +18,8 @@ interface RingCardProps {
   name: string;
   status: RingStatus;
   categoryName?: string;
+  nextCategoryName?: string;
+  ringOrder?: number;
   currentMatch?: number;
   totalMatches?: number;
   totalExpectedMatches?: number;
@@ -36,6 +39,8 @@ export default function RingCard({
   name,
   status,
   categoryName = "Pending Next Category",
+  nextCategoryName,
+  ringOrder,
   currentMatch = 0,
   totalMatches = 0,
   totalExpectedMatches = 0,
@@ -50,199 +55,217 @@ export default function RingCard({
   formatTimeExpected,
   readOnly = false,
 }: RingCardProps) {
-  // Status resolution strictly driven by tatami floor status (matching public spectator page):
+  // Status resolution matching public spectator floor
   const isRunning = status === "Running";
   const isPaused = status === "Paused";
   const isCompleted = status === "Completed";
   const isIdle = !isRunning && !isPaused && !isCompleted;
 
-  // Border accent color based on resolved moderator status
-  let borderLeftColor = "border-outline-variant";
-  if (isPaused) {
-    borderLeftColor = "border-amber-500";
-  } else if (isCompleted) {
-    borderLeftColor = "border-blue-600";
-  } else if (isRunning) {
-    borderLeftColor = "border-secondary";
-  }
+  const statusLabel = isRunning
+    ? "RUNNING"
+    : isPaused
+    ? "PAUSED"
+    : isCompleted
+    ? "COMPLETED"
+    : "IDLE";
+
+  const bandBg = isRunning
+    ? "bg-[#1F5C3B] animate-band-pulse"
+    : isPaused
+    ? "bg-[#8E2E27]"
+    : isCompleted
+    ? "bg-[#1E3A8A]"
+    : "bg-[#59564C]";
+
+  // Derive mat number (e.g., "01", "02") and title
+  const matNum = ringOrder
+    ? String(ringOrder).padStart(2, "0")
+    : name.replace(/[^0-9]/g, "").padStart(2, "0") || "01";
+
+  const subLabel = name.toLowerCase().includes("tatami")
+    ? name
+    : `Tatami ${matNum}`;
 
   return (
-    <div
-      className={`bg-surface-container-lowest border-l-4 ${borderLeftColor} p-4 md:p-5 border border-outline-variant rounded-xl shadow-xs hover:shadow-md transition-all flex flex-col justify-between ${
-        isIdle ? "opacity-80" : ""
-      }`}
-    >
-      <div>
-        {/* Header: Tatami Name + Status Badge (LIVE / PAUSED / IDLE) + Controls */}
-        <div className="flex justify-between items-center gap-2 mb-3">
-          <div className="flex items-center gap-1.5 min-w-0">
-            <span className="material-symbols-outlined text-outline text-[18px] shrink-0">sports_martial_arts</span>
-            <span className="font-headline-sm text-base md:text-lg font-bold text-primary whitespace-nowrap truncate">
-              {name}
-            </span>
-          </div>
-
-          <div className="flex items-center gap-1.5 shrink-0">
-            {isPaused ? (
-              <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full font-label-caps text-[10px] font-bold uppercase tracking-wider bg-amber-50 text-amber-800 border border-amber-200 shadow-2xs">
-                <span className="w-1.5 h-1.5 rounded-full bg-amber-600 animate-pulse" />
-                PAUSED
-              </span>
-            ) : isCompleted ? (
-              <span className="inline-flex items-center px-2.5 py-0.5 rounded-full font-label-caps text-[10px] font-bold uppercase tracking-wider bg-blue-50 text-blue-800 border border-blue-200">
-                COMPLETED
-              </span>
-            ) : isRunning ? (
-              <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full font-label-caps text-[10px] font-bold uppercase tracking-wider bg-emerald-50 text-emerald-800 border border-emerald-200 shadow-2xs">
-                <span className="w-1.5 h-1.5 rounded-full bg-emerald-600 animate-pulse" />
-                LIVE
-              </span>
-            ) : (
-              <span className="inline-flex items-center px-2.5 py-0.5 rounded-full font-label-caps text-[10px] font-bold uppercase tracking-wider bg-surface-container text-on-surface-variant border border-outline-variant/60">
-                IDLE
-              </span>
-            )}
-
-            {!readOnly && onResetTimer && timing.isStarted && (
-              <button
-                type="button"
-                onClick={onResetTimer}
-                title={`Reset ${name} timer`}
-                className="w-7 h-7 rounded-md border border-outline-variant bg-surface-container hover:bg-surface-container-high text-on-surface-variant hover:text-error flex items-center justify-center transition-all cursor-pointer shrink-0"
-              >
-                <span className="material-symbols-outlined text-[15px]">restart_alt</span>
-              </button>
-            )}
-
-            {!readOnly && onTogglePause && (
-              <button
-                type="button"
-                onClick={onTogglePause}
-                title={
-                  timing.isRunning
-                    ? `Pause ${name} timer`
-                    : timing.isManuallyPaused
-                    ? `Resume ${name} timer`
-                    : `Start ${name} timer`
-                }
-                className={`w-7 h-7 rounded-md border flex items-center justify-center transition-all cursor-pointer shrink-0 ${
-                  timing.isRunning
-                    ? "bg-amber-50 border-amber-300 text-amber-800 hover:bg-amber-100 shadow-2xs"
-                    : "bg-emerald-50 border-emerald-300 text-emerald-700 hover:bg-emerald-100 shadow-2xs"
-                }`}
-              >
-                <span className="material-symbols-outlined text-[16px]">
-                  {timing.isRunning ? "pause" : "play_arrow"}
-                </span>
-              </button>
-            )}
-          </div>
+    <div className="relative bg-white border border-slate-200 rounded-xl overflow-hidden shadow-xs hover:shadow-md hover:border-slate-300 transition-all flex flex-col justify-between">
+      {/* ─── Top Scoreboard Band ─── */}
+      <div
+        className={`relative flex items-center justify-between px-4 sm:px-5 py-3 h-[56px] text-white shrink-0 overflow-hidden ${bandBg}`}
+      >
+        {/* Left: Scoreboard Number & Sub-label */}
+        <div className="flex items-baseline gap-2 relative z-10">
+          <span className="font-scoreboard text-[28px] sm:text-[32px] font-normal leading-none tracking-wide text-white">
+            {matNum}
+          </span>
+          <span className="text-[12px] font-medium text-white/80 tracking-normal">
+            {subLabel}
+          </span>
         </div>
 
-        {/* Division Title & Match Status */}
-        <div className="mb-3">
-          <h4
-            className="font-bold text-sm text-primary truncate leading-tight"
-            title={categoryName}
-          >
-            {categoryName}
-          </h4>
-          <div className="flex items-center justify-between text-xs text-on-surface-variant mt-1.5">
-            <span className="font-semibold text-primary font-data-mono">
-              {status === "Empty" && currentMatch === 0 && totalMatches === 0
-                ? "No active category"
-                : `Match ${currentMatch} of ${totalMatches || 1}`}
+        {/* Right: Dot Status Badge + Translucent Admin Controls */}
+        <div className="flex items-center gap-2 relative z-10">
+          <span className="flex items-center gap-1.5 text-[11px] font-bold tracking-wider uppercase text-white">
+            <span className="relative flex h-2 w-2 shrink-0">
+              {isRunning && (
+                <span className="animate-pulse-ring absolute inline-flex h-full w-full rounded-full bg-white opacity-80" />
+              )}
+              <span className="relative inline-flex rounded-full h-2 w-2 bg-white" />
             </span>
-            <span className="text-[11px] font-data-mono text-on-surface-variant">
-              {divisionCount} {divisionCount === 1 ? "category" : "categories"} queued
-            </span>
-          </div>
-        </div>
+            <span>{statusLabel}</span>
+          </span>
 
-        {/* Time Elapsed / Expected & Pace Block */}
-        <div 
-          onClick={!readOnly && onTogglePause ? onTogglePause : undefined}
-          title={!readOnly && onTogglePause ? (timing.isRunning ? "Click to pause timer" : "Click to start/resume timer") : undefined}
-          className={`bg-surface-container-low/60 rounded-lg p-3 mb-3 border border-outline-variant/40 transition-all ${
-            !readOnly && onTogglePause ? "cursor-pointer hover:border-outline-variant/80 hover:bg-surface-container-low active:scale-[0.99]" : ""
-          }`}
-        >
-          <div className="flex justify-between items-center mb-1.5">
-            <span className="text-[10px] font-label-caps text-on-surface-variant uppercase tracking-wider font-semibold">
-              Time Elapsed / Expected
-            </span>
-            {timing.isStarted && (() => {
-              const diffMinutes = Math.round(timing.diffSeconds / 60);
-              return (
-                <span
-                  title={
-                    diffMinutes >= 1
-                      ? `Running late by ${diffMinutes}m based on category pace`
-                      : diffMinutes <= -1
-                      ? `Running ${Math.abs(diffMinutes)}m ahead based on category pace`
-                      : "On schedule based on category pace"
-                  }
-                  className={`font-label-caps text-[10px] font-bold px-1.5 py-0.5 rounded ${
-                    diffMinutes >= 1
-                      ? "bg-amber-100 text-amber-800"
-                      : diffMinutes <= -1
-                      ? "bg-emerald-100 text-emerald-800"
-                      : "bg-surface-container text-secondary"
-                  }`}
+          {!readOnly && (
+            <div className="flex items-center gap-1 ml-1.5">
+              {onResetTimer && timing.isStarted && (
+                <button
+                  type="button"
+                  onClick={onResetTimer}
+                  title={`Reset ${name} timer`}
+                  className="w-7 h-7 rounded-md bg-white/15 hover:bg-white/30 text-white flex items-center justify-center transition-all cursor-pointer"
                 >
-                  {diffMinutes >= 1
-                    ? `+${diffMinutes}m Behind`
-                    : diffMinutes <= -1
-                    ? `${Math.abs(diffMinutes)}m Ahead`
-                    : "On Pace"}
-                </span>
-              );
-            })()}
-          </div>
+                  <span className="material-symbols-outlined text-[15px]">restart_alt</span>
+                </button>
+              )}
 
-          <div className="flex items-baseline gap-2">
-            <span
-              className="font-data-mono text-xl md:text-2xl font-bold text-primary tracking-tight"
-              suppressHydrationWarning
-            >
-              {timing.isStarted ? formatTimeTook(timing.actualSeconds) : "-- : --"}
-            </span>
-            <span className="font-data-mono text-xs text-on-surface-variant">
-              / {timing.expectedSeconds > 0 ? formatTimeExpected(timing.expectedSeconds) : "--"}
-            </span>
-          </div>
-        </div>
-
-        {/* Progress Bar */}
-        <div className="w-full bg-surface-container h-1.5 rounded-full overflow-hidden mb-3">
-          <div
-            className={`h-full transition-all duration-500 rounded-full ${
-              Math.round(timing.diffSeconds / 60) >= 1
-                ? "bg-amber-500"
-                : isCompleted
-                ? "bg-blue-600"
-                : "bg-secondary"
-            }`}
-            style={{ width: `${Math.min(100, Math.max(0, progressPercent))}%` }}
-          />
+              {onTogglePause && (
+                <button
+                  type="button"
+                  onClick={onTogglePause}
+                  title={
+                    timing.isRunning
+                      ? `Pause ${name} timer`
+                      : timing.isManuallyPaused
+                      ? `Resume ${name} timer`
+                      : `Start ${name} timer`
+                  }
+                  className="w-7 h-7 rounded-md bg-white/20 hover:bg-white/35 text-white flex items-center justify-center transition-all cursor-pointer shadow-2xs"
+                >
+                  <span className="material-symbols-outlined text-[16px]">
+                    {timing.isRunning ? "pause" : "play_arrow"}
+                  </span>
+                </button>
+              )}
+            </div>
+          )}
         </div>
       </div>
 
-      {/* Footer */}
-      <div className="flex justify-between items-center pt-2.5 border-t border-outline-variant/60 text-xs text-on-surface-variant">
-        <span className="font-data-mono text-[11px] italic" suppressHydrationWarning>
-          {isIdle ? "Waiting for Assign" : `Est. Finish: ${estimatedFinish}`}
-        </span>
-        <span className="font-label-caps text-[10px] uppercase font-bold text-outline">
-          {totalMatches > 0 && currentMatch < totalMatches
-            ? `${totalMatches - currentMatch} matches left`
-            : isCompleted
-            ? "Completed"
-            : isIdle
-            ? "Idle"
-            : "Active"}
-        </span>
+      {/* ─── Ticket Perforation Notches ─── */}
+      <div className="spectator-notch left top-[49px]" />
+      <div className="spectator-notch right top-[49px]" />
+
+      {/* ─── Card Inner Body ─── */}
+      <div className="p-4 sm:p-5 flex-1 flex flex-col justify-between bg-white">
+        <div>
+          {isIdle ? (
+            <div className="py-2 mb-2">
+              <p className="text-[13.5px] text-[#68645A] leading-relaxed">
+                Mat is clear. Ready for the next scheduled division.
+              </p>
+            </div>
+          ) : (
+            <>
+              {/* Category Title */}
+              <h4
+                className="font-bold text-[15px] text-[#1B1815] mb-2 leading-snug line-clamp-1"
+                title={categoryName}
+              >
+                {categoryName}
+              </h4>
+
+              {/* 10-Segment Hatched Progress Bar */}
+              <SegmentedProgressBar
+                completed={currentMatch}
+                total={totalMatches || 1}
+                status={status}
+                className="mb-3"
+              />
+
+              {/* Time Elapsed / Expected Block */}
+              <div
+                onClick={!readOnly && onTogglePause ? onTogglePause : undefined}
+                title={
+                  !readOnly && onTogglePause
+                    ? timing.isRunning
+                      ? "Click to pause timer"
+                      : "Click to start/resume timer"
+                    : undefined
+                }
+                className={`bg-white rounded-lg p-3 my-3 border border-slate-200 shadow-2xs transition-all ${
+                  !readOnly && onTogglePause
+                    ? "cursor-pointer hover:border-slate-300 hover:bg-slate-50/70"
+                    : ""
+                }`}
+              >
+                <div className="flex justify-between items-center mb-1">
+                  <span className="text-[10px] font-label-caps text-[#68645A] uppercase tracking-wider font-semibold">
+                    Time Elapsed / Expected
+                  </span>
+                  {timing.isStarted && (() => {
+                    const diffMinutes = Math.round(timing.diffSeconds / 60);
+                    return (
+                      <span
+                        className={`text-[10px] font-bold font-data-mono px-1.5 py-0.5 rounded ${
+                          diffMinutes >= 1
+                            ? "bg-amber-100 text-amber-800"
+                            : diffMinutes <= -1
+                            ? "bg-emerald-100 text-emerald-800"
+                            : "bg-slate-100 text-[#1B1815]"
+                        }`}
+                      >
+                        {diffMinutes >= 1
+                          ? `+${diffMinutes}m Behind`
+                          : diffMinutes <= -1
+                          ? `${Math.abs(diffMinutes)}m Ahead`
+                          : "On Pace"}
+                      </span>
+                    );
+                  })()}
+                </div>
+
+                <div className="flex items-baseline gap-2">
+                  <span
+                    className="font-data-mono text-xl font-bold text-[#1B1815] tracking-tight"
+                    suppressHydrationWarning
+                  >
+                    {timing.isStarted ? formatTimeTook(timing.actualSeconds) : "-- : --"}
+                  </span>
+                  <span className="font-data-mono text-xs text-[#68645A]">
+                    / {timing.expectedSeconds > 0 ? formatTimeExpected(timing.expectedSeconds) : "--"}
+                  </span>
+                </div>
+              </div>
+            </>
+          )}
+        </div>
+
+        {/* ─── Footer: Next Division & Estimated Finish ─── */}
+        <div className="pt-2.5 mt-2 border-t border-dashed border-slate-200 flex justify-between items-baseline gap-2 text-xs">
+          <div className="flex items-baseline gap-1.5 min-w-0 truncate">
+            <span className="text-[10px] font-bold tracking-[0.08em] text-[#A19C90] uppercase shrink-0">
+              NEXT
+            </span>
+            <span
+              className={`text-[12px] truncate ${
+                nextCategoryName ? "font-semibold text-[#1B1815]" : "font-normal text-[#A19C90]"
+              }`}
+            >
+              {nextCategoryName || "No upcoming division queued"}
+            </span>
+          </div>
+
+          <span className="font-data-mono text-[11px] text-[#68645A] shrink-0" suppressHydrationWarning>
+            {isIdle ? (
+              <span className="font-label-caps text-[10px] uppercase font-bold text-[#A19C90]">
+                {divisionCount > 0 ? `${divisionCount} Queued` : "Standby"}
+              </span>
+            ) : (
+              `Est. Finish: ${estimatedFinish}`
+            )}
+          </span>
+        </div>
       </div>
     </div>
   );
 }
+

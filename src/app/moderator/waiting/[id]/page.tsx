@@ -62,14 +62,17 @@ export default function WaitingRoom() {
   }, [id, router, supabase]);
 
   const handleApproved = (ringId: string, token?: string) => {
+    // Also ensure server-side cookie is set via Server Action
+    checkModeratorStatus(id).catch(() => {});
+
     // Save token in cookie or local storage so middleware/layout can read it
     const isHttps = typeof window !== 'undefined' && window.location.protocol === 'https:';
     const secureFlag = isHttps ? '; Secure' : '';
     if (token) {
-      document.cookie = `mod_token=${token}; path=/; max-age=86400; SameSite=Strict${secureFlag}`;
+      document.cookie = `mod_token=${token}; path=/; max-age=86400; SameSite=Lax${secureFlag}`;
     } else {
       // MVP fallback
-      document.cookie = `mod_token=${id}; path=/; max-age=86400; SameSite=Strict${secureFlag}`;
+      document.cookie = `mod_token=${id}; path=/; max-age=86400; SameSite=Lax${secureFlag}`;
     }
     
     // Animate a bit then redirect

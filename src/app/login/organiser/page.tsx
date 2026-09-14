@@ -1,8 +1,8 @@
 "use client";
 
-import React, { useState, Suspense } from "react";
+import React, { useState, useRef, useEffect, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { requestOrganiserAccess } from "@/actions/organiser";
+import { requestOrganiserAccess, validateOrganiserSessionAction } from "@/actions/organiser";
 import { Turnstile } from "@marsidev/react-turnstile";
 import { RingFlowLogo } from "@/components/ui/ringflow-logo";
 import { v4 as uuidv4 } from "uuid";
@@ -33,8 +33,24 @@ function OrganiserLoginContent() {
   const [turnstileToken, setTurnstileToken] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState("");
+  const turnstileRef = useRef<any>(null);
   const router = useRouter();
   const searchParams = useSearchParams();
+
+  useEffect(() => {
+    // 1. Prefill saved name if available
+    const savedName = localStorage.getItem("ringflow_organiser_name");
+    if (savedName) setOrganiserName(savedName);
+
+    // 2. If already logged in and not explicitly revoked, auto-forward to dashboard
+    if (searchParams.get("reason") !== "revoked") {
+      validateOrganiserSessionAction().then((res) => {
+        if (res.valid && res.tournamentId) {
+          router.replace(`/organiser/event/${res.tournamentId}/dashboard`);
+        }
+      }).catch(() => {});
+    }
+  }, [searchParams, router]);
 
   const handleInput = (e: React.ChangeEvent<HTMLInputElement>) => {
     let val = e.target.value.replace(/[^a-zA-Z0-9]/g, "").toUpperCase();
@@ -57,6 +73,8 @@ function OrganiserLoginContent() {
       setError("Please complete the security check.");
       return;
     }
+
+    localStorage.setItem("ringflow_organiser_name", organiserName.trim());
 
     setIsLoading(true);
     setError("");
@@ -81,7 +99,6 @@ function OrganiserLoginContent() {
         deviceType,
       };
 
-
       const result = await requestOrganiserAccess(
         accessCode,
         organiserName,
@@ -90,12 +107,17 @@ function OrganiserLoginContent() {
       );
 
       if (result.success && result.requestId) {
+        localStorage.setItem("ringflow_organiser_name", organiserName.trim());
         router.push(`/organiser/waiting/${result.requestId}`);
       } else {
         setError(result.error || "Failed to submit access request.");
+        turnstileRef.current?.reset();
+        setTurnstileToken("");
       }
     } catch (err: any) {
       setError(err.message || "An unexpected error occurred.");
+      turnstileRef.current?.reset();
+      setTurnstileToken("");
     } finally {
       setIsLoading(false);
     }
@@ -173,10 +195,17 @@ function OrganiserLoginContent() {
 
           <div className="flex justify-center min-h-[65px] pt-1">
             <Turnstile
+              ref={turnstileRef}
               siteKey={process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY || ""}
               onSuccess={(token) => {
                 setTurnstileToken(token);
                 setError("");
+              }}
+              onExpire={() => {
+                setTurnstileToken("");
+              }}
+              onError={() => {
+                setTurnstileToken("");
               }}
               options={{
                 theme: "light",

@@ -1,9 +1,9 @@
 import { redirect } from "next/navigation";
 import { cookies } from "next/headers";
+import { createClient } from "@/utils/supabase/server";
 
 /**
- * /stager root - redirects to login if no stager_token cookie.
- * The middleware handles this too but this server page is a fallback.
+ * /stager root - resolves active stager session and navigates directly to event balance
  */
 export default async function StagerRootPage() {
   const cookieStore = await cookies();
@@ -13,7 +13,18 @@ export default async function StagerRootPage() {
     redirect("/login/stager");
   }
 
-  // If they have a token, we don't know which tournament - send them to login
-  // so they can re-enter their code.
+  const supabase = await createClient();
+  const { data: request } = await supabase
+    .from("stager_requests")
+    .select("tournament_id, status, expires_at")
+    .or(`session_token.eq.${stagerToken},id.eq.${stagerToken}`)
+    .eq("status", "approved")
+    .order("created_at", { ascending: false })
+    .maybeSingle();
+
+  if (request?.tournament_id && (!request.expires_at || new Date(request.expires_at).getTime() >= Date.now())) {
+    redirect(`/stager/event/${request.tournament_id}/balance`);
+  }
+
   redirect("/login/stager");
 }

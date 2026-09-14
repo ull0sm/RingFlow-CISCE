@@ -187,6 +187,16 @@ export async function checkModeratorStatus(requestId: string) {
   if (request.expires_at && new Date(request.expires_at).getTime() < Date.now()) {
     return { status: "expired" };
   }
+
+  if (request.status === "approved" && request.session_token) {
+    const cookieStore = await cookies();
+    cookieStore.set("mod_token", request.session_token, {
+      path: "/",
+      maxAge: 86400, // 24 hours
+      sameSite: "lax",
+      secure: process.env.NODE_ENV === "production",
+    });
+  }
   
   return { 
     status: request.status, 

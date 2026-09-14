@@ -19,7 +19,7 @@ export default function OrganiserSelectTournamentLoading() {
               Welcome
             </h1>
             <p className="text-body-sm text-on-surface-variant mt-1">
-              Select an ongoing tournament to monitor live tatamis, category assignments, and student rosters.
+              Select an ongoing tournament to monitor live tatamis, category assignments, and athlete rosters.
             </p>
           </div>
 

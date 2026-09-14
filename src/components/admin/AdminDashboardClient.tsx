@@ -3,12 +3,14 @@
 import React, { useState, useEffect } from "react";
 import AdminHeader from "@/components/layout/AdminHeader";
 import OrganiserHeader from "@/components/layout/OrganiserHeader";
+import HeaderSearchBar from "@/components/layout/HeaderSearchBar";
 import RingCard from "@/components/admin/RingCard";
 import LiveActivityFeed from "@/components/admin/LiveActivityFeed";
 import ModeratorRequestsWidget from "@/components/admin/ModeratorRequestsWidget";
 import { createClient } from "@/utils/supabase/client";
 import { toggleRingTimer, setAllRingTimers, resetRingTimer } from "@/actions/rings";
 import OverviewSupportFooter from "@/components/support/OverviewSupportFooter";
+import BackNavigationGuard from "@/components/common/BackNavigationGuard";
 
 export default function AdminDashboardClient({ 
   tournament, 
@@ -407,10 +409,11 @@ export default function AdminDashboardClient({
 
   return (
     <>
+      <BackNavigationGuard />
       {readOnly ? (
-        <OrganiserHeader title="Overview" eventName={tournament.name} />
+        <OrganiserHeader title="Overview" eventName={tournament.name} tournamentId={tournament.id} />
       ) : (
-        <AdminHeader title="Overview" eventName={tournament.name} />
+        <AdminHeader title="Overview" eventName={tournament.name} tournamentId={tournament.id} />
       )}
       
       {activeAlert && (
@@ -441,9 +444,20 @@ export default function AdminDashboardClient({
       )}
 
       <div className="p-4 sm:p-6 md:p-margin-desktop space-y-6 sm:space-y-8 pb-24 w-full">
+        {/* Mobile Organiser Search Bar - Detached into Page (Organiser Mobile Only) */}
+        {readOnly && (
+          <div className="md:hidden w-full">
+            <HeaderSearchBar
+              tournamentId={tournament.id}
+              role="organiser"
+              className="w-full max-w-none"
+            />
+          </div>
+        )}
+
         {/* Global Tournament Stats */}
         <section className="grid grid-cols-1 md:grid-cols-3 gap-4 sm:gap-gutter">
-          <div className="bg-surface-container-lowest p-4 sm:p-card-padding border border-outline-variant rounded-lg flex flex-col justify-between shadow-sm hover:shadow transition-shadow">
+          <div className="bg-white p-4 sm:p-card-padding border border-[#E1DDCF] hover:border-[#CDC8BA] rounded-lg flex flex-col justify-between shadow-xs hover:shadow-sm transition-all">
             <div className="flex justify-between items-start">
               <span className="font-label-caps text-label-caps text-on-surface-variant">Completed Categories</span>
               <span className="material-symbols-outlined text-secondary">category</span>
@@ -460,7 +474,7 @@ export default function AdminDashboardClient({
             </div>
           </div>
           
-          <div className="bg-surface-container-lowest p-4 sm:p-card-padding border border-outline-variant rounded-lg flex flex-col justify-between shadow-sm hover:shadow transition-shadow">
+          <div className="bg-white p-4 sm:p-card-padding border border-[#E1DDCF] hover:border-[#CDC8BA] rounded-lg flex flex-col justify-between shadow-xs hover:shadow-sm transition-all">
             <div className="flex justify-between items-start">
               <span className="font-label-caps text-label-caps text-on-surface-variant">Completed Matches</span>
               <span className="material-symbols-outlined text-on-secondary-fixed-variant" style={{fontVariationSettings: '"FILL" 1'}}>check_circle</span>
@@ -471,13 +485,13 @@ export default function AdminDashboardClient({
             </div>
           </div>
           
-          <div className="bg-surface-container-lowest p-4 sm:p-card-padding border border-outline-variant rounded-lg shadow-sm hover:shadow transition-shadow">
+          <div className="bg-white p-4 sm:p-card-padding border border-[#E1DDCF] hover:border-[#CDC8BA] rounded-lg shadow-xs hover:shadow-sm transition-all">
             <div className="flex justify-between items-start">
               <span className="font-label-caps text-label-caps text-on-surface-variant">Overall Progress</span>
               <span className="material-symbols-outlined text-secondary">speed</span>
             </div>
             <div className="mt-6">
-              <div className="w-full bg-surface-container-highest h-2 rounded-full overflow-hidden">
+              <div className="w-full bg-slate-100 border border-[#E1DDCF]/70 h-2 rounded-full overflow-hidden">
                 <div className="bg-secondary h-full transition-all duration-1000 ease-out" style={{ width: `${Math.min(100, progressPercent)}%` }}></div>
               </div>
               <div className="flex justify-between mt-2">
@@ -488,39 +502,58 @@ export default function AdminDashboardClient({
           </div>
         </section>
 
-        <div className={readOnly ? "space-y-4" : "grid grid-cols-1 xl:grid-cols-4 gap-8"}>
+        {/* Section Heading & Global Pace Controls */}
+        <div className="flex flex-wrap items-center justify-between gap-2 mb-4">
+          <div className="flex items-center gap-3">
+            <h3 className="font-headline-sm text-headline-sm text-primary font-bold">
+              Live Tatami Status & Pace
+            </h3>
+            {!readOnly && rings.length > 0 && (
+              <button
+                type="button"
+                onClick={toggleAllPace}
+                title={anyRunning ? "Pause all tatami timers" : "Resume all tatami timers"}
+                className={`px-3 py-1.5 text-xs font-label-caps font-semibold rounded-md border flex items-center gap-1.5 transition-all cursor-pointer shadow-2xs ${
+                  !anyRunning && areAllPaused
+                    ? "bg-emerald-50 border-emerald-300 text-emerald-800 hover:bg-emerald-100 font-bold"
+                    : "border-slate-200 bg-white hover:bg-slate-50 text-on-surface"
+                }`}
+              >
+                <span className="material-symbols-outlined text-[16px]">
+                  {anyRunning ? "pause" : "play_arrow"}
+                </span>
+                <span>{anyRunning ? "Pause All Tatamis" : "Resume All Tatamis"}</span>
+              </button>
+            )}
+          </div>
+          <div className="flex items-center gap-1.5 text-xs font-label-caps text-on-surface-variant">
+            <span
+              className={`w-2 h-2 rounded-full ${
+                anyRunning
+                  ? "bg-secondary animate-pulse"
+                  : areAllPaused
+                  ? "bg-amber-500"
+                  : "bg-outline"
+              }`}
+            />
+            <span>
+              {anyRunning
+                ? "Realtime Pace Tracking"
+                : areAllPaused
+                ? "Pace Tracking Paused"
+                : "Pace Tracking Ready"}
+            </span>
+          </div>
+        </div>
+
+        <div className={readOnly ? "space-y-4" : "grid grid-cols-1 xl:grid-cols-4 gap-8 items-start"}>
           {/* Unified Tatamis Grid Overview */}
-          <div className={`${readOnly ? "w-full" : "xl:col-span-3"} space-y-4`}>
-            <div className="flex flex-wrap items-center justify-between gap-2">
-              <div className="flex items-center gap-3">
-                <h3 className="font-headline-sm text-headline-sm text-primary font-bold">
-                  Live Tatami Status & Pace
-                </h3>
-                {!readOnly && rings.length > 0 && (
-                  <button
-                    type="button"
-                    onClick={toggleAllPace}
-                    title={anyRunning ? "Pause all tatami timers" : "Resume all tatami timers"}
-                    className={`px-3 py-1.5 text-xs font-label-caps font-semibold rounded-md border flex items-center gap-1.5 transition-all cursor-pointer shadow-2xs ${
-                      !anyRunning && areAllPaused
-                        ? "bg-emerald-50 border-emerald-300 text-emerald-800 hover:bg-emerald-100 font-bold"
-                        : "border-outline-variant bg-surface-container-lowest hover:bg-surface-container text-on-surface"
-                    }`}
-                  >
-                    <span className="material-symbols-outlined text-[16px]">
-                      {anyRunning ? "pause" : "play_arrow"}
-                    </span>
-                    <span>{anyRunning ? "Pause All Tatamis" : "Resume All Tatamis"}</span>
-                  </button>
-                )}
-              </div>
-              <div className="flex items-center gap-1.5 text-xs font-label-caps text-on-surface-variant">
-                <span className={`w-2 h-2 rounded-full ${anyRunning ? "bg-secondary animate-pulse" : areAllPaused ? "bg-amber-500" : "bg-outline"}`} />
-                <span>{anyRunning ? "Realtime Pace Tracking" : areAllPaused ? "Pace Tracking Paused" : "Pace Tracking Ready"}</span>
-              </div>
-            </div>
-            
-            <div className={`grid grid-cols-1 md:grid-cols-2 ${readOnly ? "xl:grid-cols-3 2xl:grid-cols-4" : "xl:grid-cols-2 2xl:grid-cols-3"} gap-5`}>
+          <div className={readOnly ? "w-full" : "xl:col-span-3"}>
+            <div
+              className={`grid grid-cols-1 md:grid-cols-2 ${
+                readOnly ? "xl:grid-cols-3 2xl:grid-cols-4" : "xl:grid-cols-2 2xl:grid-cols-3"
+              } gap-5`}
+            >
               {rings.map((ring) => {
                 const ringAssignments = assignments.filter((a) => a.ring_id === ring.id) || [];
                 const activeAssignment =
@@ -573,6 +606,8 @@ export default function AdminDashboardClient({
                     name={ring.name.replace(/Ring/i, "Tatami")}
                     status={status as any}
                     categoryName={categoryName}
+                    nextCategoryName={nextAssignment?.categories?.name}
+                    ringOrder={ring.ring_order}
                     currentMatch={currentMatch}
                     totalMatches={totalMatchesForRing}
                     totalExpectedMatches={totalExpectedMatches}
@@ -592,15 +627,15 @@ export default function AdminDashboardClient({
           </div>
 
           {!readOnly && (
-            <div className="space-y-8">
+            <div className="space-y-3.5">
               <LiveActivityFeed tournamentId={tournament.id} initialLogs={logs} rings={rings} />
               <ModeratorRequestsWidget tournamentId={tournament.id} initialRequests={initialModRequests} readOnly={readOnly} />
             </div>
           )}
         </div>
 
-        {/* Support & Crux Contact Desk - Admin only */}
-        {!readOnly && <OverviewSupportFooter />}
+        {/* Support & Crux Contact Desk */}
+        <OverviewSupportFooter />
       </div>
     </>
   );

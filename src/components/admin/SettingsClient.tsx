@@ -298,7 +298,7 @@ export default function SettingsClient({ tournament, initialOrganiserRequests = 
                     </label>
                   </div>
                   <p className="text-body-xs text-on-surface-variant max-w-xl">
-                    When enabled, students and parents searching their name in the live public event dashboard can view their category draw sheet PDF.
+                    When enabled, athletes and parents searching their name in the live public event dashboard can view their category draw sheet PDF.
                     When turned off, draw PDFs remain accessible only to Admin, Organiser, and Stagers.
                   </p>
                 </div>
@@ -420,7 +420,7 @@ export default function SettingsClient({ tournament, initialOrganiserRequests = 
                     return (
                       <div
                         key={req.id}
-                        className="bg-white p-3.5 rounded-lg border border-amber-300/60 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 shadow-xs"
+                        className="bg-[#FAF9F5] p-3.5 rounded-lg border border-amber-300/60 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 shadow-xs"
                       >
                         <div>
                           <div className="flex items-center gap-2">

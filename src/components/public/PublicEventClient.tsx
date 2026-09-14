@@ -4,6 +4,7 @@ import React, { useState, useEffect, useRef, useMemo } from "react";
 import Link from "next/link";
 import { createClient } from "@/utils/supabase/client";
 import { formatDisplayDateWithWeekday } from "@/lib/utils";
+import { matchesCategorySearch } from "@/lib/searchUtils";
 import { PdfViewerModal } from "@/components/ui/PdfViewerModal";
 import "./public-spectator.css";
 
@@ -67,8 +68,8 @@ function tileMarkup(completed: number, total: number) {
 
 const SEARCH_PHRASES = [
   "Search by athlete name...",
-  "Search by athlete chest number...",
-  "Search by #241, division, or mat...",
+  "Search by category (e.g. U14_30-35kg)...",
+  "Search by chest #, weight, or division...",
 ];
 
 export default function PublicEventClient({
@@ -231,7 +232,7 @@ export default function PublicEventClient({
     };
   }, [supabase, tournament.id]);
 
-  // Athlete Search Query
+  // Athlete & Category Search Query
   useEffect(() => {
     const q = searchQuery.trim();
     if (!q) {
@@ -241,29 +242,80 @@ export default function PublicEventClient({
     }
 
     setIsSearching(true);
-    const cleanQ = q.replace(/^#/, "");
+    const cleanQ = q.replace(/^#/, "").trim();
 
     const fetchAthletes = async () => {
-      const { data, error } = await supabase
-        .from("athletes")
-        .select("id, name, chest_number, category_id, categories(id, name, doc_url)")
-        .eq("tournament_id", tournament.id)
-        .or(`name.ilike.%${cleanQ}%,chest_number.ilike.%${cleanQ}%`)
-        .limit(8);
+      try {
+        const isNumeric = /^\d+$/.test(cleanQ);
+        const nameFilter = isNumeric
+          ? `name.ilike.%${cleanQ}%,chest_number.eq.${cleanQ}`
+          : `name.ilike.%${cleanQ}%,chest_number.ilike.%${cleanQ}%`;
 
-      if (!error && data) {
-        setSearchResults(data as unknown as AthleteSearchResult[]);
-      } else {
+        // 1. Fetch athletes directly matching name or chest number
+        const namePromise = supabase
+          .from("athletes")
+          .select("id, name, chest_number, category_id, categories(id, name, doc_url)")
+          .eq("tournament_id", tournament.id)
+          .or(nameFilter)
+          .limit(20);
+
+        // 2. Fetch categories matching the query (e.g. u14_30-35kg, 30, 14, age, weight)
+        const matchingCatIds = (categories || [])
+          .filter((c) => matchesCategorySearch(c, q))
+          .map((c) => c.id);
+
+        let catPromise = null;
+        if (matchingCatIds.length > 0) {
+          catPromise = supabase
+            .from("athletes")
+            .select("id, name, chest_number, category_id, categories(id, name, doc_url)")
+            .eq("tournament_id", tournament.id)
+            .in("category_id", matchingCatIds.slice(0, 40))
+            .limit(40);
+        }
+
+        const [nameRes, catRes] = await Promise.all([
+          namePromise,
+          catPromise ? catPromise : Promise.resolve({ data: null, error: null }),
+        ]);
+
+        const combined: AthleteSearchResult[] = [];
+        const seen = new Set<string>();
+
+        // Add direct athlete matches first
+        if (nameRes.data) {
+          for (const item of nameRes.data) {
+            if (!seen.has(item.id)) {
+              seen.add(item.id);
+              combined.push(item as unknown as AthleteSearchResult);
+            }
+          }
+        }
+
+        // Add category athlete matches
+        if (catRes?.data) {
+          for (const item of catRes.data) {
+            if (!seen.has(item.id)) {
+              seen.add(item.id);
+              combined.push(item as unknown as AthleteSearchResult);
+            }
+          }
+        }
+
+        setSearchResults(combined);
+      } catch (err) {
+        console.error("Public search error:", err);
         setSearchResults([]);
+      } finally {
+        setIsSearching(false);
+        setIsSearchOpen(true);
+        setActiveIndex(-1);
       }
-      setIsSearching(false);
-      setIsSearchOpen(true);
-      setActiveIndex(-1);
     };
 
     const debounce = setTimeout(fetchAthletes, 200);
     return () => clearTimeout(debounce);
-  }, [searchQuery, tournament.id, supabase]);
+  }, [searchQuery, tournament.id, categories, supabase]);
 
   const viewingPdfRef = useRef(viewingPdf);
   viewingPdfRef.current = viewingPdf;
@@ -336,8 +388,8 @@ export default function PublicEventClient({
     docUrl: string | null,
     categoryName: string
   ) => {
-    if (docUrl && isPublicDrawsEnabled) {
-      // Keep search open in background and do not scroll away
+    if (docUrl) {
+      setIsSearchOpen(false);
       setViewingPdf({
         url: docUrl,
         title: `${athlete.name} · ${categoryName}`,
@@ -565,12 +617,13 @@ export default function PublicEventClient({
                         <span className="spectator-result-division">
                           {displayCategoryName}
                         </span>
-                        {docUrl && isPublicDrawsEnabled && (
+                        {docUrl && (
                           <button
                             type="button"
                             className="spectator-pdf-chip"
                             onClick={(e) => {
                               e.stopPropagation();
+                              setIsSearchOpen(false);
                               setViewingPdf({
                                 url: docUrl,
                                 title: `${a.name} · ${displayCategoryName}`,

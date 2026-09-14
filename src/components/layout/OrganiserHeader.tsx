@@ -1,46 +1,61 @@
-export default function OrganiserHeader({ title, eventName }: { title: string; eventName?: string }) {
-  return (
-    <header className="flex justify-between items-center w-full px-4 md:px-margin-desktop h-16 bg-surface-container-lowest border-b border-outline-variant shrink-0 sticky top-0 z-10">
-      <div className="flex items-center gap-2 sm:gap-4 min-w-0 pr-2">
-        <h2 className="font-headline-sm text-headline-sm text-primary truncate max-w-[140px] sm:max-w-none">{title}</h2>
-        {eventName && (
-          <div className="flex items-center gap-1.5 sm:gap-2 ml-2 sm:ml-4 pl-2 sm:pl-4 border-l border-outline-variant min-w-0">
-            <span className="material-symbols-outlined text-secondary text-sm shrink-0">event</span>
-            <span className="font-label-caps text-label-caps text-on-surface-variant tracking-wider truncate max-w-[110px] sm:max-w-[200px] md:max-w-none">{eventName}</span>
-          </div>
-        )}
-      </div>
+"use client";
 
-      <div className="flex items-center shrink-0">
-        <a
-          href="https://cruxstudios.dev"
-          target="_blank"
-          rel="noopener noreferrer"
-          className="group inline-flex items-center gap-1.5 sm:gap-2 px-2.5 sm:px-3 py-1 sm:py-1.5 rounded-full bg-[#1B1815] hover:bg-black text-[#F5F3EC] border border-[#E1DDCF]/40 hover:border-cyan-400/60 shadow-[0_2px_8px_rgba(27,24,21,0.12)] hover:shadow-[0_0_15px_rgba(0,229,255,0.25)] hover:-translate-y-0.5 transition-all duration-300"
-        >
-          <span className="font-['Inter',sans-serif] font-medium text-[10px] sm:text-[11px] text-[#F5F3EC]/90 group-hover:text-white transition-colors hidden sm:inline">
-            Developed by
+import React from "react";
+import { useParams, usePathname } from "next/navigation";
+import HeaderSearchBar from "@/components/layout/HeaderSearchBar";
+import BuiltByCrux from "@/components/layout/BuiltByCrux";
+
+export default function OrganiserHeader({
+  title,
+  eventName,
+  showSearch,
+  tournamentId,
+}: {
+  title: string;
+  eventName?: string;
+  showSearch?: boolean;
+  tournamentId?: string;
+}) {
+  const params = useParams();
+  const pathname = usePathname();
+  const id = tournamentId || ((params?.id as string) || "");
+
+  const isDashboard = showSearch !== undefined
+    ? showSearch
+    : Boolean(id && (pathname?.includes("/dashboard") || title?.toLowerCase() === "overview"));
+
+  return (
+    <header className="flex-shrink-0 bg-[#FAF9F5] border-b border-[#E1DDCF] sticky top-0 z-50">
+      <div className="h-[60px] flex items-center justify-between px-4 sm:px-6 gap-3 sm:gap-6">
+        {/* ─── Left: Breadcrumb ─── */}
+        <div className="flex items-center gap-1.5 sm:gap-2 text-[13px] sm:text-[13.5px] min-w-0">
+          <span
+            title={eventName || "RingFlow"}
+            className="text-[#94A3B8] font-medium truncate max-w-[80px] min-[380px]:max-w-[105px] sm:max-w-[200px] md:max-w-[260px]"
+          >
+            {eventName || "RingFlow"}
           </span>
-          <div className="flex items-center gap-1 sm:gap-1.5">
-            <img
-              src="https://cruxstudios.dev/favicon.svg"
-              alt="CruxStudios"
-              className="h-3.5 sm:h-4 w-3.5 sm:w-4 drop-shadow-[0_0_6px_rgba(0,229,255,0.7)] group-hover:scale-110 group-hover:rotate-6 transition-all duration-300"
-            />
-            <span className="font-['Plus_Jakarta_Sans',sans-serif] font-black text-[11px] sm:text-[12.5px] text-white tracking-tight group-hover:text-[#00E5FF] transition-colors">
-              CruxStudios
-            </span>
-          </div>
           <svg
-            className="w-2.5 sm:w-3 h-2.5 sm:h-3 text-[#F5F3EC]/80 group-hover:text-[#00E5FF] group-hover:translate-x-0.5 group-hover:-translate-y-0.5 transition-all duration-300 hidden sm:block"
+            className="w-3.5 h-3.5 text-[#94A3B8] shrink-0"
             viewBox="0 0 24 24"
             fill="none"
             stroke="currentColor"
-            strokeWidth="2.5"
+            strokeWidth="2"
           >
-            <path d="M7 17L17 7M17 7H7M17 7V17" />
+            <path d="M9 18l6-6-6-6" />
           </svg>
-        </a>
+          <span className="text-[#0F172A] font-semibold truncate shrink-0">{title}</span>
+        </div>
+
+        {/* ─── Center: Live Interactive Search Bar (Dashboard only on Desktop) ─── */}
+        {isDashboard && (
+          <HeaderSearchBar tournamentId={id} role="organiser" className="hidden md:flex" />
+        )}
+
+        {/* ─── Right: Built by Crux Studios Badge ─── */}
+        <div className="flex items-center shrink-0 ml-auto self-stretch">
+          <BuiltByCrux />
+        </div>
       </div>
     </header>
   );

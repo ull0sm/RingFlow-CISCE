@@ -9,11 +9,8 @@ export default async function OrganiserRingBalancingPage({ params }: { params: P
 
   try {
     await ensureOrganiserHasAccessToTournament(tournamentId);
-  } catch (err: any) {
-    if (err.message?.includes("Not authenticated")) {
-      redirect("/login/organiser");
-    }
-    redirect("/organiser");
+  } catch {
+    redirect("/");
   }
 
   const supabase = await createClient();
@@ -39,7 +36,7 @@ export default async function OrganiserRingBalancingPage({ params }: { params: P
   }
 
   if (tournamentError || !tournament) {
-    redirect("/organiser");
+    redirect("/");
   }
 
   // Fetch assignments for these rings

@@ -1,8 +1,8 @@
 "use client";
 
-import React, { useState, Suspense } from "react";
+import React, { useState, useRef, useEffect, Suspense } from "react";
 import { useRouter } from "next/navigation";
-import { requestStagerAccess } from "@/actions/stager";
+import { requestStagerAccess, ensureStager } from "@/actions/stager";
 import { Turnstile } from "@marsidev/react-turnstile";
 import { RingFlowLogo } from "@/components/ui/ringflow-logo";
 import { v4 as uuidv4 } from "uuid";
@@ -32,7 +32,21 @@ function StagerLoginContent() {
   const [turnstileToken, setTurnstileToken] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState("");
+  const turnstileRef = useRef<any>(null);
   const router = useRouter();
+
+  useEffect(() => {
+    // 1. Prefill saved name
+    const savedName = localStorage.getItem("ringflow_stager_name");
+    if (savedName) setStagerName(savedName);
+
+    // 2. Auto-forward if session already active
+    ensureStager().then((res) => {
+      if (res?.tournamentId) {
+        router.replace(`/stager/event/${res.tournamentId}/balance`);
+      }
+    }).catch(() => {});
+  }, [router]);
 
   const handleInput = (e: React.ChangeEvent<HTMLInputElement>) => {
     let val = e.target.value.replace(/[^a-zA-Z0-9]/g, "").toUpperCase();
@@ -72,7 +86,6 @@ function StagerLoginContent() {
       // in the requestStagerAccess server action — no need to call ipapi.co here.
       const deviceInfo = { deviceId, browser, os, deviceType };
 
-
       const result = await requestStagerAccess(
         accessCode,
         stagerName,
@@ -85,14 +98,18 @@ function StagerLoginContent() {
           localStorage.setItem("ringflow_stager_name", stagerName.trim());
           const isHttps = window.location.protocol === "https:";
           const secureFlag = isHttps ? "; Secure" : "";
-          document.cookie = `stager_name=${encodeURIComponent(stagerName.trim())}; path=/; max-age=172800; SameSite=Strict${secureFlag}`;
+          document.cookie = `stager_name=${encodeURIComponent(stagerName.trim())}; path=/; max-age=172800; SameSite=Lax${secureFlag}`;
         }
         router.push(`/stager/waiting/${result.requestId}`);
       } else {
         setError(result.error || "Failed to submit access request.");
+        turnstileRef.current?.reset();
+        setTurnstileToken("");
       }
     } catch (err: any) {
       setError(err.message || "An unexpected error occurred.");
+      turnstileRef.current?.reset();
+      setTurnstileToken("");
     } finally {
       setIsLoading(false);
     }
@@ -163,10 +180,17 @@ function StagerLoginContent() {
 
           <div className="flex justify-center min-h-[65px] pt-1">
             <Turnstile
+              ref={turnstileRef}
               siteKey={process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY || ""}
               onSuccess={(token) => {
                 setTurnstileToken(token);
                 setError("");
+              }}
+              onExpire={() => {
+                setTurnstileToken("");
+              }}
+              onError={() => {
+                setTurnstileToken("");
               }}
               options={{ theme: "light" }}
             />

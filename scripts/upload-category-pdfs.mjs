@@ -3,7 +3,7 @@
 /**
  * Bulk Category PDF Uploader for RingFlow
  *
- * Uploads student list PDFs directly to Supabase Storage and updates the database.
+ * Uploads athlete list PDFs directly to Supabase Storage and updates the database.
  * Completely bypasses Next.js / Vercel body size limits.
  *
  * Features:

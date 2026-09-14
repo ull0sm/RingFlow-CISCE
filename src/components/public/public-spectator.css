@@ -55,16 +55,16 @@
 
 /* ---------- shell ---------- */
 .spectator-page {
-  max-width: min(1560px, 94vw);
+  max-width: min(1680px, 96vw);
   width: 100%;
   margin: 0 auto;
-  padding: clamp(24px, 3vw, 44px) clamp(16px, 2.5vw, 36px) 80px;
+  padding: clamp(16px, 2.5vw, 32px) clamp(14px, 2vw, 32px) 60px;
 }
 
 /* ---------- header (page chrome, no card) ---------- */
 .spectator-header {
-  padding-bottom: 24px;
-  margin-bottom: 26px;
+  padding-bottom: 12px;
+  margin-bottom: 16px;
   border-bottom: 1px solid var(--line);
 }
 
@@ -72,7 +72,7 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  margin-bottom: 20px;
+  margin-bottom: 10px;
 }
 
 .spectator-back-link {
@@ -139,7 +139,7 @@
   letter-spacing: 0.08em;
   color: var(--ink-faint);
   text-transform: uppercase;
-  margin-bottom: 8px;
+  margin-bottom: 4px;
 }
 
 .spectator-header__title {
@@ -148,7 +148,7 @@
   letter-spacing: -0.02em;
   font-size: 36px;
   line-height: 1.05;
-  margin-bottom: 16px;
+  margin-bottom: 0;
   color: var(--ink);
 }
 
@@ -201,6 +201,7 @@
 .spectator-search-wrap {
   position: relative;
   margin-bottom: 32px;
+  z-index: 50;
 }
 
 .spectator-search-box {
@@ -282,10 +283,10 @@
   background: var(--surface);
   border: 1px solid var(--line);
   border-radius: 8px;
-  box-shadow: 0 10px 24px rgba(27, 24, 21, 0.08);
+  box-shadow: 0 10px 24px rgba(27, 24, 21, 0.12), 0 20px 48px rgba(0, 0, 0, 0.08);
   max-height: 340px;
   overflow-y: auto;
-  z-index: 20;
+  z-index: 99999;
 }
 
 .spectator-search-results.open {

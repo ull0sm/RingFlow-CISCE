@@ -61,7 +61,7 @@ export type PDFUploadResult = {
 // ─── Action ──────────────────────────────────────────────────────────────────
 
 /**
- * Bulk-upload category student-list PDFs.
+ * Bulk-upload category athlete-list PDFs.
  *
  * Each file should be named exactly as the category name + ".pdf"
  * (e.g. "U19_F_40 - 44 Kgs.pdf"). We fuzzy-match by normalized name.

@@ -12,23 +12,29 @@ export default function OrganiserWaitingRoom() {
   const [status, setStatus] = useState("pending");
 
   const handleApproved = (tournamentId: string, token?: string) => {
+    // Also ensure server-side cookie is set via Server Action
+    checkOrganiserStatus(id).catch(() => {});
+
     const isHttps = typeof window !== "undefined" && window.location.protocol === "https:";
     const secureFlag = isHttps ? "; Secure" : "";
     if (token) {
-      document.cookie = `org_token=${token}; path=/; max-age=172800; SameSite=Strict${secureFlag}`;
+      document.cookie = `org_token=${token}; path=/; max-age=604800; SameSite=Lax${secureFlag}`;
     } else {
-      document.cookie = `org_token=${id}; path=/; max-age=172800; SameSite=Strict${secureFlag}`;
+      document.cookie = `org_token=${id}; path=/; max-age=604800; SameSite=Lax${secureFlag}`;
     }
 
     setStatus("approved");
     setTimeout(() => {
-      router.push(`/organiser/event/${tournamentId}/dashboard`);
+      router.replace(`/organiser/event/${tournamentId}/dashboard`);
     }, 1500);
   };
 
   useEffect(() => {
     // 1. Initial check
     checkOrganiserStatus(id).then((res) => {
+      if (res.organiserName) {
+        localStorage.setItem("ringflow_organiser_name", res.organiserName);
+      }
       if (res.status === "approved" && res.tournamentId) {
         handleApproved(res.tournamentId, res.sessionToken || undefined);
       } else if (res.status === "rejected") {
@@ -49,6 +55,9 @@ export default function OrganiserWaitingRoom() {
         },
         (payload) => {
           const newStatus = payload.new.status;
+          if (payload.new?.organiser_name) {
+            localStorage.setItem("ringflow_organiser_name", payload.new.organiser_name);
+          }
           if (newStatus === "approved") {
             handleApproved(payload.new.tournament_id, payload.new.session_token);
           } else if (newStatus === "rejected") {
@@ -118,7 +127,7 @@ export default function OrganiserWaitingRoom() {
               <p className="text-body-lg text-on-surface-variant max-w-xs mx-auto mb-10">
                 Your request to access the Organiser Terminal has been sent to the tournament director. Please wait for approval.
               </p>
-              <div className="w-full max-w-xs bg-surface-container-lowest border border-outline-variant rounded-lg p-4 flex items-center gap-3 shadow-xs">
+              <div className="w-full max-w-xs bg-white border border-outline-variant rounded-lg p-4 flex items-center gap-3 shadow-xs">
                 <span className="material-symbols-outlined text-outline">info</span>
                 <span className="text-body-sm text-on-surface-variant text-left">
                   Keep this screen open. You will be redirected automatically once approved.
