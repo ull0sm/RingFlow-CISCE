@@ -5,7 +5,10 @@ import { createClient } from "@/utils/supabase/server";
 import PublicStats from "@/components/public/PublicStats";
 import PublicTournamentGrid from "@/components/public/PublicTournamentGrid";
 import { RingFlowLogo } from "@/components/ui/ringflow-logo";
-import { getEventDateKey } from "@/lib/utils";
+import { getTodayDateKey, computeTournamentStatus } from "@/lib/utils";
+
+export const dynamic = "force-dynamic";
+export const revalidate = 0;
 
 export default async function PublicHome() {
   const supabase = await createClient();
@@ -16,40 +19,25 @@ export default async function PublicHome() {
       rings (id),
       categories (id)
     `)
+    .neq("status", "draft")
     .order("event_date", { ascending: true });
 
-  const now = new Date();
-  const year = now.getFullYear();
-  const month = String(now.getMonth() + 1).padStart(2, "0");
-  const day = String(now.getDate()).padStart(2, "0");
-  const todayStr = `${year}-${month}-${day}`;
+  const todayStr = getTodayDateKey();
 
-  const getEventStatus = (t: any): "live" | "upcoming" | "past" => {
-    if (t.status === "completed" || t.status === "archived") return "past";
-    if (t.status === "live") return "live";
-    if (!t.event_date) return "upcoming";
-    const dateKey = getEventDateKey(t.event_date);
-    const rawKey = String(t.event_date).split("T")[0];
-    if (dateKey === todayStr || rawKey === todayStr) {
-      return "live";
-    } else if (dateKey > todayStr || rawKey > todayStr) {
-      return "upcoming";
-    } else {
-      return "past";
-    }
-  };
+  // Strictly filter out any draft tournaments (safety check)
+  const visibleTournaments = (tournaments || []).filter((t) => t.status !== "draft");
 
   // Strictly Stacked: 1. Live Events on top -> 2. Upcoming Events in middle -> 3. Over Events at bottom
-  const liveTournaments = (tournaments || [])
-    .filter((t) => getEventStatus(t) === "live")
+  const liveTournaments = visibleTournaments
+    .filter((t) => computeTournamentStatus(t, todayStr) === "live")
     .sort((a, b) => new Date(a.event_date || 0).getTime() - new Date(b.event_date || 0).getTime());
 
-  const upcomingTournaments = (tournaments || [])
-    .filter((t) => getEventStatus(t) === "upcoming")
+  const upcomingTournaments = visibleTournaments
+    .filter((t) => computeTournamentStatus(t, todayStr) === "upcoming")
     .sort((a, b) => new Date(a.event_date || 0).getTime() - new Date(b.event_date || 0).getTime());
 
-  const pastTournaments = (tournaments || [])
-    .filter((t) => getEventStatus(t) === "past")
+  const pastTournaments = visibleTournaments
+    .filter((t) => computeTournamentStatus(t, todayStr) === "past")
     .sort((a, b) => new Date(b.event_date || 0).getTime() - new Date(a.event_date || 0).getTime());
 
   const allTournaments = [...liveTournaments, ...upcomingTournaments, ...pastTournaments];

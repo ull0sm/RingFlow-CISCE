@@ -2,7 +2,8 @@
 
 import React, { useState } from "react";
 import Link from "next/link";
-import { formatDisplayDate, getEventDateKey } from "@/lib/utils";
+import { formatDisplayDate, getEventDateKey, computeTournamentStatus } from "@/lib/utils";
+import { useEffect } from "react";
 
 interface Tournament {
   id: string;
@@ -23,24 +24,44 @@ interface PublicTournamentGridProps {
 export default function PublicTournamentGrid({ tournaments, todayStr }: PublicTournamentGridProps) {
   const [selectedUpcoming, setSelectedUpcoming] = useState<Tournament | null>(null);
 
-  const getEventStatus = (t: Tournament): "live" | "upcoming" | "past" => {
-    if (t.status === "completed" || t.status === "archived") return "past";
-    if (t.status === "live") return "live";
-    if (!t.event_date) return "upcoming";
-    const dateKey = getEventDateKey(t.event_date);
-    const rawKey = String(t.event_date).split("T")[0];
-    if (dateKey === todayStr || rawKey === todayStr) {
-      return "live";
-    } else if (dateKey > todayStr || rawKey > todayStr) {
-      return "upcoming";
-    } else {
-      return "past";
+  // Sync client-side today date if browser is in a different local timezone
+  const [effectiveTodayStr, setEffectiveTodayStr] = useState(todayStr);
+
+  useEffect(() => {
+    try {
+      const browserToday = new Intl.DateTimeFormat("en-CA", {
+        year: "numeric",
+        month: "2-digit",
+        day: "2-digit",
+      }).format(new Date());
+      if (browserToday && browserToday !== effectiveTodayStr) {
+        setEffectiveTodayStr(browserToday);
+      }
+    } catch {
+      const now = new Date();
+      const browserToday = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
+      if (browserToday !== effectiveTodayStr) {
+        setEffectiveTodayStr(browserToday);
+      }
     }
+  }, [effectiveTodayStr]);
+
+  const getEventStatus = (t: Tournament): "live" | "upcoming" | "past" => {
+    return computeTournamentStatus(t, effectiveTodayStr);
   };
 
   const formatDate = (dateVal?: string) => formatDisplayDate(dateVal);
 
-  if (tournaments.length === 0) {
+  // Strictly filter out any draft tournaments
+  const visibleTournaments = (tournaments || []).filter((t) => t.status !== "draft");
+
+  // Dynamically ensure Live tournaments are stacked on top, Upcoming in middle, Past at bottom
+  const liveEvents = visibleTournaments.filter((t) => getEventStatus(t) === "live");
+  const upcomingEvents = visibleTournaments.filter((t) => getEventStatus(t) === "upcoming");
+  const pastEvents = visibleTournaments.filter((t) => getEventStatus(t) === "past");
+  const sortedTournaments = [...liveEvents, ...upcomingEvents, ...pastEvents];
+
+  if (sortedTournaments.length === 0) {
     return (
       <div className="bg-white border border-[#E1DDCF] rounded-2xl p-12 text-center max-w-lg mx-auto">
         <p className="text-[#68645A] text-[15px] font-medium">No tournaments currently scheduled.</p>
@@ -51,7 +72,7 @@ export default function PublicTournamentGrid({ tournaments, todayStr }: PublicTo
   return (
     <>
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {tournaments.map((t) => {
+        {sortedTournaments.map((t) => {
           const status = getEventStatus(t);
           const isLiveEvent = status === "live";
           const isUpcoming = status === "upcoming";

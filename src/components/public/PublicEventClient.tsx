@@ -3,7 +3,7 @@
 import React, { useState, useEffect, useRef, useMemo } from "react";
 import Link from "next/link";
 import { createClient } from "@/utils/supabase/client";
-import { formatDisplayDateWithWeekday } from "@/lib/utils";
+import { formatDisplayDateWithWeekday, computeTournamentStatus } from "@/lib/utils";
 import { matchesCategorySearch } from "@/lib/searchUtils";
 import { PdfViewerModal } from "@/components/ui/PdfViewerModal";
 import "./public-spectator.css";
@@ -447,43 +447,10 @@ export default function PublicEventClient({
   }, [rings, assignments]);
 
   const { isEventLive, isEventPast } = useMemo(() => {
-    if (tournament.status === "completed" || tournament.status === "archived") {
-      return { isEventLive: false, isEventPast: true };
-    }
-    if (tournament.status === "live") {
-      return { isEventLive: true, isEventPast: false };
-    }
-
-    if (tournament.event_date) {
-      const now = new Date();
-      const year = now.getFullYear();
-      const month = String(now.getMonth() + 1).padStart(2, "0");
-      const day = String(now.getDate()).padStart(2, "0");
-      const todayStr = `${year}-${month}-${day}`;
-
-      const d = new Date(tournament.event_date);
-      let dateKey = "";
-      if (!isNaN(d.getTime())) {
-        const y = d.getFullYear();
-        const m = String(d.getMonth() + 1).padStart(2, "0");
-        const dt = String(d.getDate()).padStart(2, "0");
-        dateKey = `${y}-${m}-${dt}`;
-      }
-      const rawKey = String(tournament.event_date).split("T")[0];
-
-      if (dateKey === todayStr || rawKey === todayStr) {
-        return { isEventLive: true, isEventPast: false };
-      } else if (dateKey > todayStr || rawKey > todayStr) {
-        return { isEventLive: false, isEventPast: false };
-      } else {
-        return { isEventLive: false, isEventPast: true };
-      }
-    }
-
-    if (runningCount > 0) {
-      return { isEventLive: true, isEventPast: false };
-    }
-
+    const status = computeTournamentStatus(tournament);
+    if (status === "live") return { isEventLive: true, isEventPast: false };
+    if (status === "past") return { isEventLive: false, isEventPast: true };
+    if (runningCount > 0) return { isEventLive: true, isEventPast: false };
     return { isEventLive: false, isEventPast: false };
   }, [tournament, runningCount]);
 

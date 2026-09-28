@@ -11,7 +11,6 @@ export default function PublicEventLoading() {
 
   return (
     <div className="spectator-root min-h-screen">
-      <script dangerouslySetInnerHTML={{ __html: "window.scrollTo(0, 0);" }} />
       <div className="spectator-page">
         {/* ---------- Header Skeleton ---------- */}
         <header className="spectator-header">
